@@ -502,7 +502,7 @@ window.STARTER_CARDS = [
   let sim = null;
   let toastTimer;
 
-  const APP_VERSION = '1.5.0';
+  const APP_VERSION = '1.6.0';
   const RULES_SECTIONS = [
     {title:'1. Objetivo', html:`<p>Obtén la meta de fichas antes que los demás jugadores para reclamar el poder de la <b>Mano Imposible</b>. La meta depende del modo de juego.</p><p>Cuando un jugador alcanza la meta, la partida no termina inmediatamente: se completa la ronda actual hasta que todos hayan tenido el mismo número de turnos y luego se comparan las fichas.</p>`},
     {title:'2. Tipos de cartas', html:`<h4>2.1 Poker Cards</h4><p>Son las cartas utilizadas para formar combinaciones de póker y obtener fichas.</p><p><b>Límite base de Poker Cards: 7.</b> Este límite indica cuántas cartas puedes conservar al terminar tu turno; no impide robar por encima de ese número durante el turno.</p><h4>2.2 Power Cards</h4><p>Son las cartas que modifican el juego.</p><div class="rules-table-wrap"><table class="rules-table"><thead><tr><th>Tipo</th><th>Color</th><th>Función</th></tr></thead><tbody><tr><td>SuperCards</td><td>Celeste</td><td>Efectos rápidos que activas durante tu Main Phase.</td></tr><tr><td>CounterCards</td><td>Rojo / magenta</td><td>Efectos rápidos de respuesta durante la Main Phase rival.</td></tr><tr><td>HyperCards</td><td>Amarillo</td><td>Efectos persistentes que permanecen activos sobre la mesa.</td></tr></tbody></table></div><p>Una HyperCard activada sale de tu mano y se coloca frente a ti sobre la mesa. Mientras esté activa no cuenta como una Power Card en mano.</p><p>El documento indica en esta sección un límite de <b>3 HyperCards activas</b> por jugador.</p>`},
@@ -578,17 +578,40 @@ window.STARTER_CARDS = [
     return `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.cards}</svg>`;
   }
   function appBar(title,{back=false,logo=false,settings=false}={}){return `<div class="topbar ${logo?'':'compact'}">${back?`<button class="icon-btn" data-action="back">${icon('back')}</button>`:''}${logo?`<div class="brand-badge" aria-label="Poker Blitz">PB</div>`:''}<h1>${esc(title)}</h1>${settings?`<button class="icon-btn" data-action="settings">${icon('settings','lg')}</button>`:''}</div>`}
+  function builtinArtIndex(card){
+    const refs=[card?.asset,card?.image].map(v=>String(v||''));
+    for(const ref of refs){
+      const m=ref.match(/(?:^|\/)(\d{3})_[^/]+\.jpg(?:$|[?#])/i) || ref.match(/^(\d{3})_[^/]+\.jpg$/i);
+      if(m){const n=Number(m[1]);if(n>=1&&n<=56)return n-1;}
+    }
+    const id=String(card?.id||'').match(/catalog_v3_(\d{3})/i);
+    if(id){const n=Number(id[1]);if(n>=1&&n<=56)return n-1;}
+    return -1;
+  }
+  function atlasArtHTML(card,ox,oy,zoom,tint){
+    const idx=builtinArtIndex(card);if(idx<0)return'';
+    const col=idx%8,row=Math.floor(idx/8);
+    const x=(col/7*100).toFixed(6),y=(row/6*100).toFixed(6);
+    return `<div class="atlas-art" aria-hidden="true" style="background-image:url('assets/starter_cards_atlas.webp');background-size:800% 700%;background-position:${x}% ${y}%;--ox:${ox};--oy:${oy};--zoom:${zoom};--filter:${tint}"></div>`;
+  }
   function cardHTML(card, extra=''){
     const dl=(card.description||'').length; const descClass=dl>240?'tiny-text':dl>200?'small-text':'';
     const img=card.image||card.asset||''; const tint=card.tintEnabled&&card.tintStrength>0?`sepia(1) saturate(4) hue-rotate(${hueFromHex(card.tintColor)}deg) opacity(${1-card.tintStrength*.15})`: 'none';
     const inset=(Number(card.imageInsetFraction??.03)*100).toFixed(1)+'%';
     const ox=(Number(card.imageOffsetX||0)*35).toFixed(1)+'%'; const oy=(Number(card.imageOffsetY||0)*35).toFixed(1)+'%'; const zoom=Number(card.imageScale||1);
-    return `<div class="card-preview ${descClass} ${extra}" style="--accent:${esc(card.accentColor||'#18E0E5')};background:${esc(card.cardBackgroundColor||'#F1F1F1')}"><div class="card-title">${esc(card.name)}</div><div class="card-media"><div class="card-media-inner" style="--inset:${inset}">${img?`<img src="${esc(img)}" alt="" style="--ox:${ox};--oy:${oy};--zoom:${zoom};--filter:${tint}">`:''}</div></div><div class="card-divider"></div><div class="card-desc">${esc(card.description)}</div></div>`;
+    const builtIn=builtinArtIndex(card)>=0&&!card.userCreated;
+    const media=builtIn?atlasArtHTML(card,ox,oy,zoom,tint):(img?`<img src="${esc(img)}" alt="" style="--ox:${ox};--oy:${oy};--zoom:${zoom};--filter:${tint}">`:'');
+    return `<div class="card-preview ${descClass} ${extra}" style="--accent:${esc(card.accentColor||'#18E0E5')};background:${esc(card.cardBackgroundColor||'#F1F1F1')}"><div class="card-title">${esc(card.name)}</div><div class="card-media"><div class="card-media-inner" style="--inset:${inset}">${media}</div></div><div class="card-divider"></div><div class="card-desc">${esc(card.description)}</div></div>`;
   }
   function hueFromHex(hex){if(!/^#[0-9a-f]{6}$/i.test(hex||''))return 0;const r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255,max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;if(!d)return 0;let h=max===r?((g-b)/d)%6:max===g?(b-r)/d+2:(r-g)/d+4;return Math.round(h*60<0?h*60+360:h*60)-50;}
   function getCard(id){return state.cards.find(c=>c.id===id)} function getDeck(id){return state.decks.find(d=>d.id===id)}
   function go(to){screen=to;modal=null;render();}
-  function closeModal(){if(modal?.type==='zoom'&&modal.returnTo){modal=modal.returnTo;render();return;}modal=null;render();}
+  function restoreAddScroll(top){requestAnimationFrame(()=>{const list=$('.add-list');if(list)list.scrollTop=Number(top||0);});}
+  function renderAddPreservingScroll(top){render();restoreAddScroll(top);}
+  function closeModal(){
+    if(modal?.type==='zoom'&&modal.returnTo){const back=modal.returnTo,top=back.scrollTop||0;modal=back;render();restoreAddScroll(top);return;}
+    modal=null;render();
+  }
 
   function render(){
     const maps={home:renderHome,cards:renderCards,decks:renderDecks,cardEditor:renderCardEditor,deckEditor:renderDeckEditor,simulator:renderSimulator,settings:renderSettings,export:renderExport,rules:renderRules};
@@ -693,7 +716,7 @@ window.STARTER_CARDS = [
     else if(a==='pick-image'){$('#imagePicker').dataset.mode='replace';$('#imagePicker').click()}
     else if(a==='edit-card'){editingCard=structuredClone(getCard(id));go('cardEditor')}
     else if(a==='select-card'){selectedCardId=id;render()}
-    else if(a==='zoom-card'){modal={type:'zoom',id,returnTo:modal?structuredClone(modal):null};render()}
+    else if(a==='zoom-card'){const ret=modal?structuredClone(modal):null;if(ret?.type==='add')ret.scrollTop=$('.add-list')?.scrollTop||0;modal={type:'zoom',id,returnTo:ret};render()}
     else if(a==='close-modal'||a==='modal-backdrop'){closeModal()}
     else if(a==='delete-card'){if(confirm('¿Eliminar esta carta? También se quitará de los decks.')){state.cards=state.cards.filter(c=>c.id!==id);state.decks=state.decks.map(d=>({...d,cardIds:d.cardIds.filter(x=>x!==id)}));saveState();render()}}
     else if(a==='set-color'){editingCard.accentColor=el.dataset.color;editingCard.tintColor=el.dataset.color;render()}
@@ -705,9 +728,9 @@ window.STARTER_CARDS = [
     else if(a==='delete-deck'){e.stopPropagation();if(confirm('¿Eliminar este deck?')){state.decks=state.decks.filter(d=>d.id!==id);saveState();render()}}
     else if(a==='deck-plus'){getDeck(editingDeckId).cardIds.push(id);saveState();render()}
     else if(a==='deck-minus'){const d=getDeck(editingDeckId),i=d.cardIds.indexOf(id);if(i>=0)d.cardIds.splice(i,1);saveState();render()}
-    else if(a==='deck-minus-modal'){const d=getDeck(editingDeckId),i=d.cardIds.indexOf(id);if(i>=0)d.cardIds.splice(i,1);saveState();render()}
+    else if(a==='deck-minus-modal'){const top=$('.add-list')?.scrollTop||0,d=getDeck(editingDeckId),i=d.cardIds.indexOf(id);if(i>=0)d.cardIds.splice(i,1);saveState();renderAddPreservingScroll(top)}
     else if(a==='add-card-modal'){addQuery='';modal={type:'add'};render()}
-    else if(a==='add-card-to-deck'){getDeck(editingDeckId).cardIds.push(id);saveState();render()}
+    else if(a==='add-card-to-deck'){const top=$('.add-list')?.scrollTop||0;getDeck(editingDeckId).cardIds.push(id);saveState();renderAddPreservingScroll(top)}
     else if(a==='test-deck'){initSim(editingDeckId);go('simulator')}
     else if(a==='exit-sim'){modal={type:'exit-sim'};render()}
     else if(a==='exit-with-report'){if(printSimulationReport()){sim=null;modal=null;go('home')}}
@@ -732,7 +755,17 @@ window.STARTER_CARDS = [
   $('#imagePicker').addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const img=new Image();img.onload=()=>{const max=1600,scale=Math.min(1,max/Math.max(img.width,img.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);if(!editingCard)editingCard=defaultCard();editingCard.image=canvas.toDataURL('image/jpeg',.88);editingCard.mediaMode='IMAGE';editingCard.tintEnabled=false;editingCard.tintStrength=0;if(e.target.dataset.mode==='new')go('cardEditor');else render();e.target.value=''};img.src=rd.result};rd.readAsDataURL(f)});
   $('#jsonPicker').addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const x=JSON.parse(rd.result);if(!Array.isArray(x.cards)||!Array.isArray(x.decks))throw Error();state={...defaultState(),...x,handSize:[3,4,5].includes(Number(x.handSize))?Number(x.handSize):5};saveState();toast('Datos importados');go('home')}catch{toast('JSON no válido')}e.target.value=''};rd.readAsText(f)});
   function downloadJSON(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='deck_creator_backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
-  function printDeck(deckId){const d=getDeck(deckId);if(!d||!d.cardIds.length){toast('El deck está vacío');return}const cards=d.cardIds.map(getCard).filter(Boolean),p=state.printSettings,w=open('','_blank');if(!w){toast('El navegador bloqueó la ventana de impresión');return}const base=new URL('.',location.href).href;const cells=cards.map(c=>`<div class="print-card">${cardHTML(c).replaceAll('src="assets/','src="'+base+'assets/')}</div>`).join('');w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(d.name)}</title><link rel="stylesheet" href="${new URL('styles.css',location.href)}"><style>@page{size:${p.pageSize==='LETTER'?'Letter':'A4'};margin:${p.marginMm}mm}body{margin:0;background:#fff}.sheet{display:grid;grid-template-columns:repeat(${p.columns},1fr);gap:${p.gapMm}mm}.print-card{break-inside:avoid;aspect-ratio:.72}.print-card .card-preview{height:100%}@media print{.sheet{page-break-after:auto}}</style></head><body><div class="sheet">${cells}</div><script>onload=()=>setTimeout(()=>print(),300)<\/script></body></html>`);w.document.close();}
+  function printDeck(deckId){
+    const d=getDeck(deckId);if(!d||!d.cardIds.length){toast('El deck está vacío');return}
+    const cards=d.cardIds.map(getCard).filter(Boolean),p=state.printSettings,w=open('','_blank');
+    if(!w){toast('El navegador bloqueó la ventana de impresión');return}
+    const atlasUrl=new URL('assets/starter_cards_atlas.webp',location.href).href;
+    const cells=cards.map(c=>`<div class="print-card">${cardHTML(c).replaceAll("assets/starter_cards_atlas.webp",atlasUrl)}</div>`).join('');
+    const cardCss=`*{box-sizing:border-box}.card-preview{position:relative;aspect-ratio:.72;width:100%;background:#F1F1F1;border:2px solid #000;border-radius:3.5%;padding:2.1%;overflow:hidden;display:flex;flex-direction:column;gap:1.25%;container-type:inline-size;color:#101214;font-family:Arial,sans-serif}.card-title{height:10.5%;min-height:10.5%;background:var(--accent);border:1px solid #000;border-radius:6%;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:900;font-size:5.35cqw;line-height:1;padding:1.5% 4%;overflow:hidden;text-transform:uppercase}.card-media{height:43%;min-height:43%;border-radius:3%;position:relative;overflow:hidden;background:#F1F1F1}.card-media-inner{position:absolute;inset:var(--inset,3%);border:2px solid var(--accent);border-radius:3%;overflow:hidden;background:#eee}.card-media img,.card-media .atlas-art{width:100%;height:100%;transform:translate(var(--ox,0%),var(--oy,0%)) scale(var(--zoom,1));transform-origin:center;display:block;filter:var(--filter,none)}.card-media img{object-fit:cover}.card-media .atlas-art{background-repeat:no-repeat}.card-divider{height:1.4%;min-height:3px;background:var(--accent);margin:0 -1.4%}.card-desc{flex:1;background:#fff;border:2px solid #000;outline:1.5px solid var(--accent);outline-offset:-3px;border-radius:3%;display:flex;align-items:center;justify-content:center;text-align:center;white-space:pre-line;padding:4%;font-size:4.4cqw;line-height:1.17;overflow:hidden}.small-text .card-desc{font-size:3.85cqw}.tiny-text .card-desc{font-size:3.55cqw;line-height:1.13}`;
+    w.document.write(`<!doctype html><html lang="es"><head><meta charset="utf-8"><title>${esc(d.name)}</title><style>@page{size:${p.pageSize==='LETTER'?'Letter':'A4'};margin:${p.marginMm}mm}html,body{margin:0;padding:0;background:#fff}${cardCss}.sheet{display:grid;grid-template-columns:repeat(${p.columns},minmax(0,1fr));gap:${p.gapMm}mm;align-items:start}.print-card{break-inside:avoid;page-break-inside:avoid;width:100%;aspect-ratio:.72}.print-card .card-preview{height:100%;width:100%}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body><div class="sheet">${cells}</div><script>window.addEventListener('load',()=>setTimeout(()=>window.print(),700));<\/script></body></html>`);
+    w.document.close();
+  }
+
 
   window.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal){closeModal()}});
   render();
