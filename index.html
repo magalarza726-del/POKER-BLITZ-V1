@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#18E0E5">
-<meta name="description" content="POKER BLITZ V1 — versión web para escritorio y GitHub Pages">
-<title>POKER BLITZ V1</title>
+<meta name="description" content="POKER BLITZ V1 — Web 1.2 para escritorio y GitHub Pages">
+<title>POKER BLITZ V1 · Web 1.2</title>
 <style>
 :root{
   --cyan:#18E0E5;--cyan-soft:#DDFBFC;--page:#F8F9FA;--ink:#101214;--muted:#666;
@@ -17,7 +17,7 @@
 button,input,textarea,select{font:inherit;color:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.45}
 .app-shell{min-height:100vh;padding:18px;display:flex;flex-direction:column;gap:10px}
 .topbar{height:72px;min-height:72px;background:var(--cyan);border-radius:18px;display:flex;align-items:center;padding:0 16px;gap:10px}
-.topbar.compact{height:66px;min-height:66px}.topbar-logo{width:50px;height:50px;object-fit:contain}.topbar h1{font-size:30px;margin:0;font-weight:900;letter-spacing:-.7px;flex:1}
+.topbar.compact{height:66px;min-height:66px}.topbar-logo{width:50px;height:50px;object-fit:contain}.topbar h1{font-size:30px;margin:0;font-weight:900;letter-spacing:-.7px;flex:1}.brand-badge{width:52px;height:52px;border:2px solid #101214;border-radius:12px;background:#fff;display:grid;place-items:center;font-size:17px;font-weight:1000;letter-spacing:-1px;box-shadow:inset 0 0 0 4px var(--cyan-soft)}
 .icon-btn{width:44px;height:44px;border:0;background:transparent;border-radius:12px;display:grid;place-items:center}.icon-btn:hover{background:rgba(255,255,255,.38)}
 .icon{width:26px;height:26px;display:inline-block;vertical-align:middle}.icon.lg{width:34px;height:34px}.icon.xl{width:44px;height:44px}
 .panel{background:#fff;border:2px solid var(--ink);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}.panel.pad{padding:14px}.panel.soft{background:var(--cyan-soft)}
@@ -25,7 +25,7 @@ button,input,textarea,select{font:inherit;color:inherit}button{cursor:pointer}bu
 .welcome-title{font-size:26px;font-weight:900;margin:0 0 2px}.muted{color:#5f6368}.small{font-size:12px}.tiny{font-size:11px}.divider{border:0;border-top:1px solid #ddd;margin:10px 0}
 .summary-title{font-size:19px;font-weight:900;margin:0 0 8px}.summary-row{display:flex;align-items:center;gap:9px;padding:6px 0}.summary-row .summary-icon{color:var(--cyan)}.summary-label{font-weight:700;flex:1}.summary-value{font-size:22px;font-weight:900}
 .section-head{display:flex;align-items:center;gap:10px}.section-head h2{font-size:26px;margin:0;font-weight:900;letter-spacing:-.4px;flex:1}.text-btn{border:0;background:transparent;color:#25292d;font-weight:800;padding:8px 6px;border-radius:9px}.text-btn:hover{background:var(--cyan-soft)}
-.home-cards{flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:6px}.home-card{display:flex;min-width:0;flex-direction:column;align-items:center;cursor:pointer;gap:3px}.home-card-name{font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center}
+.home-cards{flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:6px;align-items:start}.home-card{display:flex;min-width:0;min-height:0;flex-direction:column;align-items:center;cursor:pointer;gap:3px}.home-card .card-preview{width:100%;height:auto;max-height:210px}.home-card-name{font-size:11px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%;text-align:center}
 .deck-mini-list{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0}.deck-mini{flex:1;min-height:56px;background:#F8F8F8;border:1px solid var(--ink);border-radius:12px;padding:10px;display:flex;align-items:center;gap:10px;cursor:pointer}.deck-mini:hover{background:var(--cyan-soft)}.deck-mini .deck-info{flex:1;min-width:0}.deck-mini .deck-name{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .quick-row{height:86px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.quick-action{border:2px solid var(--ink);background:var(--cyan-soft);border-radius:14px;padding:0 12px;display:flex;align-items:center;gap:9px;text-align:left}.quick-action:hover{transform:translateY(-1px);background:#c9f7f8}.quick-action b{display:block;font-size:15px}.quick-action span{display:block;font-size:11px;color:#555}
 .empty{border:2px solid var(--ink);border-radius:14px;background:#fff;padding:20px;text-align:center;display:grid;place-items:center;min-height:95px}
@@ -548,7 +548,15 @@ window.STARTER_CARDS = [
       const raw=localStorage.getItem(STORAGE_KEY); if(!raw) return defaultState();
       const saved=JSON.parse(raw), base=defaultState();
       const handSize=[3,4,5].includes(Number(saved.handSize))?Number(saved.handSize):5;
-      return {...base,...saved,handSize,cards:Array.isArray(saved.cards)?saved.cards:starterCards,decks:Array.isArray(saved.decks)?saved.decks:base.decks,printSettings:{...base.printSettings,...saved.printSettings},randomizationSettings:{...base.randomizationSettings,...saved.randomizationSettings}};
+      const starterById=new Map(starterCards.map(c=>[c.id,c]));
+      const migratedCards=(Array.isArray(saved.cards)?saved.cards:starterCards).map(c=>{
+        const seed=starterById.get(c.id);
+        if(!seed) return c;
+        const img=String(c.image||'');
+        const brokenBuiltin=!img || (!img.startsWith('data:image/') && !img.startsWith('blob:'));
+        return brokenBuiltin?{...c,asset:seed.asset,image:seed.image}:{...c,asset:seed.asset};
+      });
+      return {...base,...saved,handSize,cards:migratedCards,decks:Array.isArray(saved.decks)?saved.decks:base.decks,printSettings:{...base.printSettings,...saved.printSettings},randomizationSettings:{...base.randomizationSettings,...saved.randomizationSettings}};
     }catch(e){console.error(e);return defaultState();}
   }
   function saveState(){localStorage.setItem(STORAGE_KEY,JSON.stringify(state));}
@@ -568,7 +576,7 @@ window.STARTER_CARDS = [
     };
     return `<svg class="icon ${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]||paths.cards}</svg>`;
   }
-  function appBar(title,{back=false,logo=false,settings=false}={}){return `<div class="topbar ${logo?'':'compact'}">${back?`<button class="icon-btn" data-action="back">${icon('back')}</button>`:''}${logo?`<img class="topbar-logo" src="${window.APP_LOGO||''}" alt="POKER BLITZ">`:''}<h1>${esc(title)}</h1>${settings?`<button class="icon-btn" data-action="settings">${icon('settings','lg')}</button>`:''}</div>`}
+  function appBar(title,{back=false,logo=false,settings=false}={}){return `<div class="topbar ${logo?'':'compact'}">${back?`<button class="icon-btn" data-action="back">${icon('back')}</button>`:''}${logo?`<div class="brand-badge" aria-label="Poker Blitz">PB</div>`:''}<h1>${esc(title)}</h1>${settings?`<button class="icon-btn" data-action="settings">${icon('settings','lg')}</button>`:''}</div>`}
   function cardHTML(card, extra=''){
     const dl=(card.description||'').length; const descClass=dl>240?'tiny-text':dl>200?'small-text':'';
     const img=card.image||card.asset||''; const tint=card.tintEnabled&&card.tintStrength>0?`sepia(1) saturate(4) hue-rotate(${hueFromHex(card.tintColor)}deg) opacity(${1-card.tintStrength*.15})`: 'none';
@@ -587,7 +595,7 @@ window.STARTER_CARDS = [
   }
   function renderHome(){
     const cards=state.cards.slice(0,4),decks=state.decks.slice(0,3);
-    return `<main class="app-shell">${appBar('Deck Creator',{logo:true,settings:true})}<section class="home-main"><div class="panel"><div class="panel-inner"><h2 class="welcome-title">¡Bienvenido!</h2><div class="muted small">Sube, organiza y prueba tus decks de cartas.</div><hr class="divider"><h3 class="summary-title">Resumen rápido</h3>${summary('cards','Total de cartas',state.cards.length)}${summary('cards','Mis decks',state.decks.length)}${summary('game','Modo prueba','Listo')}</div></div><div class="panel"><div class="panel-inner"><div class="section-head"><h2>Mis cartas</h2><button class="text-btn" data-action="all-cards">Ver todas ${icon('right')}</button></div>${cards.length?`<div class="home-cards">${cards.map(c=>`<div class="home-card" data-action="edit-card" data-id="${c.id}">${cardHTML(c)}<div class="home-card-name">${esc(c.name)}</div></div>`).join('')}</div>`:`<div class="empty">Sube una foto para crear tu primera carta.</div>`}</div></div><div class="panel"><div class="panel-inner"><div class="section-head"><h2>Mis decks</h2><button class="text-btn" data-action="all-decks">Ver todos ${icon('right')}</button></div><div class="deck-mini-list">${decks.length?decks.map(d=>`<div class="deck-mini" data-action="open-deck" data-id="${d.id}">${icon('cards','lg')}<div class="deck-info"><div class="deck-name">${esc(d.name)}</div><div class="tiny muted">${d.cardIds.length} cartas</div></div>${icon('right')}</div>`).join(''):`<div class="empty">Crea un deck para comenzar.</div>`}</div></div></div></section><section class="quick-row"><button class="quick-action" data-action="new-card">${icon('upload','lg')}<div><b>Subir foto</b><span>Crear desde imagen</span></div></button><button class="quick-action" data-action="new-deck">${icon('cards','lg')}<div><b>Nuevo deck</b><span>Crear deck vacío</span></div></button><button class="quick-action" data-action="simulator">${icon('game','lg')}<div><b>Modo prueba</b><span>Jugar con tus cartas</span></div></button><button class="quick-action" data-action="export">${icon('swap','lg')}<div><b>Importar / Exportar</b><span>Guardar o compartir</span></div></button></section></main>`;
+    return `<main class="app-shell">${appBar('POKER BLITZ',{logo:true,settings:true})}<section class="home-main"><div class="panel"><div class="panel-inner"><h2 class="welcome-title">¡Bienvenido!</h2><div class="muted small">Organiza, configura y prueba tus Power Decks.</div><hr class="divider"><h3 class="summary-title">Resumen rápido</h3>${summary('cards','Total de cartas',state.cards.length)}${summary('cards','Mis decks',state.decks.length)}${summary('game','Modo prueba','Listo')}</div></div><div class="panel"><div class="panel-inner"><div class="section-head"><h2>Mis cartas</h2><button class="text-btn" data-action="all-cards">Ver todas ${icon('right')}</button></div>${cards.length?`<div class="home-cards">${cards.map(c=>`<div class="home-card" data-action="edit-card" data-id="${c.id}">${cardHTML(c)}<div class="home-card-name">${esc(c.name)}</div></div>`).join('')}</div>`:`<div class="empty">Tu biblioteca de cartas está vacía.</div>`}</div></div><div class="panel"><div class="panel-inner"><div class="section-head"><h2>Mis decks</h2><button class="text-btn" data-action="all-decks">Ver todos ${icon('right')}</button></div><div class="deck-mini-list">${decks.length?decks.map(d=>`<div class="deck-mini" data-action="open-deck" data-id="${d.id}">${icon('cards','lg')}<div class="deck-info"><div class="deck-name">${esc(d.name)}</div><div class="tiny muted">${d.cardIds.length} cartas</div></div>${icon('right')}</div>`).join(''):`<div class="empty">Crea un deck para comenzar.</div>`}</div></div></div></section><section class="quick-row"><button class="quick-action" data-action="rules">${icon('cards','lg')}<div><b>Ver reglas</b><span>Reglamento oficial</span></div></button><button class="quick-action" data-action="new-deck">${icon('cards','lg')}<div><b>Nuevo deck</b><span>Crear deck vacío</span></div></button><button class="quick-action" data-action="simulator">${icon('game','lg')}<div><b>Modo prueba</b><span>Jugar con tus cartas</span></div></button><button class="quick-action" data-action="export">${icon('swap','lg')}<div><b>Importar / Exportar</b><span>Guardar o compartir</span></div></button></section></main>`;
   }
   function summary(ic,label,value){return `<div class="summary-row"><span class="summary-icon">${icon(ic,'lg')}</span><span class="summary-label">${esc(label)}</span><span class="summary-value">${esc(value)}</span></div>`}
   function renderCards(){
