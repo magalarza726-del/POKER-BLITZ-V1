@@ -737,6 +737,7 @@ window.STARTER_CARDS = [
   function renderAddPreservingScroll(top){render();restoreAddScroll(top);}
   function closeModal(){
     if(modal?.type==='zoom'&&modal.returnTo){const back=modal.returnTo,top=back.scrollTop||0;modal=back;render();restoreAddScroll(top);return;}
+    if(modal?.type==='character-edit')characterDraft=null;
     modal=null;render();
   }
 
@@ -812,9 +813,17 @@ window.STARTER_CARDS = [
     for(const [id,key,conv] of [['imageInset','imageInsetFraction',Number],['imageScale','imageScale',Number],['imageX','imageOffsetX',Number],['imageY','imageOffsetY',Number],['tintStrength','tintStrength',Number]]) $('#'+id)?.addEventListener('input',e=>{editingCard[key]=conv(e.target.value);renderEditorSoft()});
     $('#tintEnabled')?.addEventListener('change',e=>{editingCard.tintEnabled=e.target.checked;renderEditorSoft()});
     $('#deckName')?.addEventListener('input',e=>{const d=getDeck(editingDeckId);d.name=e.target.value.slice(0,50);saveState();const h=$('.topbar h1');if(h)h.textContent='Deck: '+d.name;});
+    $('#characterZoom')?.addEventListener('input',e=>{if(!characterDraft)return;characterDraft.scale=Math.max(1,Math.min(3,Number(e.target.value)||1));updateCharacterDraftPreview();});
+    const crop=$('#characterCrop');
+    if(crop&&characterDraft){let dragging=false,lastX=0,lastY=0;crop.addEventListener('pointerdown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;crop.setPointerCapture?.(e.pointerId);});crop.addEventListener('pointermove',e=>{if(!dragging)return;const r=crop.getBoundingClientRect(),dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;characterDraft.focusX=Math.max(0,Math.min(100,characterDraft.focusX-dx/Math.max(1,r.width)*100/characterDraft.scale));characterDraft.focusY=Math.max(0,Math.min(100,characterDraft.focusY-dy/Math.max(1,r.height)*100/characterDraft.scale));updateCharacterDraftPreview();});const stop=()=>dragging=false;crop.addEventListener('pointerup',stop);crop.addEventListener('pointercancel',stop);}
     $('#deckDescription')?.addEventListener('input',e=>{const d=getDeck(editingDeckId);d.description=e.target.value.slice(0,180);saveState();const help=e.target.nextElementSibling;if(help)help.textContent=d.description.length+'/180';});
     $('#gapMm')?.addEventListener('input',e=>{state.printSettings.gapMm=+e.target.value;saveState();render()});
     $('#marginMm')?.addEventListener('input',e=>{state.printSettings.marginMm=+e.target.value;saveState();render()});
+  }
+  function updateCharacterDraftPreview(){
+    if(!characterDraft)return;const wrap=$('#characterCrop .character-photo'),label=$('#characterZoomValue'),slider=$('#characterZoom');
+    if(wrap){wrap.style.setProperty('--char-scale',characterDraft.scale);wrap.style.setProperty('--fx',characterDraft.focusX+'%');wrap.style.setProperty('--fy',characterDraft.focusY+'%');}
+    if(label)label.textContent=Math.round(characterDraft.scale*100)+'%';if(slider&&Number(slider.value)!==Number(characterDraft.scale))slider.value=characterDraft.scale;
   }
   function renderEditorSoft(){
     const preview=$('.preview-panel');if(preview)preview.innerHTML=cardHTML(editingCard);
@@ -859,7 +868,12 @@ window.STARTER_CARDS = [
     else if(a==='recenter'){Object.assign(editingCard,{imageScale:1,imageOffsetX:0,imageOffsetY:0,imageInsetFraction:.03});render()}
     else if(a==='save-card'){const i=state.cards.findIndex(c=>c.id===editingCard.id);if(i>=0)state.cards[i]=structuredClone(editingCard);else state.cards.push(structuredClone(editingCard));saveState();toast('Carta guardada');go('home')}
     else if(a==='duplicate-card'){const cp={...structuredClone(editingCard),id:crypto.randomUUID(),name:(editingCard.name+' COPIA').slice(0,40),userCreated:true};state.cards.push(cp);saveState();editingCard=cp;toast('Carta duplicada');render()}
-    else if(a==='new-deck'){const d={id:crypto.randomUUID(),name:'Nuevo deck',cardIds:[],iconCardId:null,description:''};state.decks.push(d);saveState();editingDeckId=d.id;go('deckEditor')}
+    else if(a==='open-character-picker'){const picker=$('#characterPicker');if(picker)picker.click()}
+    else if(a==='edit-character-image'){const d=getDeck(editingDeckId);if(!d?.characterImage)return;characterDraft={image:d.characterImage,scale:Number(d.characterScale)||1,focusX:Number.isFinite(Number(d.characterFocusX))?Number(d.characterFocusX):50,focusY:Number.isFinite(Number(d.characterFocusY))?Number(d.characterFocusY):50};modal={type:'character-edit'};render()}
+    else if(a==='character-reset'){if(characterDraft){characterDraft.scale=1;characterDraft.focusX=50;characterDraft.focusY=50;updateCharacterDraftPreview()}}
+    else if(a==='save-character-image'){const d=getDeck(editingDeckId);if(d&&characterDraft){d.characterImage=characterDraft.image;d.characterScale=characterDraft.scale;d.characterFocusX=characterDraft.focusX;d.characterFocusY=characterDraft.focusY;d.iconCardId=null;saveState();characterDraft=null;modal=null;render();toast('Imagen de personaje guardada')}}
+    else if(a==='remove-character-image'){const d=getDeck(editingDeckId);if(d&&confirm('¿Quitar la imagen de personaje de este deck?')){d.characterImage=null;d.characterScale=1;d.characterFocusX=50;d.characterFocusY=50;d.iconCardId=null;saveState();render()}}
+    else if(a==='new-deck'){const d={id:crypto.randomUUID(),name:'Nuevo deck',cardIds:[],iconCardId:null,characterImage:null,characterScale:1,characterFocusX:50,characterFocusY:50,description:''};state.decks.push(d);saveState();editingDeckId=d.id;go('deckEditor')}
     else if(a==='open-deck'){editingDeckId=id;deckQuery='';deckTypeFilter='ALL';go('deckEditor')}
     else if(a==='delete-deck'){e.stopPropagation();if(confirm('¿Eliminar este deck?')){state.decks=state.decks.filter(d=>d.id!==id);saveState();render()}}
     else if(a==='deck-plus'){getDeck(editingDeckId).cardIds.push(id);saveState();render()}
@@ -889,7 +903,8 @@ window.STARTER_CARDS = [
   });
 
   $('#imagePicker').addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const img=new Image();img.onload=()=>{const max=1600,scale=Math.min(1,max/Math.max(img.width,img.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);if(!editingCard)editingCard=defaultCard();editingCard.image=canvas.toDataURL('image/jpeg',.88);editingCard.mediaMode='IMAGE';editingCard.tintEnabled=false;editingCard.tintStrength=0;if(e.target.dataset.mode==='new')go('cardEditor');else render();e.target.value=''};img.src=rd.result};rd.readAsDataURL(f)});
-  $('#jsonPicker').addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const x=JSON.parse(rd.result);if(!Array.isArray(x.cards)||!Array.isArray(x.decks))throw Error();state={...defaultState(),...x,handSize:[3,4,5].includes(Number(x.handSize))?Number(x.handSize):5,decks:x.decks.map(d=>({...d,cardIds:Array.isArray(d.cardIds)?d.cardIds:[],iconCardId:d.iconCardId||d.cardIds?.[0]||null,description:String(d.description||'').slice(0,180)}))};saveState();toast('Datos importados');go('home')}catch{toast('JSON no válido')}e.target.value=''};rd.readAsText(f)});
+  $('#characterPicker').addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const img=new Image();img.onload=()=>{const max=1400,scale=Math.min(1,max/Math.max(img.width,img.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);characterDraft={image:canvas.toDataURL('image/jpeg',.86),scale:1,focusX:50,focusY:50};modal={type:'character-edit'};render();e.target.value=''};img.src=rd.result};rd.readAsDataURL(f)});
+  $('#jsonPicker').addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const x=JSON.parse(rd.result);if(!Array.isArray(x.cards)||!Array.isArray(x.decks))throw Error();state={...defaultState(),...x,handSize:[3,4,5].includes(Number(x.handSize))?Number(x.handSize):5,decks:x.decks.map(d=>normalizeDeck(d))};saveState();toast('Datos importados');go('home')}catch{toast('JSON no válido')}e.target.value=''};rd.readAsText(f)});
   function downloadJSON(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='deck_creator_backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
   function printDeck(deckId){
     const d=getDeck(deckId);if(!d||!d.cardIds.length){toast('El deck está vacío');return}
