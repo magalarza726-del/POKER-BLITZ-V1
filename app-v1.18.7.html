@@ -927,7 +927,7 @@ window.STARTER_CARDS = [
     return'';
   }
   function bindInputs(){
-    $('[data-test-player-deck]').forEach(el=>el.addEventListener('change',e=>{testSetup.deckIds[Number(e.target.dataset.testPlayerDeck)]=e.target.value;render()}));
+    $$('[data-test-player-deck]').forEach(el=>el.addEventListener('change',e=>{testSetup.deckIds[Number(e.target.dataset.testPlayerDeck)]=e.target.value;render()}));
     $('#librarySearch')?.addEventListener('input',e=>{libraryQuery=e.target.value;render()});
     $('#libraryTypeFilter')?.addEventListener('change',e=>{libraryTypeFilter=e.target.value;render()});
     $('#deckSearch')?.addEventListener('input',e=>{deckQuery=e.target.value;render()});
