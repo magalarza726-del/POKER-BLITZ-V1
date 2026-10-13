@@ -188,7 +188,8 @@ tasks.register('prepareOfflineWeb') {
   } catch (err) {''')
         def fatalMarker = "    console.error('POKER BLITZ boot error', err);"
         if (!html.contains(fatalMarker)) throw new GradleException('No se encontró el manejador de errores JS')
-        html = html.replace(fatalMarker, fatalMarker + "\\n    if (window.AndroidBridge) window.AndroidBridge.reportError(String(err?.stack || err));")
+        html = html.replace(fatalMarker, fatalMarker + '''
+    if (window.AndroidBridge) window.AndroidBridge.reportError(String(err?.stack || err));''')
         // Se incluyen ambas rutas en vez de depender de una redirección de GitHub Pages.
         new File(generatedWeb, 'index.html').setText(html, 'UTF-8')
         new File(generatedWeb, "app-v${webVersion}.html").setText(html, 'UTF-8')
