@@ -1,0 +1,54 @@
+name: Android APK (offline)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'android/**'
+      - 'app-v*.html'
+      - 'index.html'
+      - 'assets/**'
+      - 'presets/**'
+      - '.github/workflows/android-apk.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'app-v*.html'
+      - 'index.html'
+      - 'assets/**'
+      - 'presets/**'
+      - '.github/workflows/android-apk.yml'
+
+jobs:
+  apk:
+    name: Compilar Poker Blitz Android
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Obtener el repositorio
+        uses: actions/checkout@v4
+      - name: Instalar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Preparar Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Instalar plataforma Android 35
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Configurar Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Compilar APK sin servicios online
+        working-directory: android
+        run: gradle --no-daemon --stacktrace assembleDebug
+      - name: Publicar APK para descargar
+        uses: actions/upload-artifact@v4
+        with:
+          name: Poker-Blitz-V1-Offline-APK
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30

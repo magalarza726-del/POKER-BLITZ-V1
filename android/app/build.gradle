@@ -1,0 +1,162 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+// La app Android se compila SIEMPRE a partir de la versión que abre GitHub Pages.
+// No copia una versión antigua ni duplica la lógica del juego.
+def repoRoot = file('../..')
+def webEntry = new File(repoRoot, 'index.html').getText('UTF-8')
+def webMatch = webEntry =~ /app-v(\d+\.\d+\.\d+)\.html/
+if (!webMatch.find()) {
+    throw new GradleException('No se pudo encontrar app-vX.Y.Z.html en index.html')
+}
+def webVersion = webMatch.group(1)
+def webSource = new File(repoRoot, "app-v${webVersion}.html")
+if (!webSource.isFile()) {
+    throw new GradleException("Falta ${webSource.name} en el repositorio")
+}
+def numbers = webVersion.tokenize('.').collect { it.toInteger() }
+def generatedWeb = file("$buildDir/generated/offlineWeb")
+
+android {
+    namespace 'com.magalarza.pokerblitz'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'com.magalarza.pokerblitz'
+        minSdk 24
+        targetSdk 35
+        versionCode numbers[0] * 10000 + numbers[1] * 100 + numbers[2]
+        versionName webVersion
+    }
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    kotlinOptions {
+        jvmTarget = '17'
+    }
+    sourceSets {
+        main.assets.srcDirs += [generatedWeb]
+    }
+}
+
+def vendorSources = [
+    'jspdf.umd.min.js': [
+        'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js',
+        'https://unpkg.com/jspdf@2.5.2/dist/jspdf.umd.min.js'
+    ],
+    'html2canvas.min.js': [
+        'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+        'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js'
+    ]
+]
+
+// Solo se descargan estas dos dependencias AL COMPILAR, nunca en el teléfono.
+// Se empaquetan junto con las cartas, retratos y el motor del juego.
+tasks.register('prepareOfflineWeb') {
+    inputs.file(new File(repoRoot, 'index.html'))
+    inputs.file(webSource)
+    inputs.dir(new File(repoRoot, 'presets'))
+    inputs.dir(new File(repoRoot, 'assets'))
+    outputs.dir(generatedWeb)
+    doLast {
+        delete generatedWeb
+        generatedWeb.mkdirs()
+        copy {
+            from new File(repoRoot, 'presets')
+            into new File(generatedWeb, 'presets')
+        }
+        copy {
+            from new File(repoRoot, 'assets')
+            into new File(generatedWeb, 'assets')
+        }
+        def vendorDir = new File(generatedWeb, 'vendor')
+        vendorDir.mkdirs()
+        vendorSources.each { name, urls ->
+            def destination = new File(vendorDir, name)
+            Exception lastError = null
+            for (url in urls) {
+                try {
+                    def connection = new URL(url).openConnection()
+                    connection.setConnectTimeout(20000)
+                    connection.setReadTimeout(60000)
+                    connection.getInputStream().withCloseable { source ->
+                        destination.withOutputStream { out -> source.transferTo(out) }
+                    }
+                    if (destination.length() < 100000) {
+                        throw new GradleException("Archivo PDF incompleto: ${name}")
+                    }
+                    lastError = null
+                    break
+                } catch (Exception ex) {
+                    lastError = ex
+                    logger.warn("Fallo descargando dependencia local ${name} desde ${url}: ${ex.message}")
+                    destination.delete()
+                }
+            }
+            if (lastError != null) {
+                throw new GradleException("No se pudo incluir ${name} en el APK. Se necesita internet al compilar por primera vez.", lastError)
+            }
+        }
+
+        String html = webSource.getText('UTF-8')
+        def replacements = [
+            'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js': 'vendor/jspdf.umd.min.js',
+            'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js': 'vendor/html2canvas.min.js'
+        ]
+        replacements.each { oldValue, newValue ->
+            if (!html.contains(oldValue)) {
+                throw new GradleException("Cambió la llamada al generador PDF: ${oldValue}. Revisar integración Android.")
+            }
+            html = html.replace(oldValue, newValue)
+        }
+
+        // Reutilizamos las funciones del juego sin alterar el archivo HTML web.
+        def jsonMarker = '  function downloadJSON(){'
+        if (!html.contains(jsonMarker)) {
+            throw new GradleException('No se encontró downloadJSON(); revisar integración Android.')
+        }
+        html = html.replace(jsonMarker, '''  function downloadJSON(){
+    if (window.AndroidBridge && window.PokerBlitzAndroid) {
+      window.PokerBlitzAndroid.saveBlob(
+        new Blob([JSON.stringify(state, null, 2)], {type:'application/json'}),
+        'deck_creator_backup.json'
+      );
+      return;
+    }
+''')
+
+        def pdfMarker = "  async function savePdfDocument(pdf,filename,handle=null){const blob=pdf.output('blob');"
+        if (!html.contains(pdfMarker)) {
+            throw new GradleException('No se encontró savePdfDocument(); revisar integración Android.')
+        }
+        html = html.replace(pdfMarker, """  async function savePdfDocument(pdf,filename,handle=null){
+    const blob=pdf.output('blob');
+    if (window.AndroidBridge && window.PokerBlitzAndroid) {
+      window.PokerBlitzAndroid.saveBlob(blob, filename);
+      toast('Selecciona dónde guardar el PDF');
+      return true;
+    }
+""")
+
+        if (!html.contains('</head>')) {
+            throw new GradleException('La página ya no tiene </head>')
+        }
+        html = html.replace('</head>', '<script src="pokerblitz-android.js"></script>\n</head>')
+        new File(generatedWeb, 'index.html').setText(html, 'UTF-8')
+    }
+}
+
+// AGP 8.x: asegurar que los recursos web estén listos antes de empaquetarlos.
+tasks.configureEach {
+    if (name.startsWith('merge') && name.endsWith('Assets')) {
+        dependsOn tasks.named('prepareOfflineWeb')
+    }
+}
