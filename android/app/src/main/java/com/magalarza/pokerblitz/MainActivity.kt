@@ -5,6 +5,9 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Base64
+import android.util.Log
+import android.webkit.ConsoleMessage
+import android.webkit.WebResourceError
 import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -27,6 +30,7 @@ class MainActivity : Activity() {
         private const val APP_URL = "https://appassets.androidplatform.net/index.html"
         private const val REQUEST_IMPORT = 4201
         private const val REQUEST_EXPORT = 4202
+        private val VERSIONED_HTML = Regex("""app-v\\d+\\.\\d+\\.\\d+\\.html""")
     }
 
     private lateinit var webView: WebView
@@ -61,6 +65,19 @@ class MainActivity : Activity() {
         webView.addJavascriptInterface(AndroidBridge(), "AndroidBridge")
 
         webView.webViewClient = object : WebViewClient() {
+            override fun onReceivedError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                error: WebResourceError?
+            ) {
+                Log.e("PokerBlitzBoot", "Load error ${request?.url}: ${error?.description}")
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                super.onPageFinished(view, url)
+                Log.i("PokerBlitzBoot", "Page finished: $url")
+            }
+
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val uri = request?.url ?: return true
                 return !(uri.scheme == "https" && uri.host == APP_HOST)
@@ -76,6 +93,7 @@ class MainActivity : Activity() {
                     .ifEmpty { "index.html" }
                 if (path.contains("..") || path.contains('\\') ||
                     !(path == "index.html" || path == "pokerblitz-android.js" ||
+                        VERSIONED_HTML.matches(path) ||
                         path.startsWith("assets/") || path.startsWith("presets/") ||
                         path.startsWith("vendor/"))) {
                     return errorResponse(403, "Forbidden")
@@ -83,12 +101,18 @@ class MainActivity : Activity() {
                 return try {
                     WebResourceResponse(mimeType(path), "UTF-8", assets.open(path))
                 } catch (_: FileNotFoundException) {
+                    Log.e("PokerBlitzBoot", "Missing bundled asset: $path")
                     errorResponse(404, "Not Found")
                 }
             }
         }
 
         webView.webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(msg: ConsoleMessage): Boolean {
+                Log.d("PokerBlitzBoot", "JS: ${msg.message()} at ${msg.sourceId()}:${msg.lineNumber()}")
+                return true
+            }
+
             override fun onShowFileChooser(
                 webView: WebView?,
                 filePathCallback: ValueCallback<Array<Uri>>?,
@@ -146,6 +170,16 @@ class MainActivity : Activity() {
         )
 
     inner class AndroidBridge {
+        @JavascriptInterface
+        fun reportReady(screen: String) {
+            Log.i("PokerBlitzBoot", "POKER_BLITZ_READY:$screen")
+        }
+
+        @JavascriptInterface
+        fun reportError(message: String) {
+            Log.e("PokerBlitzBoot", "POKER_BLITZ_ERROR:${message.take(1200)}")
+        }
+
         @JavascriptInterface
         fun saveFile(filename: String, mimeType: String, base64: String) {
             // Solo la página empaquetada puede navegar en este WebView.
