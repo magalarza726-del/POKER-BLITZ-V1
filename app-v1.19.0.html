@@ -126,19 +126,19 @@ button,input,textarea,select{font:inherit;color:inherit}button{cursor:pointer}bu
 .test-poker-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
 .test-poker-option{min-height:76px;border:2px solid var(--ink);border-radius:12px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-weight:900}
 .test-poker-option strong{font-size:26px}.test-poker-option span{font-size:12px;color:#555}.test-poker-option.active{background:var(--cyan)}
-.sim-table{flex:1;min-height:0;display:grid;grid-template-columns:56px minmax(0,1fr) minmax(170px,240px);grid-template-rows:auto minmax(0,1fr) auto;gap:8px;align-items:stretch}
-.sim-player-bar{grid-column:1/3;display:grid;grid-template-columns:56px minmax(0,1fr) 56px;gap:8px;align-items:stretch}
+.sim-table{flex:1;min-height:0;display:grid;grid-template-columns:56px minmax(360px,1fr) 56px minmax(480px,560px);grid-template-rows:auto minmax(0,1fr) auto;gap:8px;align-items:stretch}
+.sim-player-bar{grid-column:1/4;display:grid;grid-template-columns:56px minmax(0,1fr) 56px;gap:8px;align-items:stretch}
 .sim-player-card{min-height:88px;background:#fff;border:2px solid var(--ink);border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px;min-width:0}
 .sim-player-card .name{font-size:20px;font-weight:1000;line-height:1.08}.sim-player-card .small{line-height:1.35}
-.sim-tools-panel{grid-column:3;grid-row:1;background:#fff;border:2px solid var(--ink);border-radius:14px;padding:8px;display:flex;align-items:center;gap:9px;justify-content:space-between;min-width:0}
+.sim-tools-panel{grid-column:4;grid-row:1;background:#fff;border:2px solid var(--ink);border-radius:14px;padding:8px;display:flex;align-items:center;gap:9px;justify-content:space-between;min-width:0;overflow:hidden}
 .sim-tools-panel .limit-panel{min-width:120px}.sim-tools-panel .die-widget{min-width:156px;gap:7px}.sim-tools-panel .die-scene{width:56px;height:56px}.sim-tools-panel .die-cube,.sim-tools-panel .die-face{width:50px;height:50px}.sim-tools-panel .die-face{font-size:23px}.sim-tools-panel .die-face.f1{transform:translateZ(25px)}.sim-tools-panel .die-face.f2{transform:rotateY(90deg) translateZ(25px)}.sim-tools-panel .die-face.f3{transform:rotateX(-90deg) translateZ(25px)}.sim-tools-panel .die-face.f4{transform:rotateX(90deg) translateZ(25px)}.sim-tools-panel .die-face.f5{transform:rotateY(-90deg) translateZ(25px)}.sim-tools-panel .die-face.f6{transform:rotateY(180deg) translateZ(25px)}
-.sim-tools-panel .chip-block{min-width:210px}.sim-tools-panel .chip-actions{grid-template-columns:repeat(2,minmax(74px,1fr))}
-.sim-hand-zone{grid-column:1/3;grid-row:2;min-height:0;display:flex;flex-direction:column;gap:4px;overflow:hidden}
+.sim-tools-panel .chip-block{min-width:260px;flex:1}.sim-tools-panel .chip-actions{grid-template-columns:repeat(4,minmax(58px,1fr))}.sim-tools-panel .chip-actions button{font-size:10px;padding:0 4px}
+.sim-hand-zone{grid-column:1/4;grid-row:2;min-height:0;display:flex;flex-direction:column;gap:4px;overflow:hidden}
 .sim-hand-title{text-align:center;font-size:28px;font-weight:1000;line-height:1;margin:0 0 4px}
 .sim-hand-tabs{display:flex;justify-content:center;gap:8px;margin-bottom:2px}
 .sim-hand-tab{height:34px;border:2px solid var(--ink);border-radius:10px;background:#fff;padding:0 14px;font-weight:900}.sim-hand-tab.active{background:var(--cyan)}
 .sim-table .sim-hand{flex:1;padding:8px 18px;align-items:center;background:#fff;border-radius:10px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.04)}
-.sim-table .sim-character-card{grid-column:3;grid-row:2;align-self:center;justify-self:end;height:min(100%,430px);max-height:430px}
+.sim-table .sim-character-card{grid-column:4;grid-row:2;align-self:center;justify-self:end;height:min(100%,430px);max-height:430px}
 .sim-table .sim-bottom{grid-column:1/4;grid-row:3}
 .poker-card{height:100%;max-height:300px;min-height:170px;aspect-ratio:.72;background:#fff;border:1.5px solid #d5d8dc;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.12);display:flex;flex-direction:column;justify-content:space-between;padding:9px;flex:0 0 auto;position:relative;overflow:hidden}
 .poker-card::after{content:"";position:absolute;inset:7px;border-radius:8px;background:radial-gradient(circle at 30% 20%,rgba(0,0,0,.035),transparent 20%),radial-gradient(circle at 70% 80%,rgba(0,0,0,.03),transparent 22%);pointer-events:none}
