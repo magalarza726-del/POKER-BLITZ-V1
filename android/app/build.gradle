@@ -118,6 +118,23 @@ tasks.register('prepareOfflineWeb') {
             html = html.replace(oldValue, newValue)
         }
 
+        // Compatible con Android System WebView anterior a Chrome 85.
+        // Se reescribe únicamente la copia local empaquetada del juego.
+        def compat = [
+            's.pokerHand??=[];' : 'if(s.pokerHand==null)s.pokerHand=[];',
+            '(sim.histories[deckId]??=[]).push(' : '(sim.histories[deckId]||(sim.histories[deckId]=[])).push(',
+            'sim.undoStacks??={};' : 'if(sim.undoStacks==null)sim.undoStacks={};',
+            '(sim.undoStacks[deckId]??=[]).push(' : '(sim.undoStacks[deckId]||(sim.undoStacks[deckId]=[])).push(',
+            'counts[key]??=' : 'counts[key]=counts[key]||'
+        ]
+        compat.each { from, to ->
+            if (!html.contains(from)) throw new GradleException("Cambió el código a compatibilizar: ${from}")
+            html = html.replace(from, to)
+        }
+        if (html.contains('??=')) {
+            throw new GradleException('Quedó un operador ??= incompatible con WebView Android')
+        }
+
         // Reutilizamos las funciones del juego sin alterar el archivo HTML web.
         def jsonMarker = '  function downloadJSON(){'
         if (!html.contains(jsonMarker)) {
@@ -149,8 +166,54 @@ tasks.register('prepareOfflineWeb') {
         if (!html.contains('</head>')) {
             throw new GradleException('La página ya no tiene </head>')
         }
-        html = html.replace('</head>', '<script src="pokerblitz-android.js"></script>\n</head>')
+
+        // Detecta errores JavaScript antes de que queden ocultos tras "Cargando..."
+        def startupMonitor = '''
+<script>
+(function () {
+  var bootStart = Date.now(), errors = [];
+  function notifyError(error) {
+    errors.push(String(error).slice(0,500));
+    try { if (window.AndroidBridge) window.AndroidBridge.reportError(String(error)); } catch (_) {}
+  }
+  window.addEventListener('error', function(e) { notifyError(e.message || 'Error JS'); });
+  window.addEventListener('unhandledrejection', function(e) { notifyError(e.reason || 'Promesa rechazada'); });
+  setTimeout(function () {
+    var root = document.getElementById('app');
+    if (!root || !root.textContent.includes('Cargando POKER BLITZ')) return;
+    var diagnostic = errors.length ? errors.join('; ') : 'No se ejecutó el motor de juego. Revisa la versión del Android System WebView.';
+    notifyError('STARTUP_TIMEOUT: ' + diagnostic);
+    root.innerHTML = '<div style="padding:22px;max-width:680px;margin:10vh auto;font-family:Arial,sans-serif"><h2>POKER BLITZ no pudo iniciar</h2><p>' +
+      diagnostic.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}) +
+      '</p><button onclick="location.reload()" style="padding:14px;background:#18E0E5;border:1px solid #101214;border-radius:10px">Reintentar</button></div>';
+  }, 15000);
+})();
+</script>
+'''
+        html = html.replace('</head>', startupMonitor + '</head>')
+        html = html.replace('</head>', '''<script src="pokerblitz-android.js"></script>
+</head>''')
+        // Mostrar el logo original del juego mientras se inicializa JavaScript.
+        html = html.replace('Cargando POKER BLITZ…',
+            '<img src="data:image/webp;base64,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" alt="Poker Blitz" style="display:block;width:70px;height:70px;object-fit:contain;margin:0 auto 14px">Cargando POKER BLITZ…')
+        def readyMarker = '''  render();
+  } catch (err) {'''
+        if (!html.contains(readyMarker)) {
+            throw new GradleException('La inicialización JavaScript cambió; revisar el arranque Android')
+        }
+        html = html.replace(readyMarker, '''  render();
+  if (window.AndroidBridge) window.AndroidBridge.reportReady('home');
+  } catch (err) {''')
+        def fatalMarker = "    console.error('POKER BLITZ boot error', err);"
+        if (!html.contains(fatalMarker)) throw new GradleException('No se encontró el manejador de errores JS')
+        html = html.replace(fatalMarker, fatalMarker + '''
+    if (window.AndroidBridge) window.AndroidBridge.reportError(String(err?.stack || err));''')
+        // Se incluyen ambas rutas en vez de depender de una redirección de GitHub Pages.
         new File(generatedWeb, 'index.html').setText(html, 'UTF-8')
+        new File(generatedWeb, "app-v${webVersion}.html").setText(html, 'UTF-8')
+        if (new File(generatedWeb, 'index.html').length() < 100000) {
+            throw new GradleException('El HTML del juego quedó vacío o incompleto')
+        }
     }
 }
 

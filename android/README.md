@@ -40,3 +40,10 @@ Cuando se cambie la versión principal en `index.html`, el proceso utiliza autom
 - La compilación de este branch debe pasar GitHub Actions antes de afirmar que el APK está verificado.
 
 No modifica `index.html` ni `app-v*.html` en el proyecto web existente.
+
+## Versión corregida: pantalla de carga e icono
+- Permite rutas `app-vX.Y.Z.html` y empaqueta tanto `index.html` como el HTML versionado.
+- Integra el logo original `APP_LOGO` de Poker Blitz como icono launcher y en la pantalla de carga.
+- Logcat Android `PokerBlitzBoot` informa si terminó el renderizado (`POKER_BLITZ_READY:home`) o hubo fallo.
+- Un aviso reemplaza la carga infinita si JavaScript no inicia tras 15 segundos.
+- IMPORTANTE: cada compilación Debug de GitHub puede estar firmada con otra clave. Exporta un JSON de tus decks antes de desinstalar una APK anterior.
