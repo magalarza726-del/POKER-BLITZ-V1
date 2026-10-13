@@ -30,7 +30,7 @@ class MainActivity : Activity() {
         private const val APP_URL = "https://appassets.androidplatform.net/index.html"
         private const val REQUEST_IMPORT = 4201
         private const val REQUEST_EXPORT = 4202
-        private val VERSIONED_HTML = Regex("""app-v\\d+\\.\\d+\\.\\d+\\.html""")
+        private val VERSIONED_HTML = Regex("""app-v\d+\.\d+\.\d+\.html""")
     }
 
     private lateinit var webView: WebView
