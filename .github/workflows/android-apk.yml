@@ -58,3 +58,30 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
+      - name: Probar que Poker Blitz inicia en Android, no solo que compila
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          profile: pixel_2
+          emulator-boot-timeout: 600
+          script: |
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb logcat -c
+            adb shell am start -W -n com.magalarza.pokerblitz/.MainActivity
+            for i in $(seq 1 40); do
+              if adb logcat -d -s PokerBlitzBoot:I | grep -q 'POKER_BLITZ_READY:home'; then
+                echo "La pantalla principal de Poker Blitz inició correctamente en el WebView."
+                exit 0
+              fi
+              if adb logcat -d -s PokerBlitzBoot:E | grep -q 'POKER_BLITZ_ERROR:'; then
+                echo "Se detectó error de JavaScript en el arranque:"
+                adb logcat -d -s PokerBlitzBoot:V chromium:E AndroidRuntime:E | tail -n 150
+                exit 1
+              fi
+              sleep 2
+            done
+            echo "Fallo: Poker Blitz sigue en la pantalla de carga."
+            adb logcat -d -s PokerBlitzBoot:V chromium:E AndroidRuntime:E | tail -n 200
+            exit 1
+
