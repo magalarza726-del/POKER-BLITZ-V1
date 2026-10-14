@@ -130,6 +130,9 @@ async function check(){
   next('cycle-hand');
  }
  if(new Set(report.hands.filter(x=>x.title).map(x=>x.title)).size!==3)throw Error('Hands not cycling through 3 zones');
+ // Render is synchronous, but the navigation dock is inserted by a
+ // MutationObserver on the next microtask after the simulator enters the DOM.
+ await Promise.resolve();
  // Navigation remains accessible when the entire page is scrolled down.
  const nav=doc.querySelector('#pb-game-nav');
  if(!nav)throw Error('Global simulator navigation missing');
