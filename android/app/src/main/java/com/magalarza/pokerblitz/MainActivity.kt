@@ -106,7 +106,8 @@ class MainActivity : Activity() {
                 if (path.contains("..") || path.contains('\\') ||
                     !(path == "index.html" || path == "pokerblitz-android.js" ||
                         path == "poker_blitz_logo.webp" || path == "pokerblitz-android-layout.css" ||
-                        path == "pokerblitz-android-zoom.js" || VERSIONED_HTML.matches(path) ||
+                        path == "pokerblitz-android-zoom.js" ||
+                        path == "pokerblitz-android-navigation.js" || VERSIONED_HTML.matches(path) ||
                         path.startsWith("assets/") || path.startsWith("presets/") ||
                         path.startsWith("vendor/"))) {
                     return errorResponse(403, "Forbidden")
@@ -254,7 +255,20 @@ class MainActivity : Activity() {
 
     @Deprecated("WebView back navigation compatibility")
     override fun onBackPressed() {
-        if (webView.canGoBack()) webView.goBack() else super.onBackPressed()
+        // WebView is a single-page application. It has no history entries when
+        // moving to test mode, so canGoBack() cannot return to the home screen.
+        // Ask the web app to close the zoom / dialog or show exit confirmation.
+        if (!::webView.isInitialized) {
+            finish()
+            return
+        }
+        webView.evaluateJavascript(
+            "Boolean(window.PokerBlitzAndroidNavigation && window.PokerBlitzAndroidNavigation.back())"
+        ) { handled ->
+            if (handled != "true") {
+                if (webView.canGoBack()) webView.goBack() else finish()
+            }
+        }
     }
 
     override fun onDestroy() {

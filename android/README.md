@@ -63,3 +63,10 @@ La CI también comprueba el simulador en Chrome sin internet, a 1200×540, 1560�
 - El toque en Usar, Descartar, Editar, Eliminar o botones numéricos **no abre** el visor.
 - El catálogo muestra tres columnas más grandes, y las manos reciben mayor altura y scroll donde hace falta.
 - El inspector funciona sin internet ni pérdida de estado: la versión web de escritorio sigue igual.
+
+## Navegación de modo prueba Android
+- Franja **siempre fija** en la parte superior con **← Inicio** y **↑ Arriba**, independiente del scroll y de Power/Poker/Hyper Hand.
+- Una única superficie de scroll vertical para la partida completa; se mantiene el scroll horizontal de las cartas.
+- **← Inicio** muestra la confirmación ya existente (Salir sin PDF / Salir con PDF / Cancelar): nunca descarta una partida accidentalmente.
+- El botón Atrás de Android cierra el zoom o una ventana, o abre la misma confirmación de salida; desde la pantalla principal permite cerrar la app.
+- GitHub Actions prueba scroll superior, salida y cancelación además de las tres manos.

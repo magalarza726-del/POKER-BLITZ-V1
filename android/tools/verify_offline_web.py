@@ -44,6 +44,17 @@ css_file = ROOT / 'android/app/src/main/assets/pokerblitz-android-layout.css'
 css = css_file.read_text(encoding='utf-8')
 if not all(key in css for key in ('.sim-tools', '.sim-content', '.sim-bottom', '.chip-actions', '.sim-hand')):
     raise SystemExit('Mobile gameplay styles are incomplete')
+if 'src="pokerblitz-android-navigation.js"' not in html:
+    raise SystemExit('Missing fixed navigation JS')
+nav_js = ROOT / 'android/app/src/main/assets/pokerblitz-android-navigation.js'
+if not nav_js.is_file():
+    raise SystemExit('Missing navigation script')
+with tempfile.NamedTemporaryFile('w',suffix='.js',encoding='utf-8') as tmp:
+    tmp.write(nav_js.read_text(encoding='utf-8'))
+    tmp.flush()
+    check = subprocess.run(['node','--check',tmp.name],capture_output=True,text=True)
+    if check.returncode:
+        raise SystemExit('Navigation JavaScript invalid: '+check.stderr)
 if 'src="pokerblitz-android-zoom.js"' not in html:
     raise SystemExit('Missing universal card inspector script')
 zoom_js = ROOT / 'android/app/src/main/assets/pokerblitz-android-zoom.js'
