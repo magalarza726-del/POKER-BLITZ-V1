@@ -154,6 +154,8 @@ tasks.register('prepareOfflineWeb') {
         html = html.replaceFirst('</head>', '<link rel="stylesheet" href="pokerblitz-android-layout.css">\\n</head>')
         // Universal card inspector; intentionally injected only into Android HTML.
         html = html.replaceFirst('</head>', '<script src="pokerblitz-android-zoom.js" defer></script>\\n</head>')
+        // Always-visible return/up navigation (only within the Android APK).
+        html = html.replaceFirst('</head>', '<script src="pokerblitz-android-navigation.js" defer></script>\\n</head>')
         // El logo original aparece durante la carga del juego.
         def oldLoading = '<div><b>Cargando POKER BLITZ…</b></div>'
         def brandedLoading = '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center">' +
@@ -163,11 +165,11 @@ tasks.register('prepareOfflineWeb') {
         html = html.replaceFirst(java.util.regex.Pattern.quote(oldLoading),
             java.util.regex.Matcher.quoteReplacement(brandedLoading))
 
-        // Dos scripts Android nuevos (bridge + inspector) son los únicos cierres permitidos.
+        // Tres scripts Android (bridge, inspector y navegación) son los únicos cierres adicionales permitidos.
         // La versión web usa '</head>' dentro de plantillas PDF: evitar replace global.
         int scriptCountBefore = webSource.getText('UTF-8').findAll('</script>').size()
         int scriptCountAfter = html.findAll('</script>').size()
-        if (scriptCountAfter != scriptCountBefore + 2) {
+        if (scriptCountAfter != scriptCountBefore + 3) {
             throw new GradleException("Error: scripts HTML dañados (${scriptCountBefore} -> ${scriptCountAfter})")
         }
 

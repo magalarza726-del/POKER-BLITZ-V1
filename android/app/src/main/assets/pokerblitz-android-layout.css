@@ -554,3 +554,88 @@ html.pb-inspector-open { overflow:hidden!important; }
   .pb-inspector-details { padding:6px; }
   .pb-inspector-art > .card-preview,.pb-inspector-art > .poker-card { height:65dvh!important; }
 }
+
+
+/* Navigation rescue for all simulator hand views and small Android screens.
+   The game header is INSIDE the scrolled page, while this dock is FIXED. */
+html.pb-game-active, html.pb-game-active body, html.pb-game-active #app {
+  min-height:100%;
+  height:auto!important;
+  max-height:none!important;
+  overflow-y:auto!important;
+  overscroll-behavior-y:auto;
+  scrollbar-width:thin;
+}
+html.pb-game-active #app .sim-shell {
+  box-sizing:border-box;
+  width:100%;
+  height:auto!important;
+  min-height:100dvh!important;
+  max-height:none!important;
+  overflow-x:clip!important;
+  overflow-y:visible!important;
+  padding-top:52px!important;
+  padding-bottom:16px!important;
+  display:flex; flex-direction:column;
+}
+html.pb-game-active #app .sim-top {
+  position:sticky;
+  top:46px;
+  z-index:21;
+  flex-shrink:0;
+}
+html.pb-game-active #app .sim-content {
+  flex:0 0 max(245px,38dvh)!important;
+  min-height:245px;
+}
+html.pb-game-active #app .sim-bottom { flex-shrink:0; }
+html.pb-game-active #app .sim-tools { flex-shrink:0; }
+html.pb-game-active #app .phase-strip { flex-shrink:0; }
+#pb-game-nav {
+  box-sizing:border-box;
+  position:fixed; top:0; left:0; right:0;
+  z-index:80;
+  height:46px;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:4px max(8px,env(safe-area-inset-left))
+          4px max(8px,env(safe-area-inset-right));
+  gap:8px;
+  background:rgba(230,252,253,.98);
+  border-bottom:2px solid #101214;
+  box-shadow:0 2px 8px rgba(0,0,0,.12);
+  color:#101214;
+  pointer-events:auto;
+}
+#pb-game-nav .pb-nav-title {
+  flex:1; min-width:0;
+  font-size:clamp(10px,1.4vw,14px);
+  font-weight:900;
+  text-align:center;
+  overflow:hidden; white-space:nowrap; text-overflow:ellipsis;
+}
+#pb-game-nav .pb-nav-button {
+  box-sizing:border-box;
+  min-width:90px; height:36px;
+  border:1.5px solid #101214; border-radius:9px;
+  background:#18E0E5;
+  color:#101214; font-size:clamp(11px,1.5vw,14px);
+  font-weight:900; text-align:center;
+  padding:0 10px; cursor:pointer;
+  touch-action:manipulation;
+}
+#pb-game-nav .pb-nav-button:focus-visible {
+  outline:3px solid #101214; outline-offset:2px;
+}
+html.pb-game-active ::-webkit-scrollbar { width:7px; height:7px; }
+html.pb-game-active ::-webkit-scrollbar-thumb {
+  background:#55adb1; border-radius:10px;
+}
+@media (orientation:landscape) and (max-height:490px) {
+  html.pb-game-active #app .sim-content {
+    flex-basis:240px!important; min-height:240px;
+  }
+}
+@media (max-width:600px) {
+  #pb-game-nav .pb-nav-button { min-width:76px; padding:0 6px; }
+  #pb-game-nav .pb-nav-title { font-size:11px; }
+}

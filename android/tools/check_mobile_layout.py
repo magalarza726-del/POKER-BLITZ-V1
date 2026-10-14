@@ -23,7 +23,7 @@ if not (WEB/'index.html').is_file():
     raise SystemExit('Run assembleDebug before this test')
 # AGP merges src/main/assets and generated/offlineWeb when producing the APK.
 # Mirror that merge for the local HTTP smoke test.
-for asset in ('pokerblitz-android.js', 'pokerblitz-android-layout.css', 'pokerblitz-android-zoom.js'):
+for asset in ('pokerblitz-android.js', 'pokerblitz-android-layout.css', 'pokerblitz-android-zoom.js', 'pokerblitz-android-navigation.js'):
     shutil.copy2(ROOT / 'android/app/src/main/assets' / asset, WEB / asset)
 SMOKE=WEB/'android-viewport-test.html'
 SMOKE.write_text(r'''<!doctype html>
@@ -130,6 +130,31 @@ function check(){
   next('cycle-hand');
  }
  if(new Set(report.hands.filter(x=>x.title).map(x=>x.title)).size!==3)throw Error('Hands not cycling through 3 zones');
+ // Navigation remains accessible when the entire page is scrolled down.
+ const nav=doc.querySelector('#pb-game-nav');
+ if(!nav)throw Error('Global simulator navigation missing');
+ const bounds=rect(nav);
+ if(bounds.top>3||bounds.bottom>55)throw Error('Navigation not fixed to viewport top');
+ doc.documentElement.scrollTop=220;
+ doc.body.scrollTop=220;
+ doc.querySelector('.sim-shell').scrollTop=220;
+ const topButton=nav.querySelector('[data-pb-nav="top"]');
+ if(!topButton)throw Error('Up button missing');
+ topButton.click();
+ if(doc.documentElement.scrollTop>2||doc.body.scrollTop>2||doc.querySelector('.sim-shell').scrollTop>2)
+    throw Error('Up button did not restore top');
+ if(!doc.defaultView.PokerBlitzAndroidNavigation?.active)throw Error('Navigator inactive in simulator');
+ // Native Android Back must use the same safe exit confirmation.
+ if(!doc.defaultView.PokerBlitzAndroidNavigation.back())
+    throw Error('Android back was not handled in simulator');
+ if(!doc.querySelector('.exit-modal'))throw Error('Android back did not open exit confirmation');
+ doc.querySelector('.exit-modal [data-action="close-modal"]').click();
+ if(!doc.querySelector('.sim-shell'))throw Error('Cancelled exit lost simulator');
+ nav.querySelector('[data-pb-nav="exit"]').click();
+ if(!doc.querySelector('.exit-modal'))throw Error('Visible return button did not open confirmation');
+ doc.querySelector('.exit-modal [data-action="exit-without-report"]').click();
+ if(!doc.querySelector('.home-main'))throw Error('Return button did not navigate home');
+ if(doc.querySelector('#pb-game-nav'))throw Error('Simulator dock remained on home screen');
  if(getComputedStyle(doc.querySelector('.sim-tools')).display!=='grid')
   throw Error('Responsive Android CSS was not applied');
  report.ok=true;
