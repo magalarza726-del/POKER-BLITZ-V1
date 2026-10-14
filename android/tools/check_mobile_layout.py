@@ -23,7 +23,7 @@ if not (WEB/'index.html').is_file():
     raise SystemExit('Run assembleDebug before this test')
 # AGP merges src/main/assets and generated/offlineWeb when producing the APK.
 # Mirror that merge for the local HTTP smoke test.
-for asset in ('pokerblitz-android.js', 'pokerblitz-android-layout.css'):
+for asset in ('pokerblitz-android.js', 'pokerblitz-android-layout.css', 'pokerblitz-android-zoom.js'):
     shutil.copy2(ROOT / 'android/app/src/main/assets' / asset, WEB / asset)
 SMOKE=WEB/'android-viewport-test.html'
 SMOKE.write_text(r'''<!doctype html>
@@ -47,8 +47,33 @@ function contains(outer,inner,tolerance=3){
 }
 function check(){
  const doc=document.getElementById('game').contentDocument;
+ function verifyZoom(selector,label){
+  const tile=doc.querySelector(selector);
+  if(!tile)throw Error('Missing zoom tile '+label+' ('+selector+')');
+  tile.click();
+  const overlay=doc.querySelector('.pb-inspector');
+  if(!overlay||!doc.defaultView.PokerBlitzCardInspector?.isOpen)
+    throw Error('Zoom overlay not opened for '+label);
+  if(!overlay.querySelector('.pb-inspector-card'))
+    throw Error('Missing enlarged card artwork for '+label);
+  if(!overlay.querySelector('.pb-inspector-description')?.textContent.trim())
+    throw Error('Missing readable details for '+label);
+  const plus=overlay.querySelector('[data-pb-zoom="in"]');
+  plus.click();
+  if(doc.defaultView.PokerBlitzCardInspector.scale<=1)
+    throw Error('Zoom + failed for '+label);
+  overlay.querySelector('[data-pb-zoom="close"]').click();
+  if(doc.querySelector('.pb-inspector')||doc.defaultView.PokerBlitzCardInspector.isOpen)
+    throw Error('Zoom overlay did not close for '+label);
+  report.hands.push({zoom:label,verified:true});
+ }
+ // The catalog and home gallery can be enlarged before entering the simulator.
+ verifyZoom('.home-card .card-preview','home');
  const next=(action)=>{const b=doc.querySelector('[data-action="'+action+'"]');
   if(!b)throw Error('Action missing: '+action);if(b.disabled)throw Error('Action disabled: '+action);b.click();};
+ next('all-cards');
+ verifyZoom('.card-cell .card-preview','catalog');
+ next('back');
  next('simulator');
  next('start-sim');
  let shell=doc.querySelector('.sim-shell');
@@ -74,8 +99,16 @@ function check(){
  const limit=get('.limit-panel'),die=get('.die-widget'),chips=get('.chip-block');
  if(limit.right>die.left+2||die.right>chips.left+2)throw Error('Tools overlap horizontally');
  if(get('.sim-content').height<155)throw Error('Card region too short');
+ verifyZoom('.sim-hand .card-preview','power hand');
+ // Existing action buttons must not be stolen by the inspection overlay.
+ const discard=doc.querySelector('.sim-hand .hand-actions button[data-action="discard-card"]');
+ if(!discard||discard.disabled)throw Error('Discard action unavailable');
+ next('draw-view');
+ verifyZoom('.draw-deck-modal .card-preview','deck selection');
+ next('close-modal');
  for(let i=0;i<3;i++){
   const title=doc.querySelector('.sim-hand-title')?.textContent;
+  if(title==='Poker Hand')verifyZoom('.sim-hand .poker-card','poker hand');
   if(!title)throw Error('Hand title missing');
   const cards=doc.querySelectorAll('.sim-hand .hand-card,.sim-hand .poker-card');
   const empty=doc.querySelector('.sim-hand .empty,.sim-hand .poker-empty');
