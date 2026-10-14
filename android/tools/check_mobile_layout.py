@@ -21,6 +21,10 @@ if not BROWSER:
     raise SystemExit('Chrome/Chromium is necessary for the Android viewport smoke test')
 if not (WEB/'index.html').is_file():
     raise SystemExit('Run assembleDebug before this test')
+# AGP merges src/main/assets and generated/offlineWeb when producing the APK.
+# Mirror that merge for the local HTTP smoke test.
+for asset in ('pokerblitz-android.js', 'pokerblitz-android-layout.css'):
+    shutil.copy2(ROOT / 'android/app/src/main/assets' / asset, WEB / asset)
 SMOKE=WEB/'android-viewport-test.html'
 SMOKE.write_text(r'''<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
