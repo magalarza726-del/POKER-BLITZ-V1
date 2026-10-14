@@ -152,6 +152,8 @@ tasks.register('prepareOfflineWeb') {
         html = html.replaceFirst('</head>', '<script src="pokerblitz-android.js"></script>\n</head>')
         // A separate stylesheet keeps the desktop web UI untouched.
         html = html.replaceFirst('</head>', '<link rel="stylesheet" href="pokerblitz-android-layout.css">\\n</head>')
+        // Universal card inspector; intentionally injected only into Android HTML.
+        html = html.replaceFirst('</head>', '<script src="pokerblitz-android-zoom.js" defer></script>\\n</head>')
         // El logo original aparece durante la carga del juego.
         def oldLoading = '<div><b>Cargando POKER BLITZ…</b></div>'
         def brandedLoading = '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center">' +
