@@ -116,7 +116,7 @@ function check(){
   report.hands.push({title,cards:cards.length,empty:!!empty});
   next('cycle-hand');
  }
- if(new Set(report.hands.map(x=>x.title)).size!==3)throw Error('Hands not cycling through 3 zones');
+ if(new Set(report.hands.filter(x=>x.title).map(x=>x.title)).size!==3)throw Error('Hands not cycling through 3 zones');
  if(getComputedStyle(doc.querySelector('.sim-tools')).display!=='grid')
   throw Error('Responsive Android CSS was not applied');
  report.ok=true;
