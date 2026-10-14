@@ -38,6 +38,12 @@ for path in ('poker_blitz_logo.webp', 'presets/default-decks.js',
              'vendor/jspdf.umd.min.js', 'vendor/html2canvas.min.js'):
     if not (GENERATED / path).is_file():
         raise SystemExit(f'Missing offline resource: {path}')
+if 'href="pokerblitz-android-layout.css"' not in html:
+    raise SystemExit('Missing Android responsive game stylesheet link')
+css_file = ROOT / 'android/app/src/main/assets/pokerblitz-android-layout.css'
+css = css_file.read_text(encoding='utf-8')
+if not all(key in css for key in ('.sim-tools', '.sim-content', '.sim-bottom', '.chip-actions', '.sim-hand')):
+    raise SystemExit('Mobile gameplay styles are incomplete')
 if 'src="poker_blitz_logo.webp"' not in html:
     raise SystemExit('The branded startup splash is missing')
 for idx, script in enumerate(scripts.scripts):

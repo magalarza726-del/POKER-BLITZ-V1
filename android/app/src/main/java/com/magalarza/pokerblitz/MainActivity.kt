@@ -79,7 +79,7 @@ class MainActivity : Activity() {
                     .ifEmpty { "index.html" }
                 if (path.contains("..") || path.contains('\\') ||
                     !(path == "index.html" || path == "pokerblitz-android.js" ||
-                        path == "poker_blitz_logo.webp" || VERSIONED_HTML.matches(path) ||
+                        path == "poker_blitz_logo.webp" || path == "pokerblitz-android-layout.css" || VERSIONED_HTML.matches(path) ||
                         path.startsWith("assets/") || path.startsWith("presets/") ||
                         path.startsWith("vendor/"))) {
                     return errorResponse(403, "Forbidden")

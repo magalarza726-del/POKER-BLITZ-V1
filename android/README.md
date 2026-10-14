@@ -46,3 +46,11 @@ No modifica `index.html` ni `app-v*.html` en el proyecto web existente.
 - Se usa `replaceFirst` y la CI analiza el JavaScript de los HTML generados.
 - Pantalla de carga con el logotipo original WebP y nuevo icono Android.
 - Si la instalación falla por firma debug distinta, desinstalar versión anterior; **exportar los datos primero si se dispone de decks locales**.
+
+## Interfaz móvil horizontal (layout v2)
+- El juego usa `pokerblitz-android-layout.css` **solo dentro de la APK**; la web de escritorio permanece idéntica.
+- Cabecera y fases compactas, fila de jugador independiente, herramientas reordenadas en límite/dado/cobro.
+- Power Hand, Poker Hand y Hyper Zone disponen de espacio flexible y desplazamiento horizontal para todas las cartas.
+- Botones contextuales se mantienen en el pie, ajustados al ancho disponible, y los diálogos son desplazables.
+- Con altura inferior a 480px la vista se desplaza verticalmente para evitar que se corte el contenido.
+- Probar en teléfonos y tablets en horizontal, incluido texto de varias líneas y accesibilidad.
