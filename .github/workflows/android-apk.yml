@@ -53,6 +53,8 @@ jobs:
         run: gradle --no-daemon --stacktrace assembleDebug
       - name: Validar los scripts de la aplicación offline
         run: python3 android/tools/verify_offline_web.py
+      - name: Verificar la vista Android en Chrome horizontal
+        run: python3 android/tools/check_mobile_layout.py
       - name: Publicar APK para descargar
         uses: actions/upload-artifact@v4
         with:
