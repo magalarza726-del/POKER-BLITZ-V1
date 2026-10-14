@@ -44,6 +44,17 @@ css_file = ROOT / 'android/app/src/main/assets/pokerblitz-android-layout.css'
 css = css_file.read_text(encoding='utf-8')
 if not all(key in css for key in ('.sim-tools', '.sim-content', '.sim-bottom', '.chip-actions', '.sim-hand')):
     raise SystemExit('Mobile gameplay styles are incomplete')
+if 'src="pokerblitz-android-zoom.js"' not in html:
+    raise SystemExit('Missing universal card inspector script')
+zoom_js = ROOT / 'android/app/src/main/assets/pokerblitz-android-zoom.js'
+if not zoom_js.is_file():
+    raise SystemExit('Missing inspector JavaScript source')
+with tempfile.NamedTemporaryFile('w',suffix='.js',encoding='utf-8') as tmp:
+    tmp.write(zoom_js.read_text(encoding='utf-8'))
+    tmp.flush()
+    check = subprocess.run(['node','--check',tmp.name],capture_output=True,text=True)
+    if check.returncode:
+        raise SystemExit('Inspector JavaScript invalid: '+check.stderr)
 if 'src="poker_blitz_logo.webp"' not in html:
     raise SystemExit('The branded startup splash is missing')
 for idx, script in enumerate(scripts.scripts):

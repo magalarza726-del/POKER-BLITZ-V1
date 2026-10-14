@@ -56,3 +56,10 @@ No modifica `index.html` ni `app-v*.html` en el proyecto web existente.
 - Probar en teléfonos y tablets en horizontal, incluido texto de varias líneas y accesibilidad.
 
 La CI también comprueba el simulador en Chrome sin internet, a 1200×540, 1560×700 y 900×480, revisando que no se superpongan las filas, controles y manos.
+
+## Ampliación universal de cartas (Android)
+- Cualquier carta de Power o Poker en inicio, catálogo, deck, editor, manos o ventanas de selección se amplía al tocarla.
+- Visor de solo lectura con carta completa, nombre, descripción sin recorte y controles +/− y cerrar; Escape también cierra.
+- El toque en Usar, Descartar, Editar, Eliminar o botones numéricos **no abre** el visor.
+- El catálogo muestra tres columnas más grandes, y las manos reciben mayor altura y scroll donde hace falta.
+- El inspector funciona sin internet ni pérdida de estado: la versión web de escritorio sigue igual.

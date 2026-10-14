@@ -4,6 +4,10 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
+import android.view.WindowInsets
+import android.widget.FrameLayout
+import android.graphics.Color
 import android.util.Base64
 import android.util.Log
 import android.webkit.ConsoleMessage
@@ -45,8 +49,30 @@ class MainActivity : Activity() {
             WindowManager.LayoutParams.FLAG_FULLSCREEN
         )
 
+        // Android 15+ places system navigation over the right side of a
+        // landscape app. Respect real system/cutout insets BEFORE laying
+        // out WebView, so neither cards nor zoom controls sit behind Back/Home.
+        val viewport = FrameLayout(this)
+        viewport.setBackgroundColor(Color.rgb(248, 249, 250))
         webView = WebView(this)
-        setContentView(webView)
+        viewport.addView(
+            webView,
+            FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT
+            )
+        )
+        setContentView(viewport)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            viewport.setOnApplyWindowInsetsListener { view, insets ->
+                val safe = insets.getInsets(
+                    WindowInsets.Type.navigationBars() or WindowInsets.Type.displayCutout()
+                )
+                view.setPadding(safe.left, 0, safe.right, safe.bottom)
+                insets
+            }
+            viewport.requestApplyInsets()
+        }
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true // Los decks y las partidas se guardan en el teléfono.
@@ -79,7 +105,8 @@ class MainActivity : Activity() {
                     .ifEmpty { "index.html" }
                 if (path.contains("..") || path.contains('\\') ||
                     !(path == "index.html" || path == "pokerblitz-android.js" ||
-                        path == "poker_blitz_logo.webp" || path == "pokerblitz-android-layout.css" || VERSIONED_HTML.matches(path) ||
+                        path == "poker_blitz_logo.webp" || path == "pokerblitz-android-layout.css" ||
+                        path == "pokerblitz-android-zoom.js" || VERSIONED_HTML.matches(path) ||
                         path.startsWith("assets/") || path.startsWith("presets/") ||
                         path.startsWith("vendor/"))) {
                     return errorResponse(403, "Forbidden")
