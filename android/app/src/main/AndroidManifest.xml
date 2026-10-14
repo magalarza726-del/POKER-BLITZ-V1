@@ -4,6 +4,7 @@
     <application
         android:allowBackup="true"
         android:label="POKER BLITZ"
+        android:icon="@drawable/ic_launcher_foreground"
         android:usesCleartextTraffic="false"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
