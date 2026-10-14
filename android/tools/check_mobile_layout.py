@@ -147,6 +147,8 @@ async function check(){
  if(doc.documentElement.scrollTop>2||doc.body.scrollTop>2||doc.querySelector('.sim-shell').scrollTop>2)
     throw Error('Up button did not restore top');
  if(!doc.defaultView.PokerBlitzAndroidNavigation?.active)throw Error('Navigator inactive in simulator');
+ if(doc.defaultView.getComputedStyle(doc.querySelector('.sim-tools')).display!=='grid')
+  throw Error('Responsive Android CSS was not applied');
  // Native Android Back must use the same safe exit confirmation.
  if(!doc.defaultView.PokerBlitzAndroidNavigation.back())
     throw Error('Android back was not handled in simulator');
@@ -160,8 +162,6 @@ async function check(){
  // The observer removes the fixed dock in the next microtask after rendering.
  await Promise.resolve();
  if(doc.querySelector('#pb-game-nav'))throw Error('Simulator dock remained on home screen');
- if(getComputedStyle(doc.querySelector('.sim-tools')).display!=='grid')
-  throw Error('Responsive Android CSS was not applied');
  report.ok=true;
 }
 async function finish(){
