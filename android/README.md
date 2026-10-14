@@ -40,3 +40,9 @@ Cuando se cambie la versión principal en `index.html`, el proceso utiliza autom
 - La compilación de este branch debe pasar GitHub Actions antes de afirmar que el APK está verificado.
 
 No modifica `index.html` ni `app-v*.html` en el proyecto web existente.
+
+## Corrección Android de inicio y marca (Android build 1)
+- El script del juego dejaba de ejecutarse porque la transformación global del cierre de head insertaba cierres de script dentro de las plantillas PDF.
+- Se usa `replaceFirst` y la CI analiza el JavaScript de los HTML generados.
+- Pantalla de carga con el logotipo original WebP y nuevo icono Android.
+- Si la instalación falla por firma debug distinta, desinstalar versión anterior; **exportar los datos primero si se dispone de decks locales**.

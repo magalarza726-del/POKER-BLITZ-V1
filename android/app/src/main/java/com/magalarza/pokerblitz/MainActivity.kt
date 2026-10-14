@@ -5,6 +5,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.util.Base64
+import android.util.Log
+import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
 import android.webkit.ValueCallback
 import android.webkit.WebChromeClient
@@ -27,6 +29,7 @@ class MainActivity : Activity() {
         private const val APP_URL = "https://appassets.androidplatform.net/index.html"
         private const val REQUEST_IMPORT = 4201
         private const val REQUEST_EXPORT = 4202
+        private val VERSIONED_HTML = Regex("""app-v[0-9]+[.][0-9]+[.][0-9]+[.]html""")
     }
 
     private lateinit var webView: WebView
@@ -76,6 +79,7 @@ class MainActivity : Activity() {
                     .ifEmpty { "index.html" }
                 if (path.contains("..") || path.contains('\\') ||
                     !(path == "index.html" || path == "pokerblitz-android.js" ||
+                        path == "poker_blitz_logo.webp" || VERSIONED_HTML.matches(path) ||
                         path.startsWith("assets/") || path.startsWith("presets/") ||
                         path.startsWith("vendor/"))) {
                     return errorResponse(403, "Forbidden")
@@ -83,12 +87,18 @@ class MainActivity : Activity() {
                 return try {
                     WebResourceResponse(mimeType(path), "UTF-8", assets.open(path))
                 } catch (_: FileNotFoundException) {
+                    Log.e("PokerBlitz", "Recurso no encontrado: $path")
                     errorResponse(404, "Not Found")
                 }
             }
         }
 
         webView.webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(consoleMessage: ConsoleMessage): Boolean {
+                Log.d("PokerBlitzJS", "${consoleMessage.message()} (${consoleMessage.sourceId()}:${consoleMessage.lineNumber()})")
+                return true
+            }
+
             override fun onShowFileChooser(
                 webView: WebView?,
                 filePathCallback: ValueCallback<Array<Uri>>?,

@@ -27,8 +27,8 @@ android {
         applicationId 'com.magalarza.pokerblitz'
         minSdk 24
         targetSdk 35
-        versionCode numbers[0] * 10000 + numbers[1] * 100 + numbers[2]
-        versionName webVersion
+        versionCode numbers[0] * 10000 + numbers[1] * 100 + numbers[2] + 1
+        versionName "${webVersion}-android.1"
     }
     buildTypes {
         release {
@@ -149,8 +149,30 @@ tasks.register('prepareOfflineWeb') {
         if (!html.contains('</head>')) {
             throw new GradleException('La página ya no tiene </head>')
         }
-        html = html.replace('</head>', '<script src="pokerblitz-android.js"></script>\n</head>')
+        html = html.replaceFirst('</head>', '<script src="pokerblitz-android.js"></script>\n</head>')
+        // El logo original aparece durante la carga del juego.
+        def oldLoading = '<div><b>Cargando POKER BLITZ…</b></div>'
+        def brandedLoading = '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;text-align:center">' +
+            '<img src="poker_blitz_logo.webp" alt="Poker Blitz" style="width:min(72vw,420px);height:auto;object-fit:contain">' +
+            '<b>Cargando POKER BLITZ…</b></div>'
+        if (!html.contains(oldLoading)) throw new GradleException('No se encuentra la pantalla de carga')
+        html = html.replaceFirst(java.util.regex.Pattern.quote(oldLoading),
+            java.util.regex.Matcher.quoteReplacement(brandedLoading))
+
+        // Una etiqueta de cierre de script adicional dentro de JS rompe el inicio.
+        // La versión web usa '</head>' dentro de plantillas PDF: evitar replace global.
+        int scriptCountBefore = webSource.getText('UTF-8').findAll('</script>').size()
+        int scriptCountAfter = html.findAll('</script>').size()
+        if (scriptCountAfter != scriptCountBefore + 1) {
+            throw new GradleException("Error: scripts HTML dañados (${scriptCountBefore} -> ${scriptCountAfter})")
+        }
+
+        copy {
+            from file('src/main/res/drawable-nodpi/poker_blitz_logo.webp')
+            into generatedWeb
+        }
         new File(generatedWeb, 'index.html').setText(html, 'UTF-8')
+        new File(generatedWeb, "app-v${webVersion}.html").setText(html, 'UTF-8')
     }
 }
 
