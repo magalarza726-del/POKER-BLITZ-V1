@@ -54,3 +54,5 @@ No modifica `index.html` ni `app-v*.html` en el proyecto web existente.
 - Botones contextuales se mantienen en el pie, ajustados al ancho disponible, y los diálogos son desplazables.
 - Con altura inferior a 480px la vista se desplaza verticalmente para evitar que se corte el contenido.
 - Probar en teléfonos y tablets en horizontal, incluido texto de varias líneas y accesibilidad.
+
+La CI también comprueba el simulador en Chrome sin internet, a 1200×540, 1560×700 y 900×480, revisando que no se superpongan las filas, controles y manos.
