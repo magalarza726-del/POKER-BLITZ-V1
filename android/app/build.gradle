@@ -163,11 +163,11 @@ tasks.register('prepareOfflineWeb') {
         html = html.replaceFirst(java.util.regex.Pattern.quote(oldLoading),
             java.util.regex.Matcher.quoteReplacement(brandedLoading))
 
-        // Una etiqueta de cierre de script adicional dentro de JS rompe el inicio.
+        // Dos scripts Android nuevos (bridge + inspector) son los únicos cierres permitidos.
         // La versión web usa '</head>' dentro de plantillas PDF: evitar replace global.
         int scriptCountBefore = webSource.getText('UTF-8').findAll('</script>').size()
         int scriptCountAfter = html.findAll('</script>').size()
-        if (scriptCountAfter != scriptCountBefore + 1) {
+        if (scriptCountAfter != scriptCountBefore + 2) {
             throw new GradleException("Error: scripts HTML dañados (${scriptCountBefore} -> ${scriptCountAfter})")
         }
 
