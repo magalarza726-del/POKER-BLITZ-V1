@@ -45,7 +45,7 @@ function contains(outer,inner,tolerance=3){
  return inner&&outer&&inner.left>=outer.left-tolerance&&inner.right<=outer.right+tolerance
  &&inner.top>=outer.top-tolerance&&inner.bottom<=outer.bottom+tolerance;
 }
-function check(){
+async function check(){
  const doc=document.getElementById('game').contentDocument;
  function verifyZoom(selector,label){
   const tile=doc.querySelector(selector);
@@ -154,13 +154,15 @@ function check(){
  if(!doc.querySelector('.exit-modal'))throw Error('Visible return button did not open confirmation');
  doc.querySelector('.exit-modal [data-action="exit-without-report"]').click();
  if(!doc.querySelector('.home-main'))throw Error('Return button did not navigate home');
+ // The observer removes the fixed dock in the next microtask after rendering.
+ await Promise.resolve();
  if(doc.querySelector('#pb-game-nav'))throw Error('Simulator dock remained on home screen');
  if(getComputedStyle(doc.querySelector('.sim-tools')).display!=='grid')
   throw Error('Responsive Android CSS was not applied');
  report.ok=true;
 }
-function finish(){
- try{check();}catch(e){report.error=String(e.stack||e);}
+async function finish(){
+ try{await check();}catch(e){report.error=String(e.stack||e);}
  document.getElementById('result').textContent=JSON.stringify(report);
 }
 const iframe=document.getElementById('game');
