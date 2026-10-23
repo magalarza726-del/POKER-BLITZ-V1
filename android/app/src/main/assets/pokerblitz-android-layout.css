@@ -643,3 +643,17 @@ html.pb-game-active ::-webkit-scrollbar-thumb {
 #pb-game-nav [data-pb-nav="trade"]{background:#fff;min-width:110px}
 .sim-top-tools .trade-trigger{height:31px;min-height:31px;font-size:11px;padding:0 6px}
 @media(max-width:900px){#pb-game-nav .pb-nav-title{display:none}.sim-top-tools .trade-trigger{font-size:10px}}
+
+/* Fixed Android shortcut for the complete Actions window. */
+#pb-game-nav [data-pb-nav="trade"]{min-width:95px}
+.trade-reveal{display:flex;gap:4px;align-items:center;justify-content:flex-start;flex-wrap:wrap}
+.trade-reveal button{padding:4px 8px;border:1.5px solid #111;border-radius:7px;background:#fff;font-size:11px;font-weight:800;min-height:29px}
+.trade-reveal button.active{background:#18e0e5}
+.trade-notice{margin:4px;font-size:12px}
+.trade-receive{min-height:29px;border:2px dashed #168b91;background:#e3fbfc;border-radius:8px;font-size:11px;font-weight:850}
+.trade-panel.trade-target,.trade-receive.trade-target{outline:4px solid #19c674;outline-offset:-4px;background:#e5ffe6}
+.trade-trash{display:flex;align-items:center;gap:5px;justify-content:center;flex:0 0 auto;min-width:105px;min-height:47px;border:2px dashed #b32637;border-radius:10px;background:#fff0f0;color:#891c2c;font-weight:1000;font-size:21px}
+.trade-trash span{font-size:12px}
+.trade-trash.trade-target{background:#f7c3c9;border-style:solid;box-shadow:0 0 0 3px #e27684 inset}
+.trade-instructions{flex:1;min-width:0}
+@media(max-height:530px),(max-width:750px){.trade-trash{min-height:38px;min-width:75px;font-size:17px}.trade-trash span{font-size:10px}.trade-reveal button{font-size:10px;min-height:25px;padding:2px 5px}.trade-footer{flex-wrap:nowrap}.trade-instructions{font-size:10px}}
