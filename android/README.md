@@ -80,3 +80,15 @@ La ventana ⇄ Intercambiar permite seleccionar dos jugadores (hasta 6) y cambia
 - Cada jugador tiene su propia visibilidad (Visible / Reverso), sin mostrar el valor de sus cartas ocultas en la lista ni durante el arrastre.
 - **Robar** transfiere una carta a otro jugador sin sustituirla, soltándola en su panel. **Intercambiar** cambia dos cartas, soltando sobre una carta concreta. **Descartar** lleva la carta a la basura, devolviendo Poker al mazo compartido y Power al mazo del propietario actual.
 - Las HyperCards activas se mantienen bloqueadas. Cada acción actualiza las manos y se registra en el historial; Deshacer revierte el último movimiento manual de forma atómica.
+
+## Verificación del PDF: Acciones manuales
+Al crear el PDF de la partida (Salir con PDF) o exportar un historial archivado,
+el documento incluye un resumen **Robos / Intercambios / Descartes** por jugador.
+Las operaciones aparecen además cronológicamente, con marca temporal, jugadores
+participantes, tipo de carta y modo visible/oculto. Las cartas ocultas permanecen
+sin valor nominal en los eventos del PDF. Los movimientos deshechos no se
+incluyen como operaciones completadas.
+
+La CI incluye `check_manual_actions_pdf.py`: ejecuta una partida,
+realiza los tres movimientos y lee el contenido de un PDF generado realmente
+mediante jsPDF, verificando los movimientos y ambos jugadores.
