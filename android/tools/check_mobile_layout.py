@@ -49,7 +49,7 @@ async function check(){
  const doc=document.getElementById('game').contentDocument;
  function verifyZoom(selector,label){
   const tile=doc.querySelector(selector);
-  if(!tile)throw Error('Missing zoom tile '+label+' ('+selector+')');
+  if(!tile)throw Error('Missing zoom tile '+label+' ('+selector+'); APP='+doc.getElementById('app')?.innerHTML.slice(0,1200));
   tile.click();
   const overlay=doc.querySelector('.pb-inspector');
   if(!overlay||!doc.defaultView.PokerBlitzCardInspector?.isOpen)
