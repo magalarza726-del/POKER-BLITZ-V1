@@ -79,6 +79,7 @@
     name.className = 'pb-nav-title';
     name.textContent = 'POKER BLITZ · Modo prueba';
     dock.appendChild(name);
+    dock.appendChild(button('⇄ Intercambiar', 'trade', 'Intercambio manual entre jugadores'));
     dock.appendChild(button('↑ Arriba', 'top', 'Subir al principio'));
     document.body.appendChild(dock);
     document.documentElement.classList.add('pb-game-active');
@@ -91,6 +92,7 @@
     ev.stopImmediatePropagation();
     if (target.dataset.pbNav === 'exit') requestExit();
     else if (target.dataset.pbNav === 'top') scrollToBeginning();
+    else if (target.dataset.pbNav === 'trade') document.querySelector('#app [data-action="open-trade"]')?.click();
   }, true);
 
   // The original app re-renders #app for every action, including rolling dice.

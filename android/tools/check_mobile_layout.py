@@ -49,7 +49,7 @@ async function check(){
  const doc=document.getElementById('game').contentDocument;
  function verifyZoom(selector,label){
   const tile=doc.querySelector(selector);
-  if(!tile)throw Error('Missing zoom tile '+label+' ('+selector+')');
+  if(!tile)throw Error('Missing zoom tile '+label+' ('+selector+'); APP='+doc.getElementById('app')?.innerHTML.slice(0,1200));
   tile.click();
   const overlay=doc.querySelector('.pb-inspector');
   if(!overlay||!doc.defaultView.PokerBlitzCardInspector?.isOpen)
@@ -112,6 +112,57 @@ async function check(){
  const limit=get('.limit-panel'),die=get('.die-widget'),chips=get('.chip-block');
  if(limit.right>die.left+2||die.right>chips.left+2)throw Error('Tools overlap horizontally');
  if(get('.sim-content').height<155)throw Error('Card region too short');
+
+ // Global exchange: complete hands, hidden backs, player selection,
+ // tap-to-swap, drag-to-swap and atomic undo.
+ next('open-trade');
+ if(!doc.querySelector('.trade-modal'))throw Error('Exchange window missing');
+ if(doc.querySelectorAll('.trade-panel').length!==2)throw Error('Need two player hands in exchange');
+ if(doc.querySelectorAll('.trade-panel select option').length<4)throw Error('Player selectors incomplete');
+ if(doc.querySelectorAll('.trade-panel .trade-tile').length<6)throw Error('Power hands not displayed');
+ next('trade-visibility'); // selects VISIBLE again, verify hidden explicitly below
+ const hide=doc.querySelector('[data-action="trade-visibility"][data-visibility="HIDDEN"]');
+ hide.click();
+ if(doc.querySelectorAll('.trade-modal .trade-back').length<6)throw Error('Hidden backs not displayed');
+ if(doc.querySelector('.trade-modal .card-preview,.trade-modal .poker-card'))throw Error('Hidden values leaked');
+ const visible=doc.querySelector('[data-action="trade-visibility"][data-visibility="VISIBLE"]');
+ visible.click();
+ next('trade-kind'); // POWER, no state change
+ doc.querySelector('[data-action="trade-kind"][data-kind="POKER"]').click();
+ const firstTile=()=>doc.querySelector('.trade-list[data-trade-list="from"] .trade-tile');
+ const targetTiles=()=>[...doc.querySelectorAll('.trade-list[data-trade-list="to"] .trade-tile')];
+ const ident=(el)=>el?.querySelector('.poker-corner')?.textContent.trim()||'';
+ const src=firstTile(),before=ident(src);
+ const dst=targetTiles().find(t=>ident(t)!==before);
+ if(!src||!dst)throw Error('Distinct Poker Cards unavailable for trade test');
+ const dstI=Number(dst.dataset.index),beforeDest=ident(dst);
+ src.click();
+ const selected=doc.querySelector('.trade-tile.selected');
+ if(!selected)throw Error('Tap selection failed');
+ doc.querySelector('.trade-list[data-trade-list="to"] .trade-tile[data-index="'+dstI+'"]').click();
+ if(ident(firstTile())!==beforeDest)throw Error('Poker exchange did not update source hand');
+ if(ident(doc.querySelector('.trade-list[data-trade-list="to"] .trade-tile[data-index="'+dstI+'"]'))!==before)
+   throw Error('Poker exchange did not update target hand');
+ next('close-modal');
+ next('undo-action');
+ next('open-trade');
+ doc.querySelector('[data-action="trade-kind"][data-kind="POKER"]').click();
+ if(ident(firstTile())!==before)throw Error('Undo did not restore both hands');
+ // Mouse/touch pointer dragging changes hands without relying on native dragstart.
+ const from=firstTile(),to=targetTiles().find(t=>ident(t)!==ident(from));
+ const rFrom=from.getBoundingClientRect(),rTo=to.getBoundingClientRect();
+ const ax=rFrom.left+rFrom.width/2,ay=rFrom.top+rFrom.height/2;
+ const bx=rTo.left+rTo.width/2,by=rTo.top+rTo.height/2;
+ const dragBefore=ident(from),dragDest=ident(to);
+ from.dispatchEvent(new doc.defaultView.PointerEvent('pointerdown',{bubbles:true,pointerId:42,pointerType:'touch',clientX:ax,clientY:ay}));
+ doc.dispatchEvent(new doc.defaultView.PointerEvent('pointermove',{bubbles:true,pointerId:42,pointerType:'touch',clientX:bx,clientY:by,cancelable:true}));
+ doc.dispatchEvent(new doc.defaultView.PointerEvent('pointerup',{bubbles:true,pointerId:42,pointerType:'touch',clientX:bx,clientY:by,cancelable:true}));
+ if(ident(firstTile())!==dragDest)throw Error('Pointer drag did not swap Poker Cards');
+ await new Promise(r=>setTimeout(r,220));
+ next('close-modal');
+ next('undo-action');
+ report.hands.push({trade:'Power/Poker visible/hidden tap/drag/undo',verified:true});
+
  verifyZoom('.sim-hand .card-preview','power hand');
  // Existing action buttons must not be stolen by the inspection overlay.
  const discard=doc.querySelector('.sim-hand .hand-actions button[data-action="discard-card"]');
