@@ -79,7 +79,7 @@
     name.className = 'pb-nav-title';
     name.textContent = 'POKER BLITZ · Modo prueba';
     dock.appendChild(name);
-    dock.appendChild(button('⇄ Intercambiar', 'trade', 'Intercambio manual entre jugadores'));
+    dock.appendChild(button('⚙ Acciones', 'trade', 'Robar, intercambiar y descartar manualmente'));
     dock.appendChild(button('↑ Arriba', 'top', 'Subir al principio'));
     document.body.appendChild(dock);
     document.documentElement.classList.add('pb-game-active');

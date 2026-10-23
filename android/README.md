@@ -73,3 +73,10 @@ La CI también comprueba el simulador en Chrome sin internet, a 1200×540, 1560�
 
 ## Intercambio manual global
 La ventana ⇄ Intercambiar permite seleccionar dos jugadores (hasta 6) y cambiar una carta por otra del mismo tipo en Power Hand o Poker Hand. El modo Visibles muestra la cara de todas las cartas; No visibles muestra el reverso, con intercambio a ciegas. Funciona con arrastrar/soltar (mouse o tacto) y también tocando una carta de cada jugador. Muestra HyperCards activas pero no permite intercambiarlas. Cada movimiento modifica ambas manos y se registra en los historiales; el undo atómico reinicia las pilas previas para evitar duplicaciones.
+
+## Ventana global de ACCIONES (versión actual)
+- Botón fijo **⚙ Acciones**: Robar, Intercambiar o Descartar mediante arrastrar/soltar, y alternativa tocando.
+- Se abre en **Poker Hands**. Puedes cambiar a Power Hands.
+- Cada jugador tiene su propia visibilidad (Visible / Reverso), sin mostrar el valor de sus cartas ocultas en la lista ni durante el arrastre.
+- **Robar** transfiere una carta a otro jugador sin sustituirla, soltándola en su panel. **Intercambiar** cambia dos cartas, soltando sobre una carta concreta. **Descartar** lleva la carta a la basura, devolviendo Poker al mazo compartido y Power al mazo del propietario actual.
+- Las HyperCards activas se mantienen bloqueadas. Cada acción actualiza las manos y se registra en el historial; Deshacer revierte el último movimiento manual de forma atómica.

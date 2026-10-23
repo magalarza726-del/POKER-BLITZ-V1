@@ -969,7 +969,7 @@ window.STARTER_CARDS = [
     const hyperButtons=`<div style="width:200px;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:1000"><span style="font-size:34px;margin-right:8px">🔴</span>x${s.chips||0}</div>`;
     const bottomButtons=view==='POKER'?pokerButtons:(view==='HYPER'?hyperButtons:powerButtons);
     const hint=view==='POKER'?'Poker Hand permite robar o buscar Poker Cards del Poker Deck compartido. Usa las flechas laterales para cambiar de mano.':(view==='HYPER'?'Hyper Zone muestra las HyperCards activas de este jugador; siguen sin contar en el límite de Power Hand.':'Draw Phase roba automáticamente hasta 3 Power Cards sin superar el límite y pasa a Main Phase. En End Phase puedes descartar y jugar CounterCards.');
-    return `<main class="sim-shell"><div class="sim-top"><button class="icon-btn" data-action="exit-sim">${icon('back')}</button><h1>Modo prueba</h1><div class="sim-result">${esc(sim.result||'')}</div><div class="sim-top-tools"><button class="sim-undo-btn" data-action="undo-action" title="Deshacer última acción" ${undoCount?'':'disabled'}>${icon('undo')}</button><button class="sim-history-btn" data-action="test-history">Historial</button><button class="trade-trigger" data-action="open-trade" title="Intercambio de cartas entre jugadores">⇄ Intercambiar</button></div><span class="sim-hand-size">Inicial: ${state.handSize}</span><strong>${sim.activeIndex+1} / ${valid.length}</strong></div><div class="phase-strip"><span class="phase-strip-label">Fase actual</span>${phaseButtons}</div><div class="sim-tools"><button class="nav-deck" data-action="prev-sim">${icon('left','lg')}</button><div class="deck-summary">${deckCharacterHTML(d,'deck-row-avatar')}<div><div class="name">Jugador ${d.playerNumber} · ${esc(d.name)}</div><div class="small muted">${s.drawPile.length} restantes · ${s.hand.length} visibles · ${handCount}/${s.powerHandLimit} Power Hand · ${s.pokerHand.length}/${s.pokerLimit} Poker Hand${s.activeHyper.length?' · '+s.activeHyper.length+'/3 Hyper activas':''}</div></div></div><button class="nav-deck" data-action="next-sim">${icon('right','lg')}</button><div class="game-tools"><div class="limit-panel"><div><div class="limit-title">Límite Power Hand</div><div class="limit-value ${overLimit?'hand-over-limit':''}">${handCount} / ${s.powerHandLimit}</div></div><div class="limit-stepper"><button data-action="adjust-hand-limit" data-delta="-1" ${s.powerHandLimit<=0?'disabled':''}>−</button><button data-action="adjust-hand-limit" data-delta="1">+</button></div><div class="small muted">Hyper activas no cuentan.</div></div><div class="die-widget"><div class="die-scene ${s.dieRolling?'rolling':''}" data-action="roll-die" title="Tirar dado"><div class="die-cube ${s.dieRolling?'rolling':''}" style="--die-final:${finalTransform};${s.dieRolling?'':'transform:'+finalTransform}">${dieFaces}</div></div><div class="die-info"><span>Dado · toca para lanzar</span><div class="die-adjust"><button data-action="die-adjust" data-delta="-1" ${s.dieBase?'':'disabled'}>${icon('left')}</button><strong>${s.dieBase?adjusted:'—'}</strong><button data-action="die-adjust" data-delta="1" ${s.dieBase?'':'disabled'}>${icon('right')}</button></div></div></div><div class="chip-block"><span class="small">Cobro rápido</span><div class="chip-total">${s.chips||0} fichas</div><div class="chip-actions">${chipButtons}</div></div></div></div><div class="sim-content"><button class="hand-switch prev" data-action="cycle-hand" data-dir="-1" title="Mano anterior"><span class="chev"></span></button><div class="sim-hand-wrap"><h2 class="sim-hand-title">${title}</h2><div class="sim-hand">${handMarkup}</div></div><button class="hand-switch next" data-action="cycle-hand" data-dir="1" title="Siguiente mano"><span class="chev"></span></button>${simCharacterHTML(d)}</div><div class="sim-bottom">${bottomButtons}<button class="btn history-bottom" data-action="test-history">Historial</button><div class="hint">${hint}</div></div></main>`;
+    return `<main class="sim-shell"><div class="sim-top"><button class="icon-btn" data-action="exit-sim">${icon('back')}</button><h1>Modo prueba</h1><div class="sim-result">${esc(sim.result||'')}</div><div class="sim-top-tools"><button class="sim-undo-btn" data-action="undo-action" title="Deshacer última acción" ${undoCount?'':'disabled'}>${icon('undo')}</button><button class="sim-history-btn" data-action="test-history">Historial</button><button class="trade-trigger" data-action="open-trade" title="Robar, intercambiar y descartar cartas">⚙ Acciones</button></div><span class="sim-hand-size">Inicial: ${state.handSize}</span><strong>${sim.activeIndex+1} / ${valid.length}</strong></div><div class="phase-strip"><span class="phase-strip-label">Fase actual</span>${phaseButtons}</div><div class="sim-tools"><button class="nav-deck" data-action="prev-sim">${icon('left','lg')}</button><div class="deck-summary">${deckCharacterHTML(d,'deck-row-avatar')}<div><div class="name">Jugador ${d.playerNumber} · ${esc(d.name)}</div><div class="small muted">${s.drawPile.length} restantes · ${s.hand.length} visibles · ${handCount}/${s.powerHandLimit} Power Hand · ${s.pokerHand.length}/${s.pokerLimit} Poker Hand${s.activeHyper.length?' · '+s.activeHyper.length+'/3 Hyper activas':''}</div></div></div><button class="nav-deck" data-action="next-sim">${icon('right','lg')}</button><div class="game-tools"><div class="limit-panel"><div><div class="limit-title">Límite Power Hand</div><div class="limit-value ${overLimit?'hand-over-limit':''}">${handCount} / ${s.powerHandLimit}</div></div><div class="limit-stepper"><button data-action="adjust-hand-limit" data-delta="-1" ${s.powerHandLimit<=0?'disabled':''}>−</button><button data-action="adjust-hand-limit" data-delta="1">+</button></div><div class="small muted">Hyper activas no cuentan.</div></div><div class="die-widget"><div class="die-scene ${s.dieRolling?'rolling':''}" data-action="roll-die" title="Tirar dado"><div class="die-cube ${s.dieRolling?'rolling':''}" style="--die-final:${finalTransform};${s.dieRolling?'':'transform:'+finalTransform}">${dieFaces}</div></div><div class="die-info"><span>Dado · toca para lanzar</span><div class="die-adjust"><button data-action="die-adjust" data-delta="-1" ${s.dieBase?'':'disabled'}>${icon('left')}</button><strong>${s.dieBase?adjusted:'—'}</strong><button data-action="die-adjust" data-delta="1" ${s.dieBase?'':'disabled'}>${icon('right')}</button></div></div></div><div class="chip-block"><span class="small">Cobro rápido</span><div class="chip-total">${s.chips||0} fichas</div><div class="chip-actions">${chipButtons}</div></div></div></div><div class="sim-content"><button class="hand-switch prev" data-action="cycle-hand" data-dir="-1" title="Mano anterior"><span class="chev"></span></button><div class="sim-hand-wrap"><h2 class="sim-hand-title">${title}</h2><div class="sim-hand">${handMarkup}</div></div><button class="hand-switch next" data-action="cycle-hand" data-dir="1" title="Siguiente mano"><span class="chev"></span></button>${simCharacterHTML(d)}</div><div class="sim-bottom">${bottomButtons}<button class="btn history-bottom" data-action="test-history">Historial</button><div class="hint">${hint}</div></div></main>`;
   }
   function renderRules(){
     return `<main class="app-shell rules-shell">${appBar('Reglamento oficial',{back:true})}<section class="rules-wrap"><div class="rules-hero panel"><div><div class="eyebrow">POKER BLITZ</div><h2>Reglamento Oficial</h2><p>Edición base · Documento de reglas</p></div><div class="rules-version">Web v${APP_VERSION}</div></div><div class="rules-grid">${RULES_SECTIONS.map((r,i)=>`<article class="rule-card panel"><div class="rule-number">${String(i+1).padStart(2,'0')}</div><div class="rule-body"><h3>${r.title}</h3>${r.html}</div></article>`).join('')}</div><div class="rules-note">Consulta aquí las reglas integradas actualmente en la app.</div></section></main>`;
@@ -985,14 +985,28 @@ window.STARTER_CARDS = [
   function paperPreview(r,c){return `<div class="paper" style="grid-template-columns:repeat(${c},1fr);grid-template-rows:repeat(${r},1fr)">${Array.from({length:r*c},()=>'<div class="paper-cell"></div>').join('')}</div>`}
 
   // Global manual exchange — simulator state is authoritative, not DOM.
+  /* Global manual actions: all operations modify simulator state atomically.
+     POKER is the default view. Each player's visibility is independent. */
   function openTrade(){
-    if(!sim)return;
-    if(sim.decks.length<2){toast('Se necesitan al menos 2 jugadores');return;}
-    const from=sim.decks[sim.activeIndex].id,to=sim.decks.find(d=>d.id!==from).id;
-    modal={type:'trade',from,to,kind:'POWER',visibility:'VISIBLE',picked:null};render();
+    if(!sim?.decks?.length)return;
+    const from=sim.decks[sim.activeIndex].id;
+    const to=sim.decks.find(d=>d.id!==from)?.id||null;
+    modal={type:'trade',from,to,kind:'POKER',operation:to?'SWAP':'DISCARD',
+      visibility:{from:'VISIBLE',to:'VISIBLE'},picked:null};
+    render();
+  }
+  function updateTradeView(){
+    const scroll=Object.fromEntries(['from','to'].map(side=>[side,document.querySelector('[data-trade-list="'+side+'"]')?.scrollTop||0]));
+    render();
+    for(const side of ['from','to']){
+      const list=document.querySelector('[data-trade-list="'+side+'"]');
+      if(list)list.scrollTop=scroll[side];
+    }
   }
   function tradeHandMarkup(playerId,side){
-    const s=sim.states[playerId],poker=modal.kind==='POKER',hidden=modal.visibility==='HIDDEN';
+    const s=sim?.states?.[playerId];
+    if(!s)return '<div class="history-empty">Sin jugador asignado.</div>';
+    const poker=modal.kind==='POKER',hidden=modal.visibility[side]==='HIDDEN';
     const cards=poker?(s.pokerHand||[]):(s.hand||[]);
     if(!cards.length)return '<div class="history-empty">No hay cartas en esta mano.</div>';
     return cards.map((entry,i)=>{
@@ -1003,55 +1017,83 @@ window.STARTER_CARDS = [
       const back='<div class="trade-back '+(poker?'poker':'')+'" aria-hidden="true"><span>♠</span><strong>POKER BLITZ</strong></div>';
       const label=locked?'Hyper activa · bloqueada':hidden?('Carta '+(i+1)):name;
       const selected=modal.picked?.side===side&&modal.picked.index===i;
-      return '<button type="button" class="trade-tile '+(selected?'selected':'')+'" data-action="trade-pick" data-side="'+side+'" data-index="'+i+'" '+(locked?'disabled':'')+' aria-pressed="'+selected+'" aria-label="'+esc(hidden?'Carta '+(i+1):name)+'"><div class="trade-preview">'+(hidden?back:face)+'</div><span class="trade-tile-label">'+esc(label)+'</span></button>';
+      return '<button type="button" class="trade-tile '+(selected?'selected':'')+'" data-action="trade-pick" data-side="'+side+'" data-index="'+i+'" '+(locked?'disabled':'')+' aria-pressed="'+selected+'" aria-label="'+esc(hidden?('Carta '+(i+1)):name)+'"><div class="trade-preview">'+(hidden?back:face)+'</div><span class="trade-tile-label">'+esc(label)+'</span></button>';
     }).join('');
   }
   function tradeModalMarkup(){
-    if(!sim||sim.decks.length<2)return '';
+    if(!sim?.decks?.length)return '';
     const ids=sim.decks.map(d=>d.id);
     if(!ids.includes(modal.from))modal.from=ids[0];
-    if(!ids.includes(modal.to)||modal.to===modal.from)modal.to=ids.find(id=>id!==modal.from);
-    const poker=modal.kind==='POKER',hidden=modal.visibility==='HIDDEN';
+    if(!ids.includes(modal.to)||modal.to===modal.from)modal.to=ids.find(id=>id!==modal.from)||null;
+    const poker=modal.kind==='POKER';
+    const operation=modal.operation||'SWAP';
     function column(side,playerId){
-      const player=sim.decks.find(d=>d.id===playerId),s=sim.states[playerId];
+      const st=sim.states[playerId],count=st?(poker?(st.pokerHand||[]).length:(st.hand||[]).length):0;
       const options=sim.decks.map(d=>'<option value="'+esc(d.id)+'" '+(d.id===playerId?'selected':'')+'>Jugador '+d.playerNumber+' · '+esc(d.name)+'</option>').join('');
-      const count=poker?(s.pokerHand||[]).length:(s.hand||[]).length;
-      return '<section class="trade-panel"><div class="trade-panel-head"><label for="trade-'+side+'">Jugador '+(side==='from'?'A':'B')+'</label><select id="trade-'+side+'" data-trade-player="'+side+'">'+options+'</select><small>'+(poker?'Poker Hand':'Power Hand')+' · '+count+' cartas'+(poker?'':' (Hyper activas bloqueadas)')+'</small></div><div class="trade-list" data-trade-list="'+side+'">'+tradeHandMarkup(playerId,side)+'</div></section>';
+      const hidden=modal.visibility[side]==='HIDDEN';
+      const reveal='<div class="trade-reveal" aria-label="Visibilidad del jugador '+(side==='from'?'A':'B')+'"><button type="button" class="'+(!hidden?'active':'')+'" data-action="trade-visibility" data-side="'+side+'" data-visibility="VISIBLE" aria-pressed="'+!hidden+'">👁 Visible</button><button type="button" class="'+(hidden?'active':'')+'" data-action="trade-visibility" data-side="'+side+'" data-visibility="HIDDEN" aria-pressed="'+hidden+'">▣ Reverso</button></div>';
+      const receive=operation==='STEAL'&&st?'<button class="trade-receive" data-action="trade-receive" data-side="'+side+'">↓ Soltar aquí para robar</button>':'';
+      const playerSelect=st?'<select id="trade-'+side+'" data-trade-player="'+side+'">'+options+'</select>':'<p class="trade-notice">Añade otro jugador para Robar o Intercambiar.</p>';
+      return '<section class="trade-panel" data-trade-panel="'+side+'"><div class="trade-panel-head"><label for="trade-'+side+'">Jugador '+(side==='from'?'A':'B')+'</label>'+playerSelect+reveal+'<small>'+(poker?'Poker Hand':'Power Hand')+' · '+count+' cartas'+(poker?'':' (Hyper activas bloqueadas)')+'</small>'+receive+'</div><div class="trade-list" data-trade-list="'+side+'">'+tradeHandMarkup(playerId,side)+'</div></section>';
     }
-    function tab(action,data,value,label,active){return '<button type="button" class="'+(active?'active':'')+'" data-action="'+action+'" data-'+data+'="'+value+'" aria-pressed="'+active+'">'+label+'</button>';}
-    return '<div class="modal-backdrop"><div class="modal trade-modal" role="dialog" aria-modal="true" aria-label="Intercambio manual de cartas entre jugadores">'+
-      '<div class="modal-head"><h2>⇄ Intercambio manual</h2><button class="icon-btn" data-action="close-modal" aria-label="Cerrar">'+icon('close')+'</button></div>'+
-      '<div class="trade-toolbar"><div class="trade-tabs">'+tab('trade-kind','kind','POWER','Power Hand',!poker)+tab('trade-kind','kind','POKER','Poker Hand',poker)+'</div>'+
-      '<div class="trade-tabs">'+tab('trade-visibility','visibility','VISIBLE','👁 Visibles',!hidden)+tab('trade-visibility','visibility','HIDDEN','▣ No visibles',hidden)+'</div></div>'+
+    function tab(action,key,value,title,selected){return '<button type="button" class="'+(selected?'active':'')+'" data-action="'+action+'" data-'+key+'="'+value+'" aria-pressed="'+selected+'">'+title+'</button>';}
+    const instructions=operation==='STEAL'?'Robar: lleva una carta de una mano a la otra, sin devolver otra carta. Puedes soltarla en cualquier zona del jugador que recibe.':operation==='DISCARD'?'Descartar: arrastra una carta al tacho de basura. Poker vuelve al mazo compartido; Power vuelve al mazo del jugador.':'Intercambiar: arrastra una carta sobre una carta del otro jugador; se permutan ambas.';
+    return '<div class="modal-backdrop"><div class="modal trade-modal" role="dialog" aria-modal="true" aria-label="Acciones manuales entre jugadores">'+
+      '<div class="modal-head"><h2>⚙ Acciones manuales</h2><button class="icon-btn" data-action="close-modal" aria-label="Cerrar">'+icon('close')+'</button></div>'+
+      '<div class="trade-toolbar"><div class="trade-tabs" aria-label="Tipo de mano">'+tab('trade-kind','kind','POKER','Poker Hands',poker)+tab('trade-kind','kind','POWER','Power Hands',!poker)+'</div>'+
+      '<div class="trade-tabs" aria-label="Operación">'+tab('trade-operation','operation','STEAL','↪ Robar',operation==='STEAL')+tab('trade-operation','operation','SWAP','⇄ Intercambiar',operation==='SWAP')+tab('trade-operation','operation','DISCARD','🗑 Descartar',operation==='DISCARD')+'</div></div>'+
       '<div class="trade-grid">'+column('from',modal.from)+column('to',modal.to)+'</div>'+
-      '<div class="trade-footer"><p>'+(modal.picked?'Selecciona una carta del otro jugador.':'Arrastra una carta sobre otra del otro jugador, o toca una carta de cada lado.')+' Solo intercambios 1 a 1 del mismo tipo. Las HyperCards activas no se intercambian.</p><button class="btn" data-action="close-modal">Cerrar</button></div>'+
+      '<div class="trade-footer"><p class="trade-instructions">'+instructions+(modal.picked?' Carta seleccionada: elige el destino.':' Alternativa: toca la carta y después el destino.')+'</p><button class="trade-trash" data-action="trade-trash" aria-label="Soltar carta para descartar" title="Arrastra una carta aquí para descartarla">🗑 <span>Basura</span></button><button class="btn" data-action="close-modal">Cerrar</button></div>'+
       '</div></div>';
   }
-  function tradeSwap(sourceSide,sourceIndex,targetSide,targetIndex){
-    if(modal?.type!=='trade'||!sim||sourceSide===targetSide)return false;
-    if(!['from','to'].includes(sourceSide)||!['from','to'].includes(targetSide))return false;
-    const idA=modal[sourceSide],idB=modal[targetSide],a=sim.states[idA],b=sim.states[idB];
-    if(!a||!b||idA===idB)return false;
-    const poker=modal.kind==='POKER',key=poker?'pokerHand':'hand';
-    if(!Number.isInteger(sourceIndex)||!Number.isInteger(targetIndex)||sourceIndex<0||targetIndex<0||sourceIndex>=a[key].length||targetIndex>=b[key].length)return false;
-    if(!poker&&((a.activeHyper||[]).includes(sourceIndex)||(b.activeHyper||[]).includes(targetIndex))){toast('No se intercambian HyperCards activas');return false;}
-    const first=a[key][sourceIndex],second=b[key][targetIndex];
-    if(!first||!second)return false;
-    const beforeA=structuredClone(a),beforeB=structuredClone(b),lenA=(sim.histories[idA]||[]).length,lenB=(sim.histories[idB]||[]).length,previousResult=sim.result;
-    // Transactional undo. Earlier per-player undo entries must not restore
-    // pre-trade hands on only one player (which would duplicate cards).
+  function tradeApply(sourceSide,sourceIndex,targetSide=null,targetIndex=null){
+    if(!sim||modal?.type!=='trade'||!['from','to'].includes(sourceSide))return false;
+    const operation=modal.operation||'SWAP',poker=modal.kind==='POKER',key=poker?'pokerHand':'hand';
+    const srcId=modal[sourceSide],a=sim.states[srcId];
+    if(!a||!Number.isInteger(sourceIndex)||sourceIndex<0||sourceIndex>=a[key].length)return false;
+    if(!poker&&(a.activeHyper||[]).includes(sourceIndex)){toast('No puedes mover una HyperCard activa');return false;}
+    if(operation!=='DISCARD'&&(!['from','to'].includes(targetSide)||targetSide===sourceSide)){toast('Elige otro jugador');return false;}
+    const destId=operation==='DISCARD'?null:modal[targetSide],b=destId?sim.states[destId]:null;
+    if(operation!=='DISCARD'&&(!b||destId===srcId))return false;
+    if(operation==='SWAP'){
+      if(!Number.isInteger(targetIndex)||targetIndex<0||targetIndex>=b[key].length)return false;
+      if(!poker&&(b.activeHyper||[]).includes(targetIndex)){toast('No puedes intercambiar una HyperCard activa');return false;}
+    }
+    const first=a[key][sourceIndex],second=operation==='SWAP'?b[key][targetIndex]:null;
+    if(!first||(operation==='SWAP'&&!second))return false;
+    const affected=destId?[srcId,destId]:[srcId];
+    const states=Object.fromEntries(affected.map(id=>[id,structuredClone(sim.states[id])]));
+    const lengths=Object.fromEntries(affected.map(id=>[id,(sim.histories[id]||[]).length]));
+    const oldPile=structuredClone(sim.pokerDrawPile||[]),oldResult=sim.result;
+    // Prevent stale per-player snapshots from resurrecting cards exchanged or discarded elsewhere.
     sim.undoStacks=Object.fromEntries(sim.decks.map(d=>[d.id,[]]));
-    [a[key][sourceIndex],b[key][targetIndex]]=[second,first];
-    const playerA=sim.decks.find(d=>d.id===idA),playerB=sim.decks.find(d=>d.id===idB),hidden=modal.visibility==='HIDDEN';
-    const nameA=hidden?'carta oculta':poker?(first.rank+' de '+first.suit):(getCard(first)?.name||'Power Card');
-    const nameB=hidden?'carta oculta':poker?(second.rank+' de '+second.suit):(getCard(second)?.name||'Power Card');
-    const description='Jugador '+playerA.playerNumber+' y jugador '+playerB.playerNumber+': '+nameA+' ⇄ '+nameB+' ('+(poker?'Poker':'Power')+', '+(hidden?'no visibles':'visibles')+').';
-    logSim(idA,'Intercambio manual',description);logSim(idB,'Intercambio manual',description);
-    sim.result='Intercambio registrado · J'+playerA.playerNumber+' ⇄ J'+playerB.playerNumber;
+    if(operation==='SWAP'){
+      [a[key][sourceIndex],b[key][targetIndex]]=[second,first];
+    }else{
+      a[key].splice(sourceIndex,1);
+      if(!poker)a.activeHyper=(a.activeHyper||[]).filter(i=>i!==sourceIndex).map(i=>i>sourceIndex?i-1:i);
+      if(operation==='STEAL')b[key].push(first);
+      else if(poker)sim.pokerDrawPile.push(first);
+      else a.drawPile.push(first);
+    }
+    const playerA=sim.decks.find(d=>d.id===srcId),playerB=destId?sim.decks.find(d=>d.id===destId):null;
+    const masked=modal.visibility[sourceSide]==='HIDDEN'||(targetSide&&modal.visibility[targetSide]==='HIDDEN');
+    const label=(card)=>masked?'carta oculta':poker?(card.rank+' de '+card.suit):(getCard(card)?.name||'Power Card');
+    const type=poker?'Poker Card':'Power Card';
+    const desc=operation==='SWAP'?'J'+playerA.playerNumber+' ⇄ J'+playerB.playerNumber+': '+label(first)+' por '+label(second)+'.':operation==='STEAL'?'J'+playerB.playerNumber+' roba de J'+playerA.playerNumber+': '+label(first)+'.':'J'+playerA.playerNumber+' descarta '+label(first)+(poker?' al Poker Deck compartido.':' a su Power Deck.');
+    const action=operation==='STEAL'?'Robo manual':operation==='DISCARD'?'Descarte manual':'Intercambio manual';
+    for(const id of affected)logSim(id,action,desc+' ('+type+', '+(masked?'oculto':'visible')+').');
+    sim.result=action+' · '+(playerB?'J'+playerA.playerNumber+' / J'+playerB.playerNumber:'J'+playerA.playerNumber);
     const owner=sim.decks[sim.activeIndex].id;
-    sim.undoStacks[owner].push({label:'Intercambio manual',tradeStates:{[idA]:beforeA,[idB]:beforeB},tradeHistoryLengths:{[idA]:lenA,[idB]:lenB},result:previousResult});
-    modal.picked=null;render();toast(hidden?'Intercambio boca abajo registrado':'Intercambio registrado');
+    sim.undoStacks[owner].push({label:action,tradeStates:states,tradeHistoryLengths:lengths,tradePokerDrawPile:oldPile,result:oldResult});
+    modal.picked=null;
+    updateTradeView();toast(action+' registrado');
     return true;
+  }
+  function tradeDestination(side,index=null){
+    if(modal?.type!=='trade'||!modal.picked)return false;
+    if(modal.operation==='DISCARD')return false;
+    return tradeApply(modal.picked.side,modal.picked.index,side,index);
   }
 
   function renderModal(){
@@ -1184,7 +1226,8 @@ sim.undoStacks??={};const snap=structuredClone(sim.states[deckId]);snap.dieRolli
         sim.states[id]=structuredClone(snapshot);
         sim.histories[id]=(sim.histories[id]||[]).slice(0,u.tradeHistoryLengths?.[id]??0);
       }
-      sim.result='Deshecho: intercambio manual';modal=null;render();return;
+      if(Array.isArray(u.tradePokerDrawPile))sim.pokerDrawPile=structuredClone(u.tradePokerDrawPile);
+      sim.result='Deshecho: '+(u.label||'acción manual');modal=null;render();return;
     }
 sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.pokerDrawPile=structuredClone(u.pokerDrawPile);if(sim.histories?.[d.id])sim.histories[d.id]=sim.histories[d.id].slice(0,u.historyLength);sim.result='Deshecho: '+(u.label||'última acción');render()}
   function maxHandMessage(s){const msg=`Límite máximo de Power Cards alcanzado (${s.powerHandLimit}).`;sim.result=msg;toast(msg)}
@@ -1271,7 +1314,20 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
 
 
   // Pointer events support drag/drop in Android WebView and on desktop.
+  // Pointer drag/drop for phones and desktops; click/tap works without dragging.
   let dragTrade=null,skipTradeClick=false;
+  function tradeTargetAt(x,y,origin){
+    const at=document.elementFromPoint(x,y);
+    if(!at)return null;
+    if(modal?.operation==='DISCARD')return at.closest('.trade-trash');
+    const tile=at.closest('.trade-tile[data-side][data-index]');
+    if(modal?.operation==='SWAP')return tile&&tile.dataset.side!==origin&&!tile.disabled?tile:null;
+    if(modal?.operation==='STEAL'){
+      const panel=at.closest('.trade-panel[data-trade-panel]');
+      if(panel&&panel.dataset.tradePanel!==origin&&sim.states[modal[panel.dataset.tradePanel]])return tile||panel;
+    }
+    return null;
+  }
   document.addEventListener('pointerdown',e=>{
     const tile=e.target.closest('.trade-tile[data-side][data-index]');
     if(modal?.type!=='trade'||!tile||tile.disabled||e.button>0)return;
@@ -1280,20 +1336,33 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
   document.addEventListener('pointermove',e=>{
     const d=dragTrade;if(!d||e.pointerId!==d.id||modal?.type!=='trade')return;
     if(!d.moved&&Math.hypot(e.clientX-d.x,e.clientY-d.y)<10)return;
-    if(!d.moved){d.moved=true;d.ghost=document.createElement('div');d.ghost.className='trade-ghost';d.ghost.textContent='⇄ '+(modal.kind==='POKER'?'Poker Card':'Power Card');document.body.appendChild(d.ghost);}
+    if(!d.moved){
+      d.moved=true;d.ghost=document.createElement('div');d.ghost.className='trade-ghost';
+      // Never disclose hidden card information in the drag indicator.
+      d.ghost.textContent=modal.operation==='DISCARD'?'🗑 Descartar':modal.operation==='STEAL'?'↪ Robar':'⇄ Intercambiar';
+      document.body.appendChild(d.ghost);
+    }
     e.preventDefault();
     d.ghost.style.left=e.clientX+'px';d.ghost.style.top=e.clientY+'px';
     d.target?.classList.remove('trade-target');
-    d.target=document.elementFromPoint(e.clientX,e.clientY)?.closest('.trade-tile[data-side][data-index]')||null;
-    if(d.target?.dataset.side===d.side||d.target?.disabled)d.target=null;
+    d.target=tradeTargetAt(e.clientX,e.clientY,d.side);
     d.target?.classList.add('trade-target');
   },{capture:true,passive:false});
   document.addEventListener('pointerup',e=>{
     const d=dragTrade;if(!d||d.id!==e.pointerId)return;
-    dragTrade=null;d.ghost?.remove();d.target?.classList.remove('trade-target');
+    dragTrade=null;d.ghost?.remove();
+    const target=tradeTargetAt(e.clientX,e.clientY,d.side)||d.target;
+    d.target?.classList.remove('trade-target');
     if(!d.moved)return;
     e.preventDefault();skipTradeClick=true;setTimeout(()=>skipTradeClick=false,180);
-    if(d.target)tradeSwap(d.side,d.index,d.target.dataset.side,Number(d.target.dataset.index));
+    if(!target)return;
+    if(modal.operation==='DISCARD'&&target.closest('.trade-trash'))tradeApply(d.side,d.index);
+    else if(modal.operation==='SWAP'&&target.classList.contains('trade-tile'))
+      tradeApply(d.side,d.index,target.dataset.side,Number(target.dataset.index));
+    else if(modal.operation==='STEAL'){
+      const side=target.closest('[data-trade-panel]')?.dataset.tradePanel;
+      if(side)tradeApply(d.side,d.index,side);
+    }
   },true);
   document.addEventListener('pointercancel',()=>{
     if(dragTrade){dragTrade.ghost?.remove();dragTrade.target?.classList.remove('trade-target');dragTrade=null;}
@@ -1333,15 +1402,31 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='set-poker-decks'){testSetup.pokerDeckCount=[1,2].includes(Number(el.dataset.value))?Number(el.dataset.value):1;syncTestSetup();render()}
     else if(a==='start-sim'){if(!availableTestDecks().length){toast('No hay decks disponibles');return}initSim();go('simulator')}
     else if(a==='open-trade'){openTrade()}
-    else if(a==='trade-kind'&&modal?.type==='trade'){modal.kind=el.dataset.kind==='POKER'?'POKER':'POWER';modal.picked=null;render()}
-    else if(a==='trade-visibility'&&modal?.type==='trade'){modal.visibility=el.dataset.visibility==='HIDDEN'?'HIDDEN':'VISIBLE';modal.picked=null;render()}
+    else if(a==='trade-kind'&&modal?.type==='trade'){modal.kind=el.dataset.kind==='POWER'?'POWER':'POKER';modal.picked=null;updateTradeView()}
+    else if(a==='trade-operation'&&modal?.type==='trade'){
+      const op=el.dataset.operation;
+      if(!['STEAL','SWAP','DISCARD'].includes(op))return;
+      if(sim.decks.length<2&&op!=='DISCARD'){toast('Necesitas otro jugador');return;}
+      modal.operation=op;modal.picked=null;updateTradeView();
+    }
+    else if(a==='trade-visibility'&&modal?.type==='trade'){
+      const side=el.dataset.side;
+      if(!['from','to'].includes(side))return;
+      modal.visibility[side]=el.dataset.visibility==='HIDDEN'?'HIDDEN':'VISIBLE';
+      modal.picked=null;updateTradeView();
+    }
     else if(a==='trade-pick'&&modal?.type==='trade'){
       if(el.disabled)return;
       const side=el.dataset.side,index=Number(el.dataset.index);
       if(!['from','to'].includes(side)||!Number.isInteger(index))return;
       if(!modal.picked||modal.picked.side===side){
-        modal.picked=modal.picked?.side===side&&modal.picked.index===index?null:{side,index};render();
-      }else tradeSwap(modal.picked.side,modal.picked.index,side,index);
+        modal.picked=modal.picked?.side===side&&modal.picked.index===index?null:{side,index};updateTradeView();
+      }else tradeDestination(side,index);
+    }
+    else if(a==='trade-receive'&&modal?.type==='trade'){tradeDestination(el.dataset.side)}
+    else if(a==='trade-trash'&&modal?.type==='trade'){
+      if(modal.operation!=='DISCARD'){modal.operation='DISCARD';updateTradeView();return;}
+      if(modal.picked)tradeApply(modal.picked.side,modal.picked.index);
     }
     else if(a==='exit-sim'){modal={type:'exit-sim'};render()}
     else if(a==='exit-with-report'){finishSimulation('Salida con PDF',true)}
