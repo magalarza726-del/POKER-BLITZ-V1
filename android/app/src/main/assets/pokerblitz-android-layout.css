@@ -639,3 +639,7 @@ html.pb-game-active ::-webkit-scrollbar-thumb {
   #pb-game-nav .pb-nav-button { min-width:76px; padding:0 6px; }
   #pb-game-nav .pb-nav-title { font-size:11px; }
 }
+
+#pb-game-nav [data-pb-nav="trade"]{background:#fff;min-width:110px}
+.sim-top-tools .trade-trigger{height:31px;min-height:31px;font-size:11px;padding:0 6px}
+@media(max-width:900px){#pb-game-nav .pb-nav-title{display:none}.sim-top-tools .trade-trigger{font-size:10px}}

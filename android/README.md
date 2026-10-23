@@ -70,3 +70,6 @@ La CI también comprueba el simulador en Chrome sin internet, a 1200×540, 1560�
 - **← Inicio** muestra la confirmación ya existente (Salir sin PDF / Salir con PDF / Cancelar): nunca descarta una partida accidentalmente.
 - El botón Atrás de Android cierra el zoom o una ventana, o abre la misma confirmación de salida; desde la pantalla principal permite cerrar la app.
 - GitHub Actions prueba scroll superior, salida y cancelación además de las tres manos.
+
+## Intercambio manual global
+La ventana ⇄ Intercambiar permite seleccionar dos jugadores (hasta 6) y cambiar una carta por otra del mismo tipo en Power Hand o Poker Hand. El modo Visibles muestra la cara de todas las cartas; No visibles muestra el reverso, con intercambio a ciegas. Funciona con arrastrar/soltar (mouse o tacto) y también tocando una carta de cada jugador. Muestra HyperCards activas pero no permite intercambiarlas. Cada movimiento modifica ambas manos y se registra en los historiales; el undo atómico reinicia las pilas previas para evitar duplicaciones.
