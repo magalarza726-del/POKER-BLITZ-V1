@@ -1272,7 +1272,18 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
   async function ensurePdfTools(withCanvas=false){try{await loadExternalScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js',()=>!!window.jspdf?.jsPDF);if(withCanvas)await loadExternalScript('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',()=>!!window.html2canvas);return window.jspdf?.jsPDF||null}catch(e){console.error(e);toast('No se pudo cargar el generador PDF. Revisa tu conexión.');return null}}
   async function requestPdfHandle(filename){if(!window.showSaveFilePicker)return {handle:null,cancelled:false};try{return {handle:await window.showSaveFilePicker({suggestedName:filename,types:[{description:'Documento PDF',accept:{'application/pdf':['.pdf']}}]}),cancelled:false}}catch(e){if(e?.name==='AbortError')return {handle:null,cancelled:true};console.warn('No se pudo abrir Guardar como; se usará Descargas.',e);return {handle:null,cancelled:false}}}
   async function savePdfDocument(pdf,filename,handle=null){const blob=pdf.output('blob');if(handle){try{const writable=await handle.createWritable();await writable.write(blob);await writable.close();toast('PDF guardado');return true}catch(e){console.warn('No se pudo escribir en el archivo seleccionado; usando descarga normal.',e)}}try{pdf.save(filename);toast('PDF descargado');return true}catch(e){console.error(e);toast('No se pudo guardar el PDF');return false}}
-  function addPdfWrappedText(pdf,text,y,{size=9,bold=false,indent=0,space=4}={}){const pageH=pdf.internal.pageSize.getHeight(),pageW=pdf.internal.pageSize.getWidth(),maxW=pageW-28-indent;pdf.setFont('helvetica',bold?'bold':'normal');pdf.setFontSize(size);const lines=pdf.splitTextToSize(String(text||''),maxW);const lineH=size*.42+1.2;for(const line of lines){if(y>pageH-15){pdf.addPage();y=15}pdf.text(line,14+indent,y);y+=lineH}return y+space}
+  // jsPDF core Helvetica has no Unicode glyph coverage for ⇄ and many symbols.
+  // Keeping those characters produces a mixed UTF-16 string that extracts as
+  // NUL-separated letters in PDF viewers. Convert only for PDF typography;
+  // preserve original event text and UI unchanged.
+  function pdfSafeText(value){
+    const symbols={'⇄':' <-> ','→':' -> ','←':' <- ','↪':' -> ',
+      '—':' - ','–':'-','…':'...', '♠':' picas ','♣':' treboles ',
+      '♥':' corazones ','♦':' diamantes ','✓':' OK ','✕':' X ',
+      '≥':'>=','≤':'<=','∞':'infinito','×':'x'};
+    return String(value??'').replace(/[^\u0000-\u00FF]/g,ch=>symbols[ch]??' ');
+  }
+  function addPdfWrappedText(pdf,text,y,{size=9,bold=false,indent=0,space=4}={}){const pageH=pdf.internal.pageSize.getHeight(),pageW=pdf.internal.pageSize.getWidth(),maxW=pageW-28-indent;pdf.setFont('helvetica',bold?'bold':'normal');pdf.setFontSize(size);const lines=pdf.splitTextToSize(pdfSafeText(text),maxW);const lineH=size*.42+1.2;for(const line of lines){if(y>pageH-15){pdf.addPage();y=15}pdf.text(line,14+indent,y);y+=lineH}return y+space}
   async function downloadHistoryPdfRecord(r,filename,handle=null){
     const JsPDF=await ensurePdfTools(false);if(!JsPDF)return false;
     try{
