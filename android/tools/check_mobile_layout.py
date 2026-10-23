@@ -113,55 +113,100 @@ async function check(){
  if(limit.right>die.left+2||die.right>chips.left+2)throw Error('Tools overlap horizontally');
  if(get('.sim-content').height<155)throw Error('Card region too short');
 
- // Global exchange: complete hands, hidden backs, player selection,
- // tap-to-swap, drag-to-swap and atomic undo.
+ // Manual Actions: Poker by default, independent concealment, swap,
+ // steal to another player and discard into trash.
  next('open-trade');
- if(!doc.querySelector('.trade-modal'))throw Error('Exchange window missing');
- if(doc.querySelectorAll('.trade-panel').length!==2)throw Error('Need two player hands in exchange');
- if(doc.querySelectorAll('.trade-panel select option').length<4)throw Error('Player selectors incomplete');
- if(doc.querySelectorAll('.trade-panel .trade-tile').length<6)throw Error('Power hands not displayed');
- next('trade-visibility'); // selects VISIBLE again, verify hidden explicitly below
- const hide=doc.querySelector('[data-action="trade-visibility"][data-visibility="HIDDEN"]');
- hide.click();
- if(doc.querySelectorAll('.trade-modal .trade-back').length<6)throw Error('Hidden backs not displayed');
- if(doc.querySelector('.trade-modal .card-preview,.trade-modal .poker-card'))throw Error('Hidden values leaked');
- const visible=doc.querySelector('[data-action="trade-visibility"][data-visibility="VISIBLE"]');
- visible.click();
- next('trade-kind'); // POWER, no state change
- doc.querySelector('[data-action="trade-kind"][data-kind="POKER"]').click();
- const firstTile=()=>doc.querySelector('.trade-list[data-trade-list="from"] .trade-tile');
- const targetTiles=()=>[...doc.querySelectorAll('.trade-list[data-trade-list="to"] .trade-tile')];
- const ident=(el)=>el?.querySelector('.poker-corner')?.textContent.trim()||'';
- const src=firstTile(),before=ident(src);
- const dst=targetTiles().find(t=>ident(t)!==before);
- if(!src||!dst)throw Error('Distinct Poker Cards unavailable for trade test');
- const dstI=Number(dst.dataset.index),beforeDest=ident(dst);
- src.click();
- const selected=doc.querySelector('.trade-tile.selected');
- if(!selected)throw Error('Tap selection failed');
- doc.querySelector('.trade-list[data-trade-list="to"] .trade-tile[data-index="'+dstI+'"]').click();
- if(ident(firstTile())!==beforeDest)throw Error('Poker exchange did not update source hand');
- if(ident(doc.querySelector('.trade-list[data-trade-list="to"] .trade-tile[data-index="'+dstI+'"]'))!==before)
-   throw Error('Poker exchange did not update target hand');
- next('close-modal');
- next('undo-action');
+ const dialog=()=>doc.querySelector('.trade-modal');
+ if(!dialog())throw Error('Global actions modal missing');
+ if(!dialog().querySelector('[data-action="trade-kind"][data-kind="POKER"].active'))
+   throw Error('Poker Hands not the default view');
+ if(dialog().querySelectorAll('.trade-panel').length!==2)throw Error('Expected two hands');
+ const tiles=(side)=>[...doc.querySelectorAll('.trade-list[data-trade-list="'+side+'"] .trade-tile')];
+ const count=side=>tiles(side).length;
+ const identity=tile=>tile?.querySelector('.poker-corner')?.textContent.trim()||'';
+ const getTile=(side,i)=>doc.querySelector('.trade-list[data-trade-list="'+side+'"] .trade-tile[data-index="'+i+'"]');
+ const clickTab=(name,value)=>doc.querySelector('[data-action="'+name+'"][data-'+(name==='trade-visibility'?'visibility':name==='trade-operation'?'operation':'kind')+'="'+value+'"]').click();
+ if(count('from')!==5||count('to')!==5)throw Error('Poker hands incomplete');
+ const originalA=identity(getTile('from',0));
+ const otherB=tiles('to').find(t=>identity(t)!==originalA);
+ if(!otherB)throw Error('Need distinct Poker Cards');
+ const otherIndex=Number(otherB.dataset.index),originalB=identity(otherB);
+ // Hide only A. B must remain face-up.
+ const hideA=dialog().querySelector('[data-action="trade-visibility"][data-side="from"][data-visibility="HIDDEN"]');
+ hideA.click();
+ if(dialog().querySelectorAll('.trade-list[data-trade-list="from"] .trade-back').length!==5)
+   throw Error('Player A concealment missing');
+ if(dialog().querySelector('.trade-list[data-trade-list="from"] .poker-card,.trade-list[data-trade-list="from"] .card-preview'))
+   throw Error('Player A revealed while concealed');
+ if(!dialog().querySelector('.trade-list[data-trade-list="to"] .poker-card'))
+   throw Error('Player B visibility incorrectly tied to A');
+ const hideB=dialog().querySelector('[data-action="trade-visibility"][data-side="to"][data-visibility="HIDDEN"]');
+ hideB.click();
+ if(dialog().querySelectorAll('.trade-list[data-trade-list="to"] .trade-back').length!==5)
+   throw Error('Player B concealment missing');
+ dialog().querySelector('[data-action="trade-visibility"][data-side="from"][data-visibility="VISIBLE"]').click();
+ if(!dialog().querySelector('.trade-list[data-trade-list="from"] .poker-card')||
+    dialog().querySelector('.trade-list[data-trade-list="to"] .poker-card'))
+   throw Error('Independent visibility state not respected');
+ dialog().querySelector('[data-action="trade-visibility"][data-side="to"][data-visibility="VISIBLE"]').click();
+ // Default SWAP: tap a Poker Card in each player and verify both.
+ if(!dialog().querySelector('[data-action="trade-operation"][data-operation="SWAP"].active'))
+   throw Error('Intercambiar not default action');
+ getTile('from',0).click();
+ getTile('to',otherIndex).click();
+ if(identity(getTile('from',0))!==originalB||identity(getTile('to',otherIndex))!==originalA)
+   throw Error('Swap failed to update both hands');
+ next('close-modal');next('undo-action');
  next('open-trade');
- doc.querySelector('[data-action="trade-kind"][data-kind="POKER"]').click();
- if(ident(firstTile())!==before)throw Error('Undo did not restore both hands');
- // Mouse/touch pointer dragging changes hands without relying on native dragstart.
- const from=firstTile(),to=targetTiles().find(t=>ident(t)!==ident(from));
- const rFrom=from.getBoundingClientRect(),rTo=to.getBoundingClientRect();
- const ax=rFrom.left+rFrom.width/2,ay=rFrom.top+rFrom.height/2;
- const bx=rTo.left+rTo.width/2,by=rTo.top+rTo.height/2;
- const dragBefore=ident(from),dragDest=ident(to);
- from.dispatchEvent(new doc.defaultView.PointerEvent('pointerdown',{bubbles:true,pointerId:42,pointerType:'touch',clientX:ax,clientY:ay}));
- doc.dispatchEvent(new doc.defaultView.PointerEvent('pointermove',{bubbles:true,pointerId:42,pointerType:'touch',clientX:bx,clientY:by,cancelable:true}));
- doc.dispatchEvent(new doc.defaultView.PointerEvent('pointerup',{bubbles:true,pointerId:42,pointerType:'touch',clientX:bx,clientY:by,cancelable:true}));
- if(ident(firstTile())!==dragDest)throw Error('Pointer drag did not swap Poker Cards');
- await new Promise(r=>setTimeout(r,220));
+ if(identity(getTile('from',0))!==originalA||identity(getTile('to',otherIndex))!==originalB)
+   throw Error('Swap undo did not restore both hands');
+ // STEAL: drag from A onto B's receiving drop zone, no replacement.
+ dialog().querySelector('[data-action="trade-operation"][data-operation="STEAL"]').click();
+ const origin=identity(getTile('from',0)),recv=dialog().querySelector('.trade-panel[data-trade-panel="to"] .trade-receive');
+ if(!recv)throw Error('Missing receiving drop zone for steal');
+ function pointerDrop(source,target,pointerId){
+  const a=source.getBoundingClientRect(),b=target.getBoundingClientRect();
+  const x=a.left+a.width/2,y=a.top+a.height/2,X=b.left+b.width/2,Y=b.top+b.height/2;
+  source.dispatchEvent(new doc.defaultView.PointerEvent('pointerdown',
+   {bubbles:true,pointerId,pointerType:'touch',clientX:x,clientY:y}));
+  doc.dispatchEvent(new doc.defaultView.PointerEvent('pointermove',
+   {bubbles:true,pointerId,pointerType:'touch',clientX:X,clientY:Y,cancelable:true}));
+  doc.dispatchEvent(new doc.defaultView.PointerEvent('pointerup',
+   {bubbles:true,pointerId,pointerType:'touch',clientX:X,clientY:Y,cancelable:true}));
+ }
+ pointerDrop(getTile('from',0),recv,45);
+ if(count('from')!==4||count('to')!==6||identity(getTile('to',5))!==origin)
+   throw Error('Drag-to-steal did not transfer card');
+ await new Promise(r=>setTimeout(r,210));
+ next('close-modal');next('undo-action');
+ next('open-trade');
+ if(count('from')!==5||count('to')!==5||identity(getTile('from',0))!==origin)
+   throw Error('Steal undo failed');
+ // DISCARD: drop the card into the trash icon. Poker Card must disappear
+ // from hand, then be restored with one undo.
+ dialog().querySelector('[data-action="trade-operation"][data-operation="DISCARD"]').click();
+ const trash=dialog().querySelector('.trade-trash');
+ if(!trash)throw Error('Trash drop zone missing');
+ pointerDrop(getTile('from',0),trash,46);
+ if(count('from')!==4||count('to')!==5)
+   throw Error('Drag-to-trash did not discard from source hand');
+ await new Promise(r=>setTimeout(r,210));
+ next('close-modal');next('undo-action');
+ next('open-trade');
+ if(count('from')!==5||identity(getTile('from',0))!==origin)
+   throw Error('Discard undo failed');
+ // Tapping (without dragging) also works on a phone.
+ dialog().querySelector('[data-action="trade-operation"][data-operation="STEAL"]').click();
+ getTile('from',0).click();
+ dialog().querySelector('.trade-panel[data-trade-panel="to"] .trade-receive').click();
+ if(count('from')!==4||count('to')!==6)throw Error('Tap-to-steal failed');
+ next('close-modal');next('undo-action');
+ next('open-trade');
+ // POWER Hands still available; active HyperCards must remain protected.
+ dialog().querySelector('[data-action="trade-kind"][data-kind="POWER"]').click();
+ if(count('from')<1||count('to')<1)throw Error('Power hands missing');
  next('close-modal');
- next('undo-action');
- report.hands.push({trade:'Power/Poker visible/hidden tap/drag/undo',verified:true});
+ report.hands.push({actions:'visible/hidden per player; poker/power; swap, steal, discard, drag, tap and undo',verified:true});
 
  verifyZoom('.sim-hand .card-preview','power hand');
  // Existing action buttons must not be stolen by the inspection overlay.
