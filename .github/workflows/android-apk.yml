@@ -55,6 +55,10 @@ jobs:
         run: python3 android/tools/verify_offline_web.py
       - name: Verificar la vista Android en Chrome horizontal
         run: python3 android/tools/check_mobile_layout.py
+      - name: Verificar que Robar, Intercambiar y Descartar figuren en PDF real
+        run: |
+          python3 -m pip install "pypdf>=5,<7"
+          python3 android/tools/check_manual_actions_pdf.py
       - name: Publicar APK para descargar
         uses: actions/upload-artifact@v4
         with:

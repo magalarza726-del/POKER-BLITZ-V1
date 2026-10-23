@@ -1272,7 +1272,18 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
   async function ensurePdfTools(withCanvas=false){try{await loadExternalScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js',()=>!!window.jspdf?.jsPDF);if(withCanvas)await loadExternalScript('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',()=>!!window.html2canvas);return window.jspdf?.jsPDF||null}catch(e){console.error(e);toast('No se pudo cargar el generador PDF. Revisa tu conexión.');return null}}
   async function requestPdfHandle(filename){if(!window.showSaveFilePicker)return {handle:null,cancelled:false};try{return {handle:await window.showSaveFilePicker({suggestedName:filename,types:[{description:'Documento PDF',accept:{'application/pdf':['.pdf']}}]}),cancelled:false}}catch(e){if(e?.name==='AbortError')return {handle:null,cancelled:true};console.warn('No se pudo abrir Guardar como; se usará Descargas.',e);return {handle:null,cancelled:false}}}
   async function savePdfDocument(pdf,filename,handle=null){const blob=pdf.output('blob');if(handle){try{const writable=await handle.createWritable();await writable.write(blob);await writable.close();toast('PDF guardado');return true}catch(e){console.warn('No se pudo escribir en el archivo seleccionado; usando descarga normal.',e)}}try{pdf.save(filename);toast('PDF descargado');return true}catch(e){console.error(e);toast('No se pudo guardar el PDF');return false}}
-  function addPdfWrappedText(pdf,text,y,{size=9,bold=false,indent=0,space=4}={}){const pageH=pdf.internal.pageSize.getHeight(),pageW=pdf.internal.pageSize.getWidth(),maxW=pageW-28-indent;pdf.setFont('helvetica',bold?'bold':'normal');pdf.setFontSize(size);const lines=pdf.splitTextToSize(String(text||''),maxW);const lineH=size*.42+1.2;for(const line of lines){if(y>pageH-15){pdf.addPage();y=15}pdf.text(line,14+indent,y);y+=lineH}return y+space}
+  // jsPDF core Helvetica has no Unicode glyph coverage for ⇄ and many symbols.
+  // Keeping those characters produces a mixed UTF-16 string that extracts as
+  // NUL-separated letters in PDF viewers. Convert only for PDF typography;
+  // preserve original event text and UI unchanged.
+  function pdfSafeText(value){
+    const symbols={'⇄':' <-> ','→':' -> ','←':' <- ','↪':' -> ',
+      '—':' - ','–':'-','…':'...', '♠':' picas ','♣':' treboles ',
+      '♥':' corazones ','♦':' diamantes ','✓':' OK ','✕':' X ',
+      '≥':'>=','≤':'<=','∞':'infinito','×':'x'};
+    return String(value??'').replace(/[^\u0000-\u00FF]/g,ch=>symbols[ch]??' ');
+  }
+  function addPdfWrappedText(pdf,text,y,{size=9,bold=false,indent=0,space=4}={}){const pageH=pdf.internal.pageSize.getHeight(),pageW=pdf.internal.pageSize.getWidth(),maxW=pageW-28-indent;pdf.setFont('helvetica',bold?'bold':'normal');pdf.setFontSize(size);const lines=pdf.splitTextToSize(pdfSafeText(text),maxW);const lineH=size*.42+1.2;for(const line of lines){if(y>pageH-15){pdf.addPage();y=15}pdf.text(line,14+indent,y);y+=lineH}return y+space}
   async function downloadHistoryPdfRecord(r,filename,handle=null){
     const JsPDF=await ensurePdfTools(false);if(!JsPDF)return false;
     try{
@@ -1283,6 +1294,15 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
         y=addPdfWrappedText(pdf,`${di+1}. ${d.name}`,y,{size:13,bold:true,space:2});
         if(d.description)y=addPdfWrappedText(pdf,d.description,y,{size:9,space:2});
         y=addPdfWrappedText(pdf,`Resumen: Power Hand ${d.finalPowerHandCount??d.powerHandCount??'—'}/${d.powerHandLimit??4} · Poker Hand ${d.finalPokerHandCount??0}/${d.pokerLimit??7} · Hyper Zone ${d.activeHyperCount||0}/3 · Fichas ${d.chips||0} · Fase final: ${phaseLabel(d.finalPhase||'MAIN')}${d.dieFinal!=null?' · Último dado: '+d.dieFinal:''}`,y,{size:9,space:3});
+        // El reporte de partida y el historial guardado usan esta misma rutina.
+        // Cada jugador obtiene su conteo de acciones manuales (en los
+        // movimientos entre jugadores ambos historiales registran el evento).
+        const manualActions=(d.events||[]).filter(ev=>['Robo manual','Intercambio manual','Descarte manual'].includes(ev.action));
+        if(manualActions.length){
+          const count=action=>manualActions.filter(ev=>ev.action===action).length;
+          const tally=`Acciones manuales: Robos: ${count('Robo manual')} | Intercambios: ${count('Intercambio manual')} | Descartes: ${count('Descarte manual')}`;
+          y=addPdfWrappedText(pdf,tally,y,{size:9,bold:true,space:3});
+        }
         y=addPdfWrappedText(pdf,`Power Hand final: ${cardSetPdfText(d.finalPowerHand||d.finalHand)}`,y,{size:8,space:2});
         y=addPdfWrappedText(pdf,`Poker Hand final: ${cardSetPdfText(d.finalPokerHand)}`,y,{size:8,space:2});
         y=addPdfWrappedText(pdf,`Hyper Zone final: ${cardSetPdfText(d.activeHyper)}`,y,{size:8,space:2});
