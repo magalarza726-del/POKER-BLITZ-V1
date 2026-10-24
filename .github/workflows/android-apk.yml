@@ -59,6 +59,8 @@ jobs:
         run: node android/tools/check_assisted_effects.js
       - name: Verificar la vista Android en Chrome horizontal
         run: python3 android/tools/check_mobile_layout.py
+      - name: Verificar Prueba Manual Sencillo y Prueba Asistida en Chrome
+        run: python3 android/tools/check_test_modes.py
       - name: Verificar que Robar, Intercambiar y Descartar figuren en PDF real
         run: |
           python3 -m pip install "pypdf>=5,<7"
