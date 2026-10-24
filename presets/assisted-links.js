@@ -28,7 +28,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     if(!eligible(pid,index)){ctx.toast('No se cumplen costes, límite de HyperCards o requisitos del vínculo.');return}
     const needed=t==='030'?2: t==='001'||t==='035'?0:1;
     if(!needed)return activate(pid,index,[]);
-    pending={kind:'hyper',pid,index,type:t,needed,selected:[]};ctx.setModal({type:'assisted-linked-card'});ctx.render();
+    pending={kind:'hyper',pid,index,type:t,needed,selected:[]};ctx.setModal({type:'linked-picker'});ctx.render();
   }
   function recyclePoker(pid,removed){
     for(const c of removed){
