@@ -8,9 +8,9 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   const movePoker=(from,to,n=1)=>{const st=pile(from),dst=pile(to),out=[];for(let k=0;k<n&&st.pokerHand.length;k++){const x=st.pokerHand.splice(random(st.pokerHand.length),1)[0];dst.pokerHand.push(x);out.push(x)}return out};
   const swapPoker=(a,b,n=1)=>{let x=pile(a),y=pile(b),count=0;for(let k=0;k<n&&x.pokerHand.length&&y.pokerHand.length;k++){let i=random(x.pokerHand.length),j=random(y.pokerHand.length);[x.pokerHand[i],y.pokerHand[j]]=[y.pokerHand[j],x.pokerHand[i]];count++}return count};
   const addChips=(pid,n)=>{const st=pile(pid),before=st.chips||0;st.chips=Math.max(0,before+n);return st.chips-before};
-  const log=(pid,id,description)=>ctx.log(pid,'Efecto asistido',description,card(id));
+  const log=(pid,id,description)=>ctx.log(pid,'Efecto asistido',description,card(id)||card('catalog_v3_'+id)||null);
   const ids=(s)=>new Set(s);
-  const usable=ids(['003','005','006','007','008','008','009','010','011','012','013','014','015','016','017','018','019','020','021','022','023','024','026','031','032','033','034','036','037','038','039','041','045','047','048','051','052','053','054','055','056','057','061','063','064']);
+  const usable=ids(['003','006','007','008','008','009','010','011','012','013','014','015','016','017','018','019','020','021','022','023','024','026','031','032','033','034','036','037','038','039','041','045','047','048','051','052','053','054','055','056','057','061','063','064']);
   const hypers=ids(['002','025','027','028','046','049','050','062']);
   let queue=[],pending=null;
   function supported(id){const match=String(id||'').match(/catalog_v3_(\d{3})/);const code=match?.[1];return !!code&&(usable.has(code)||hypers.has(code));}
