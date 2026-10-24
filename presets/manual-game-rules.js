@@ -87,11 +87,13 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
       sim.result='Power Card usada: '+card.name;ctx.render();return;
     }
     if(sim.mode==='ASSISTED'&&ctx.canAssist&&!ctx.canAssist(s.hand[index]))return ctx.toast('Este efecto todavía no está implementado en Prueba Asistida. La carta permanece en mano.');
+    if(sim.mode==='ASSISTED'&&ctx.canPlayAssisted&&!ctx.canPlayAssisted(s.hand[index],playerId))return ctx.toast('No se cumplen los costes o el límite de usos de esta carta.');
     // An atomic undo snapshot avoids corrupting other players' hands.
     sim.undoStacks=Object.fromEntries(sim.decks.map(p=>[p.id,[]]));
     const states=Object.fromEntries(sim.decks.map(p=>[p.id,structuredClone(sim.states[p.id])]));
     const lens=Object.fromEntries(sim.decks.map(p=>[p.id,(sim.histories[p.id]||[]).length]));
     const poker=structuredClone(sim.pokerDrawPile),item=take(playerId,index);
+    if(sim.mode==='ASSISTED')ctx.assistedCardUsed?.(item.cardId,playerId);
     sim.undoStacks[playerId].push({label:'Cadena',tradeStates:states,tradeHistoryLengths:lens,tradePokerDrawPile:poker,result:sim.result});
     sim.chain={stack:[item],chooser:(sim.turnIndex+1)%sim.decks.length,passes:0};
     ctx.log(playerId,'Activación anunciada','Carta en espera de posibles CounterCards.',card);
@@ -100,7 +102,8 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
   function counterPlay(i){
     const sim=get(),chain=sim?.chain;if(!chain)return;
     const p=sim.decks[chain.chooser],c=ctx.card(sim.states[p.id].hand[i]);
-    if(ctx.type(c)!=='COUNTER'||(sim.mode==='ASSISTED'&&ctx.canAssist&&!ctx.canAssist(c?.id)))return;
+    if(ctx.type(c)!=='COUNTER'||(sim.mode==='ASSISTED'&&((ctx.canAssist&&!ctx.canAssist(c?.id))||(ctx.canPlayAssisted&&!ctx.canPlayAssisted(c?.id,p.id)))))return;
+    if(sim.mode==='ASSISTED')ctx.assistedCardUsed?.(c.id,p.id);
     chain.stack.push(take(p.id,i));chain.passes=0;chain.chooser=(chain.chooser+1)%sim.decks.length;
     ctx.log(p.id,'CounterCard anunciada','Añadida a la cadena de respuestas.',c);ctx.render();
   }
@@ -157,7 +160,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     const sim=get(),modal=getMod();if(!sim||!modal)return'';
     if(modal.type==='counter-window'&&sim.chain){
       const p=sim.decks[sim.chain.chooser],s=sim.states[p.id];
-      const options=s.hand.map((id,i)=>({c:ctx.card(id),i})).filter(x=>ctx.type(x.c)==='COUNTER'&&(sim.mode!=='ASSISTED'||!ctx.canAssist||ctx.canAssist(x.c.id)));
+      const options=s.hand.map((id,i)=>({c:ctx.card(id),i})).filter(x=>ctx.type(x.c)==='COUNTER'&&(sim.mode!=='ASSISTED'||(!ctx.canAssist||ctx.canAssist(x.c.id))&&(!ctx.canPlayAssisted||ctx.canPlayAssisted(x.c.id,p.id))));
       const cards=options.map(x=>'<button class="btn" data-action="counter-play" data-index="'+x.i+'">'+ctx.esc(x.c.name)+'</button>').join('');
       return '<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>Ventana de CounterCards</h2></div><div class="modal-content"><p>Respuesta de <b>J'+p.playerNumber+' · '+ctx.esc(p.name)+'</b>. Cadena: '+sim.chain.stack.map(x=>ctx.esc(ctx.card(x.cardId)?.name||'Carta')).join(' → ')+'</p><p>Las respuestas se resuelven de la última a la primera. Los efectos autorizados seguirán aplicándose manualmente.</p><div style="display:flex;gap:10px;flex-wrap:wrap">'+cards+'</div><button class="btn primary" data-action="counter-pass">Pasar / No responder</button></div></div></div>';
     }
