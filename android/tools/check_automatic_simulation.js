@@ -21,6 +21,33 @@ const decks=[
 ];
 async function run(){
  const engine=factory({getCard:id=>catalog[id],cardType:type,version:'1.19.8'});
+
+ // Mobile PDF exports must offer a direct Blob link and the native share sheet.
+ const mobileStart=src.indexOf('  // Android browsers require a fresh user gesture');
+ const mobileEnd=src.indexOf('  // jsPDF core Helvetica',mobileStart);
+ assert(mobileStart>0&&mobileEnd>mobileStart,'Android PDF export functions missing');
+ let exportedPanel=null,nativeShares=0;const mobileListeners={};
+ const mobileDocument={
+   getElementById:()=>null,
+   createElement:()=>({style:{},setAttribute:()=>{},remove:()=>{},querySelector:sel=>({hidden:false,addEventListener:(event,callback)=>{mobileListeners[sel+':'+event]=callback;}})}),
+   body:{appendChild:el=>{exportedPanel=el;}}
+ };
+ const mobileUrl={createObjectURL:()=> 'blob:poker-blitz-mobile',revokeObjectURL:()=>{}};
+ const mobileNavigator={share:()=>{nativeShares++;return Promise.resolve()},canShare:()=>true};
+ const MobileFile=class{constructor(parts,name,options){this.parts=parts;this.name=name;this.type=options.type;}};
+ const mobileFunctions=new Function('document','URL','navigator','File','esc','toast','console','activePdfUrl',src.slice(mobileStart,mobileEnd)+';return {savePdfDocument,presentPdfExport};')(mobileDocument,mobileUrl,mobileNavigator,MobileFile,x=>x,()=>{},console,null);
+ const mobilePdf={output:format=>{assert.equal(format,'blob');return {size:1024*1024,type:'application/pdf'};},save:()=>{throw Error('jsPDF.save must not be called on Android');}};
+ assert(await mobileFunctions.savePdfDocument(mobilePdf,'POKER_BLITZ_200.pdf'),'Mobile export panel should be presented');
+ assert(exportedPanel.innerHTML.includes('download="POKER_BLITZ_200.pdf"'),'Visible native download link required');
+ assert(exportedPanel.innerHTML.includes('href="blob:poker-blitz-mobile"'),'PDF Blob URL required');
+ mobileListeners['#pb-pdf-share:click']();
+ assert.equal(nativeShares,1,'Native Android file share must be triggered by user gesture');
+ assert(src.includes("new Pdf({unit:'mm',format:'a4',compress:true})"),'Simulation PDF must enable compression');
+ assert(src.includes("new JsPDF({unit:'mm',format:'a4',compress:true})"),'Manual / Assisted PDFs must enable compression');
+ assert(src.includes("compress:true}),pageW="),'Deck PDFs must enable compression');
+ assert(src.includes("auto-summary-download"),'Large batches need a lightweight PDF');
+ console.log('Android PDF download/share, compressed streams and compact report regression PASSED.');
+
  // Validate bindInputs on the Home screen (no Simulation nodes), and on Setup (two AIs).
  const start=src.indexOf('  function bindInputs(){');
  const end=src.indexOf('  function updateCharacterDraftPreview(){',start);
