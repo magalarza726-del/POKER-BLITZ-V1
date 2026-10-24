@@ -2,11 +2,11 @@
 window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   const sim=()=>ctx.sim(), card=id=>ctx.card(id), links=()=>ctx.links?.(), draw=(pid,n=1)=>{const st=sim().states[pid];let moved=0;for(let i=0;i<n;i++){if(!sim().pokerDrawPile.length)break;const c=ctx.drawPoker(pid,st,'Efecto asistido: robar Poker Card');if(c)moved++}return moved};
   const pile=(pid)=>sim().states[pid], opponents=pid=>sim().decks.filter(p=>p.id!==pid);
-  const random=n=>n<=1?0:ctx.random(n), popPoker=(pid,n=1)=>{const st=pile(pid),out=[];for(let i=0;i<n&&st.pokerHand.length;i++)out.push(st.pokerHand.splice(random(st.pokerHand.length),1)[0]);sim().pokerDrawPile=ctx.shuffle([...sim().pokerDrawPile,...out]);return out};
+  const random=n=>n<=1?0:ctx.random(n), popPoker=(pid,n=1)=>{const st=pile(pid),out=[];for(let i=0;i<n&&st.pokerHand.length;i++)out.push(st.pokerHand.splice(random(st.pokerHand.length),1)[0]);if(links())links().onPokerOut(pid,out);else sim().pokerDrawPile=ctx.shuffle([...sim().pokerDrawPile,...out]);return out};
   const pushPower=(pid,n=1,ignoreLimit=false)=>{const s=pile(pid);ctx.manual().own(pid);let count=0;for(let k=0;k<n&&s.drawPile.length;k++){if(!ignoreLimit&&s.hand.length-s.activeHyper.length>=s.powerHandLimit)break;const index=random(s.drawPile.length),cid=s.drawPile.splice(index,1)[0],owner=s.drawOwners.splice(index,1)[0]||pid;s.hand.push(cid);s.handOwners.push(owner);count++}return count};
   const popPower=(pid,n=1)=>{const s=pile(pid),moved=[];for(let k=0;k<n;k++){const allowed=s.hand.map((c,i)=>({c,i})).filter(x=>!s.activeHyper.includes(x.i));if(!allowed.length)break;const pick=allowed[random(allowed.length)],it=ctx.manual().take(pid,pick.i);ctx.manual().giveBack(it.cardId,it.ownerId);moved.push(it.cardId)}return moved};
-  const movePoker=(from,to,n=1)=>{const st=pile(from),dst=pile(to),out=[];for(let k=0;k<n&&st.pokerHand.length;k++){const x=st.pokerHand.splice(random(st.pokerHand.length),1)[0];dst.pokerHand.push(x);out.push(x)}return out};
-  const swapPoker=(a,b,n=1)=>{let x=pile(a),y=pile(b),count=0;for(let k=0;k<n&&x.pokerHand.length&&y.pokerHand.length;k++){let i=random(x.pokerHand.length),j=random(y.pokerHand.length);[x.pokerHand[i],y.pokerHand[j]]=[y.pokerHand[j],x.pokerHand[i]];count++}return count};
+  const movePoker=(from,to,n=1)=>{const st=pile(from),dst=pile(to),out=[];for(let k=0;k<n&&st.pokerHand.length;k++){const x=st.pokerHand.splice(random(st.pokerHand.length),1)[0];dst.pokerHand.push(x);out.push(x)}links()?.cleanup();return out};
+  const swapPoker=(a,b,n=1)=>{let x=pile(a),y=pile(b),count=0;for(let k=0;k<n&&x.pokerHand.length&&y.pokerHand.length;k++){let i=random(x.pokerHand.length),j=random(y.pokerHand.length);[x.pokerHand[i],y.pokerHand[j]]=[y.pokerHand[j],x.pokerHand[i]];count++}links()?.cleanup();return count};
   const addChips=(pid,n)=>{const st=pile(pid),before=st.chips||0;st.chips=Math.max(0,before+n);return st.chips-before};
   const log=(pid,id,description)=>ctx.log(pid,'Efecto asistido',description,card(id)||card('catalog_v3_'+id)||null);
   const ids=(s)=>new Set(s);
@@ -35,7 +35,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     if(num==='017'&&(!s.assistedLastSuper||s.assistedLastSuper==='catalog_v3_017'))return false;
     if(num==='040'&&!active(pid,'046')&&s.pokerHand.length<1)return false;
     if(num==='005'&&new Set(s.activeHyper.map(i=>String(s.hand[i]).slice(-3)).filter(x=>links()?.artifacts.has(x))).size<3)return false;
-    if(num==='004'){const source=sim().chain?.stack?.[0];if(!source||ctx.type?.(card(source.cardId))!=='SUPER')return false;}
+    if(num==='004'){const source=sim().chain?.stack?.[0];if(!source||ctx.type?.(card(source.cardId))!=='SUPER'||source.cardId==='catalog_v3_040')return false;}
     if(num==='041'&&s.pokerHand.length<2)return false;
     if(num==='045'&&!active(pid,'046')&&(s.pokerHand.length<1||freePower<1))return false;
     if(num==='061'&&!active(pid,'062')&&s.pokerHand.length<5)return false;
@@ -176,6 +176,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     ctx.render();
   }
   function phase(phase,pid){
+    links()?.phase(phase,pid);
     if(phase!=='END')return;
     const all=sim().assistedPending||[];
     const hits=all.filter(e=>e.actor===pid&&e.type==='END_DISCARD'&&e.round===sim().round);
