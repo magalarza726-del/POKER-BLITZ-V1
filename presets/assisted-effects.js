@@ -14,6 +14,23 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   const hypers=ids(['002','025','027','028','046','049','050','062']);
   let queue=[],pending=null;
   function supported(id){const match=String(id||'').match(/catalog_v3_(\d{3})/);const code=match?.[1];return !!code&&(usable.has(code)||hypers.has(code));}
+  function canPlay(id,pid){if(!supported(id))return false;const s=pile(pid);if(!s)return false;const num=String(id).slice(-3);const freePower=s.hand.filter(x=>x===id).length?Math.max(0,s.hand.length-s.activeHyper.length-1):s.hand.length-s.activeHyper.length;
+    const costPoker={ '007':2,'047':5 }; const costPower={'007':1,'032':1};
+    if((costPoker[num]||0)>s.pokerHand.length)return false;
+    if((costPower[num]||0)>freePower)return false;
+    if(num==='031'&&(s.chips||0)<1)return false;
+    if(num==='041'&&s.pokerHand.length<2)return false;
+    if(num==='045'&&!active(pid,'046')&&(s.pokerHand.length<1||freePower<1))return false;
+    if(num==='061'&&!active(pid,'062')&&s.pokerHand.length<5)return false;
+    const description=String(card(id)?.description||'');let cap=Infinity,period='TURN';
+    let m=description.match(/hasta\s+(\d+)\s+veces\s+por\s+turno/i);
+    if(m)cap=Number(m[1]);else if(/una\s+vez\s+por\s+turno/i.test(description))cap=1;
+    m=description.match(/m[aá]ximo\s+(\d+)\s+activaci[oó]n(?:es)?\s+por\s+jugador\s+por\s+ronda/i);
+    if(m){cap=Number(m[1]);period='ROUND'}
+    const counter=period==='ROUND'?String(sim().round):String(s.turnsTaken||0),key=period+':'+counter+':'+id;
+    return (s.assistedUses?.[key]||0)<cap;
+  }
+  function markUsed(id,pid){const s=pile(pid);const desc=String(card(id)?.description||'');const type=/por\s+jugador\s+por\s+ronda/i.test(desc)?'ROUND':'TURN',ref=type==='ROUND'?String(sim().round):String(s.turnsTaken||0),key=type+':'+ref+':'+id;s.assistedUses??={};s.assistedUses[key]=(s.assistedUses[key]||0)+1;}
   function target(pid,title,callback){
     const players=opponents(pid);
     if(!players.length){log(pid,'','Este efecto necesita otro jugador. No hay objetivo válido.');return true}
@@ -94,7 +111,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
       case '039':{log(pid,id,'Robó '+draw(pid,3)+' Poker Cards.');sim().assistedPending??=[];sim().assistedPending.push({round:sim().round,type:'END_DISCARD',actor:pid,n:5});break}
       case '041':{const values={J:11,Q:12,K:13,A:11};let match=null;for(let i=0;i<s.pokerHand.length;i++){for(let j=i+1;j<s.pokerHand.length;j++){const a=s.pokerHand[i],b=s.pokerHand[j];if(a.rank!==b.rank&&(values[a.rank]||Number(a.rank))+(values[b.rank]||Number(b.rank))===21){match=[j,i];break}}if(match)break}if(match){const cards=match.map(i=>s.pokerHand.splice(i,1)[0]);sim().pokerDrawPile=ctx.shuffle([...sim().pokerDrawPile,...cards]);addChips(pid,1);s.chargeReplacement=(s.chargeReplacement||0)+2;log(pid,id,'Blackjack: cobró 1 ficha; devolvió dos Poker Cards y programó reposición.')}else log(pid,id,'No se encontró par de valores diferentes que sumen 21.');break}
       case '045':
-      case '061':{const wanted=id==='045'?['A']:['J','Q','K'],indexes=s.pokerHand.map((c,i)=>wanted.includes(c.rank)?i:-1).filter(i=>i>=0),cards=indexes.map(i=>s.pokerHand[i]);for(let j=indexes.length-1;j>=0;j--)s.pokerHand.splice(indexes[j],1);sim().pokerDrawPile=ctx.shuffle([...sim().pokerDrawPile,...cards]);addChips(pid,cards.length*2);s.chargeReplacement=(s.chargeReplacement||0)+cards.length;log(pid,id,'Cobró '+cards.length*2+' fichas con '+cards.length+' cartas '+wanted.join('/')+'.');break}
+      case '061':{if(id==='045'&&!active(pid,'046')){popPoker(pid,1);popPower(pid,1);log(pid,id,'Pagó un Poker Card y una Power Card al no tener Maldición activa.');}if(id==='061'&&!active(pid,'062')){popPoker(pid,5);log(pid,id,'Pagó cinco Poker Cards al no tener Vínculo noble activo.');}const wanted=id==='045'?['A']:['J','Q','K'],indexes=s.pokerHand.map((c,i)=>wanted.includes(c.rank)?i:-1).filter(i=>i>=0),cards=indexes.map(i=>s.pokerHand[i]);for(let j=indexes.length-1;j>=0;j--)s.pokerHand.splice(indexes[j],1);sim().pokerDrawPile=ctx.shuffle([...sim().pokerDrawPile,...cards]);addChips(pid,cards.length*2);s.chargeReplacement=(s.chargeReplacement||0)+cards.length;log(pid,id,'Cobró '+cards.length*2+' fichas con '+cards.length+' cartas '+wanted.join('/')+'.');break}
       default:log(pid,id,'El efecto requiere un módulo adicional; no se ha aplicado ningún cambio.');
     }
     return true;
@@ -109,6 +126,8 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     const simState=sim(),player=simState.decks[simState.activeIndex],pid=player.id,s=pile(pid),id=s.hand[index],key=String(id||'').replace('catalog_v3_','');
     if(!hypers.has(key)){ctx.toast('Este efecto Hyper todavía no dispone de resolución asistida; no se consumió la carta.');return}
     if(s.currentPhase!=='MAIN'||s.activeHyper.length>=3||s.activeHyper.includes(index))return;
+    const allowedCopies={'027':2};const copies=s.activeHyper.filter(i=>s.hand[i]===id).length;
+    if(copies>=(allowedCopies[key]||1)){ctx.toast('Se alcanzó el máximo de copias activas de esa HyperCard.');return;}
     const requirements={ '001':[1,1], '002':[1,2], '025':[0,2], '027':[1,1],'028':[0,2],'049':[1,2],'050':[1,1]};
     const [power,poker]=requirements[key]||[0,0];
     const powerReady=s.hand.filter((c,i)=>i!==index&&!s.activeHyper.includes(i)).length;
@@ -135,5 +154,5 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
       if(e.type==='INVEST'){addChips(e.actor,2);e.remaining--;log(e.actor,'049','Gran inversor: +2 fichas por cierre de ronda.');if(e.remaining<=0){all.splice(all.indexOf(e),1);const st=pile(e.actor),ix=st.activeHyper.find(i=>st.hand[i]==='catalog_v3_049');if(ix!==undefined){const it=ctx.manual().take(e.actor,ix);ctx.manual().giveBack(it.cardId,it.ownerId);recalc(e.actor)}}}
     }
   }
-  return {supported,usable,hypers,enqueue,finishChain,afterReaction,modalMarkup,choose,activate,phase,round,recalc};
+  return {supported,canPlay,markUsed,usable,hypers,enqueue,finishChain,afterReaction,modalMarkup,choose,activate,phase,round,recalc};
 };
