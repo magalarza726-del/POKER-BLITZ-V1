@@ -1,6 +1,6 @@
 /* Poker Blitz: assisted effects with real state changes and explicit supported-card registry. */
 window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
-  const sim=()=>ctx.sim(), card=id=>ctx.card(id), draw=(pid,n=1)=>{const st=sim().states[pid];let moved=0;for(let i=0;i<n;i++){if(!sim().pokerDrawPile.length)break;const c=ctx.drawPoker(pid,st,'Efecto asistido: robar Poker Card');if(c)moved++}return moved};
+  const sim=()=>ctx.sim(), card=id=>ctx.card(id), links=()=>ctx.links?.(), draw=(pid,n=1)=>{const st=sim().states[pid];let moved=0;for(let i=0;i<n;i++){if(!sim().pokerDrawPile.length)break;const c=ctx.drawPoker(pid,st,'Efecto asistido: robar Poker Card');if(c)moved++}return moved};
   const pile=(pid)=>sim().states[pid], opponents=pid=>sim().decks.filter(p=>p.id!==pid);
   const random=n=>n<=1?0:ctx.random(n), popPoker=(pid,n=1)=>{const st=pile(pid),out=[];for(let i=0;i<n&&st.pokerHand.length;i++)out.push(st.pokerHand.splice(random(st.pokerHand.length),1)[0]);sim().pokerDrawPile=ctx.shuffle([...sim().pokerDrawPile,...out]);return out};
   const pushPower=(pid,n=1,ignoreLimit=false)=>{const s=pile(pid);ctx.manual().own(pid);let count=0;for(let k=0;k<n&&s.drawPile.length;k++){if(!ignoreLimit&&s.hand.length-s.activeHyper.length>=s.powerHandLimit)break;const index=random(s.drawPile.length),cid=s.drawPile.splice(index,1)[0],owner=s.drawOwners.splice(index,1)[0]||pid;s.hand.push(cid);s.handOwners.push(owner);count++}return count};
@@ -10,9 +10,9 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   const addChips=(pid,n)=>{const st=pile(pid),before=st.chips||0;st.chips=Math.max(0,before+n);return st.chips-before};
   const log=(pid,id,description)=>ctx.log(pid,'Efecto asistido',description,card(id)||card('catalog_v3_'+id)||null);
   const ids=(s)=>new Set(s);
-  const usable=ids(['003','006','007','008','008','009','010','011','012','013','014','015','016','017','018','019','020','021','022','023','024','026','031','032','033','034','036','037','038','039','041','045','047','048','051','052','053','054','055','056','057','061','063','064']);
-  const hypers=ids(['002','025','027','028','046','049','050','062']);
-  let queue=[],pending=null;
+  const usable=ids(['003','004','005','006','007','008','009','010','011','012','013','014','015','016','017','018','019','020','021','022','023','024','026','031','032','033','034','036','037','038','039','040','041','045','047','048','051','052','053','054','055','056','057','061','063','064']);
+  const hypers=ids(['001','002','025','027','028','029','030','035','042','043','044','046','049','050','058','059','060','062']);
+  let queue=[],pending=null,deferred=[];
   function supported(id){const match=String(id||'').match(/catalog_v3_(\d{3})/);const code=match?.[1];return !!code&&(usable.has(code)||hypers.has(code));}
   function canPlay(id,pid){if(!supported(id))return false;const s=pile(pid);if(!s)return false;const num=String(id).slice(-3);const freePower=s.hand.filter(x=>x===id).length?Math.max(0,s.hand.length-s.activeHyper.length-1):s.hand.length-s.activeHyper.length;
     const costPoker={ '007':2 }; const costPower={'007':1,'032':1};
@@ -33,6 +33,9 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     if(num==='055'&&(s.pokerHand.length<2||!opponents(pid).some(p=>pile(p.id).chips>=1)))return false;
     if((num==='057'||num==='063')&&!active(pid,'062')&&s.pokerHand.length<2)return false;
     if(num==='017'&&(!s.assistedLastSuper||s.assistedLastSuper==='catalog_v3_017'))return false;
+    if(num==='040'&&!active(pid,'046')&&s.pokerHand.length<1)return false;
+    if(num==='005'&&new Set(s.activeHyper.map(i=>String(s.hand[i]).slice(-3)).filter(x=>links()?.artifacts.has(x))).size<3)return false;
+    if(num==='004'){const source=sim().chain?.stack?.[0];if(!source||ctx.type?.(card(source.cardId))!=='SUPER')return false;}
     if(num==='041'&&s.pokerHand.length<2)return false;
     if(num==='045'&&!active(pid,'046')&&(s.pokerHand.length<1||freePower<1))return false;
     if(num==='061'&&!active(pid,'062')&&s.pokerHand.length<5)return false;
@@ -64,16 +67,19 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
       const st=pile(id);st.assistedDefenses??={};const stamp=String(sim().round);
       if(!st.assistedDefenses[stamp]){st.assistedDefenses[stamp]=true;log(id,'050','Casco anti-efectos: negó la primera selección recibida en esta ronda.');drain();return;}
     }
-    f(id);drain();
+    f(id);links()?.cleanup();drain();
   }
   function enqueue(item){queue.push(item);const c=card(item.cardId),st=pile(item.playerId);if(c&&ctx.type?.(c)==='SUPER'&&c.id!=='catalog_v3_017')st.assistedLastSuper=c.id}
   function finishChain(){drain()}
+  function afterSelection(){drain()}
   function afterReaction(){drain()}
   function drain(){
     if(pending)return;
-    while(queue.length){
+    while(queue.length||deferred.length){
+      if(!queue.length&&deferred.length)queue.push(...deferred.splice(0));
       const item=queue.shift(),result=apply(item);
       if(result===false)return;
+      links()?.cleanup();
     }
     if(!ctx.modal())ctx.render();
   }
@@ -84,6 +90,18 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     const s=pile(pid);
     const doTarget=(title,fn,eligible=null)=>target(pid,title,(enemy)=>{const st=pile(enemy);fn(enemy,st);},eligible);
     switch(id){
+      case '004':{
+        const origin=item.copyOrigin;
+        if(origin&&item.originAllowed&&ctx.type?.(card(origin.cardId))==='SUPER'){
+          deferred.push({cardId:origin.cardId,playerId:pid,copied:true,copyDepth:1});
+          log(pid,id,'Escudo Resplandeciente copia '+(card(origin.cardId)?.name||origin.cardId)+' después de resolver la SuperCard.');
+        }else log(pid,id,'No había SuperCard válida para copiar.');
+        break;
+      }
+      case '040':{
+        if(!active(pid,'046')){const cost=popPoker(pid,1);log(pid,id,'Pagó '+cost.length+' Poker Card por Sabueso de Ases.');}
+        links()?.sabueso(item);return false;
+      }
       case '003':{if(s.dieBase){s.dieModifier=(s.dieModifier||0)+1;log(pid,id,'Manipuló en +1 el último dado lanzado.')}else log(pid,id,'No se había lanzado ningún dado que modificar.');break}
       case '005':{const artifacts=s.activeHyper.filter(i=>['042','043','044','058','059','060'].includes(String(s.hand[i]).slice(-3)));const different=[...new Set(artifacts.map(i=>String(s.hand[i]).slice(-3)))];if(different.length>=3){addChips(pid,5);const taken=ctx.manual().take(pid,artifacts[0]);ctx.manual().giveBack(taken.cardId,taken.ownerId);recalc(pid);log(pid,id,'Tres artilugios diferentes: +5 fichas, devolvió un artilugio.')}else log(pid,id,'Se requieren tres artilugios distintos activos para cobrar.');break}
       case '007':{if(s.pokerHand.length<2||s.hand.length-s.activeHyper.length<1){log(pid,id,'Coste de búsqueda insuficiente.');break}popPoker(pid,2);popPower(pid,1);const n=pushPower(pid,1);log(pid,id,'Pagó costes y buscó una Power Card del deck ('+n+' obtenida).');break}
@@ -139,6 +157,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   }
   function activate(index){
     const simState=sim(),player=simState.decks[simState.activeIndex],pid=player.id,s=pile(pid),id=s.hand[index],key=String(id||'').replace('catalog_v3_','');
+    if(links()?.supported.has(key)&&key!=='004'&&key!=='005'&&key!=='040'){links().open(index);return;}
     if(!hypers.has(key)){ctx.toast('Este efecto Hyper todavía no dispone de resolución asistida; no se consumió la carta.');return}
     if(s.currentPhase!=='MAIN'||s.activeHyper.length>=3||s.activeHyper.includes(index))return;
     const allowedCopies={'027':2};const copies=s.activeHyper.filter(i=>s.hand[i]===id).length;
@@ -169,5 +188,5 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
       if(e.type==='INVEST'){if(!active(e.actor,'049')){all.splice(all.indexOf(e),1);log(e.actor,'049','Gran inversor salió de la mesa: cesan los cobros pendientes.');continue}addChips(e.actor,2);e.remaining--;log(e.actor,'049','Gran inversor: +2 fichas por cierre de ronda.');if(e.remaining<=0){all.splice(all.indexOf(e),1);const st=pile(e.actor),ix=st.activeHyper.find(i=>st.hand[i]==='catalog_v3_049');if(ix!==undefined){const it=ctx.manual().take(e.actor,ix);ctx.manual().giveBack(it.cardId,it.ownerId);recalc(e.actor)}}}
     }
   }
-  return {supported,canPlay,markUsed,usable,hypers,enqueue,finishChain,afterReaction,modalMarkup,choose,activate,phase,round,recalc};
+  return {supported,canPlay,markUsed,usable,hypers,enqueue,finishChain,afterSelection,afterReaction,modalMarkup,choose,activate,phase,round,recalc};
 };
