@@ -1474,7 +1474,55 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
   function loadExternalScript(src,test){return new Promise((resolve,reject)=>{if(test())return resolve();const found=[...document.scripts].find(s=>s.src===src);if(found){found.addEventListener('load',resolve,{once:true});found.addEventListener('error',reject,{once:true});return}const s=document.createElement('script');s.src=src;s.async=true;s.onload=resolve;s.onerror=reject;document.head.appendChild(s)})}
   async function ensurePdfTools(withCanvas=false){try{await loadExternalScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js',()=>!!window.jspdf?.jsPDF);if(withCanvas)await loadExternalScript('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',()=>!!window.html2canvas);return window.jspdf?.jsPDF||null}catch(e){console.error(e);toast('No se pudo cargar el generador PDF. Revisa tu conexión.');return null}}
   async function requestPdfHandle(filename){if(!window.showSaveFilePicker)return {handle:null,cancelled:false};try{return {handle:await window.showSaveFilePicker({suggestedName:filename,types:[{description:'Documento PDF',accept:{'application/pdf':['.pdf']}}]}),cancelled:false}}catch(e){if(e?.name==='AbortError')return {handle:null,cancelled:true};console.warn('No se pudo abrir Guardar como; se usará Descargas.',e);return {handle:null,cancelled:false}}}
-  async function savePdfDocument(pdf,filename,handle=null){const blob=pdf.output('blob');if(handle){try{const writable=await handle.createWritable();await writable.write(blob);await writable.close();toast('PDF guardado');return true}catch(e){console.warn('No se pudo escribir en el archivo seleccionado; usando descarga normal.',e)}}try{pdf.save(filename);toast('PDF descargado');return true}catch(e){console.error(e);toast('No se pudo guardar el PDF');return false}}
+  // Android browsers require a fresh user gesture to download a generated Blob.
+  // Never report "downloaded" merely because jsPDF.save() returned.
+  function presentPdfExport(blob,filename){
+    if(!blob||!blob.size)throw Error('El PDF está vacío y no se puede exportar.');
+    if(typeof URL==='undefined'||typeof URL.createObjectURL!=='function')throw Error('Este navegador no permite preparar enlaces locales de PDF.');
+    document.getElementById('pb-pdf-ready')?.remove();
+    if(activePdfUrl)URL.revokeObjectURL(activePdfUrl);
+    activePdfUrl=URL.createObjectURL(blob);
+    const overlay=document.createElement('section');
+    overlay.id='pb-pdf-ready';
+    overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');
+    overlay.setAttribute('aria-label','Guardar o compartir PDF');
+    overlay.style.cssText='position:fixed;inset:0;z-index:999999;background:rgba(10,15,20,.75);display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto';
+    const safe=esc(filename),mb=(blob.size/1048576).toFixed(2);
+    overlay.innerHTML=`<div style="background:#fff;color:#111;max-width:460px;width:100%;border:2px solid #151515;border-radius:16px;padding:20px;box-shadow:0 16px 45px #0006">
+      <h2 style="margin:0 0 12px">PDF comprimido y listo</h2>
+      <p style="font-size:14px;overflow-wrap:anywhere;margin-bottom:8px">${safe}</p>
+      <p style="font-size:14px;color:#333">Tamaño: ${mb} MB. Para guardar desde el celular, toca Descargar PDF. También puedes usar Compartir para enviarlo a Archivos, Drive u otra aplicación disponible.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0">
+        <a id="pb-pdf-download-link" class="btn primary" style="text-decoration:none;min-height:44px;display:inline-flex;align-items:center" href="${activePdfUrl}" download="${safe}">Descargar PDF</a>
+        <a class="btn" style="text-decoration:none;min-height:44px;display:inline-flex;align-items:center" href="${activePdfUrl}" target="_blank" rel="noopener">Abrir PDF</a>
+        <button type="button" class="btn" id="pb-pdf-share">Compartir PDF</button>
+      </div>
+      <button type="button" class="btn" id="pb-pdf-close">Cerrar</button>
+      <p style="font-size:12px;color:#555">Si tu navegador integrado no permite descargas, usa Compartir PDF o abre esta página con Chrome.</p>
+    </div>`;
+    document.body.appendChild(overlay);
+    const share=overlay.querySelector('#pb-pdf-share');
+    const hasShare=typeof navigator!=='undefined'&&typeof navigator.share==='function'&&typeof File!=='undefined';
+    if(!hasShare)share.hidden=true;
+    share.addEventListener('click',()=>{
+      const file=new File([blob],filename,{type:'application/pdf'}),data={title:'POKER BLITZ',files:[file]};
+      if(navigator.canShare&&!navigator.canShare(data)){toast('Este dispositivo no acepta compartir PDF. Utiliza Descargar PDF.');return;}
+      navigator.share(data).catch(err=>{if(err?.name!=='AbortError'){console.error('Compartir PDF',err);toast('No se pudo compartir. Prueba Descargar PDF.');}});
+    });
+    overlay.querySelector('#pb-pdf-close').addEventListener('click',()=>overlay.remove());
+    overlay.querySelector('#pb-pdf-download-link').addEventListener('click',()=>{toast('Descarga solicitada. Comprueba la carpeta Descargas.');});
+    return true;
+  }
+  async function savePdfDocument(pdf,filename,handle=null){
+    try{
+      const blob=pdf.output('blob');
+      if(handle){
+        try{const writable=await handle.createWritable();await writable.write(blob);await writable.close();toast('PDF guardado');return true}
+        catch(err){console.warn('No se pudo guardar en la ubicación seleccionada; se ofrecerá descarga directa.',err)}
+      }
+      return presentPdfExport(blob,filename);
+    }catch(err){console.error('Error al preparar la exportación PDF',err);toast('No se pudo preparar el PDF: '+String(err.message||err));return false}
+  }
   // jsPDF core Helvetica has no Unicode glyph coverage for ⇄ and many symbols.
   // Keeping those characters produces a mixed UTF-16 string that extracts as
   // NUL-separated letters in PDF viewers. Convert only for PDF typography;
