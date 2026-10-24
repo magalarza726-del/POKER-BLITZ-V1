@@ -43,7 +43,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   }
   function detach(pid,b,why,returnCard){
     const s=state(pid);s.assistedBindings=bonds(pid).filter(x=>x.token!==b.token);
-    if(b.virtualId){const i=s.pokerHand.findIndex(c=>c.id===b.virtualId);if(i>=0)s.pokerHand.splice(i,1)}
+    if(b.virtualId){for(const player of game().decks){const hand=state(player.id).pokerHand,i=hand.findIndex(c=>c.id===b.virtualId);if(i>=0)hand.splice(i,1);}}
     if(returnCard&&s.activeHyper.includes(b.index)&&s.hand[b.index]===b.cardId){
       const x=ctx.manual().take(pid,b.index);if(x)ctx.manual().giveBack(x.cardId,x.ownerId);
     }
