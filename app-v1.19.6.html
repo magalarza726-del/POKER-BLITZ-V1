@@ -1427,12 +1427,12 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     canPlayAssisted:(id,pid)=>!!assistedEffects?.canPlay(id,pid),assistedCardUsed:(id,pid)=>assistedEffects?.markUsed(id,pid),
     assistedResolved:item=>assistedEffects?.enqueue(item),assistedChainComplete:()=>assistedEffects?.finishChain(),
     assistedPhase:(phase,pid)=>assistedEffects?.phase(phase,pid),assistedRound:()=>assistedEffects?.round(),
-    assistedLinkPowerTaken:(pid,index)=>assistedLinks?.onPowerTake(pid,index),
+    assistedLinkPowerTaken:(pid,index)=>assistedLinks?.onPowerTake(pid,index),assistedPowerRemoved:pid=>assistedEffects?.recalc(pid),
     assistedPokerOut:(pid,cards)=>assistedLinks?.onPokerOut(pid,cards),
     assistedScore:(pid,kind,cards,hyper)=>assistedLinks?.score(pid,kind,cards,hyper),
     assistedChargeBonus:(pid,cards)=>assistedLinks?.onCharge(pid,cards)});
   assistedEffects=window.POKER_BLITZ_ASSISTED_EFFECTS({sim:()=>sim,card:getCard,shuffle,log:logSim,toast,render,drawPoker:drawPokerOne,pushUndo,manual:()=>manualRules,links:()=>assistedLinks,random:randomInt,type:cardType,setModal:v=>{modal=v},modal:()=>modal,esc});
-  assistedLinks=window.POKER_BLITZ_ASSISTED_LINKS({sim:()=>sim,card:getCard,shuffle,log:logSim,toast,render,drawPoker:drawPokerOne,pushUndo,manual:()=>manualRules,random:randomInt,recalc:pid=>assistedEffects.recalc(pid),setModal:v=>{modal=v},esc,
+  assistedLinks=window.POKER_BLITZ_ASSISTED_LINKS({sim:()=>sim,card:getCard,shuffle,log:logSim,toast,render,drawPoker:drawPokerOne,pushUndo,manual:()=>manualRules,random:randomInt,recalc:pid=>assistedEffects.recalc(pid),setModal:v=>{modal=v},esc,afterSelection:()=>assistedEffects?.afterSelection(),
     drawPower:(pid,n,ignoreLimit=false)=>{const st=sim.states[pid];let moved=0;manualRules.own(pid);for(let i=0;i<n&&st.drawPile.length;i++){if(!ignoreLimit&&powerHandCount(st)>=st.powerHandLimit)break;const pos=randomInt(st.drawPile.length),cid=st.drawPile.splice(pos,1)[0],own=st.drawOwners.splice(pos,1)[0];st.hand.push(cid);st.handOwners.push(own||pid);moved++;}return moved},
     discardPower:(pid,n)=>{const st=sim.states[pid];let moved=0;for(let k=0;k<n;k++){const choices=st.hand.map((id,i)=>i).filter(i=>!st.activeHyper.includes(i));if(!choices.length)break;const out=manualRules.take(pid,choices[0]);manualRules.giveBack(out.cardId,out.ownerId);moved++;}return moved}});
   root.addEventListener('click',e=>{
