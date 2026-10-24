@@ -105,3 +105,29 @@ const outcomes=regression(global.window.POKER_BLITZ_ASSISTED_LINKS);
 const failures=outcomes.filter(x=>!x.pass);
 if(failures.length){console.error(failures);process.exit(1)}
 console.log('All linked effects regression scenarios passed: '+outcomes.length);
+
+require('../../presets/assisted-effects.js');
+function testCopyAndTrio(factory){
+  const check=(x,m)=>{if(!x)throw Error(m)};
+  const cards=Object.fromEntries(['004','005','042','043','044','053'].map(n=>['catalog_v3_'+n,{id:'catalog_v3_'+n,name:n,accentColor:n==='004'?'#FF0A68':['042','043','044'].includes(n)?'#FFC31A':'#18E0E5'}]));
+  const player=id=>({hand:[],handOwners:[],drawPile:[],drawOwners:[],pokerHand:[],activeHyper:[],chips:0,pokerLimit:7,powerHandLimit:4,currentPhase:'MAIN',turnsTaken:0});
+  const game={mode:'ASSISTED',decks:[{id:'A',playerNumber:1,name:'A'},{id:'B',playerNumber:2,name:'B'}],states:{A:player('A'),B:player('B')},pokerDrawPile:[{id:'p1',rank:'A',suit:'S'},{id:'p2',rank:'K',suit:'H'},{id:'p3',rank:'Q',suit:'C'}],round:1,activeIndex:0};
+  const logs=[];let modal=null;
+  const manual={own:()=>{},take:(pid,index)=>{const s=game.states[pid],item={cardId:s.hand.splice(index,1)[0],ownerId:s.handOwners.splice(index,1)[0]||pid};s.activeHyper=s.activeHyper.filter(i=>i!==index).map(i=>i>index?i-1:i);return item},giveBack:(id,owner)=>{game.states[owner].drawPile.push(id)}};
+  const fx=factory({sim:()=>game,card:id=>cards[id],shuffle:x=>x,log:(...x)=>logs.push(x),toast:x=>{throw Error(x)},render:()=>{},
+    drawPoker:(pid,s)=>{const c=game.pokerDrawPile.shift();if(c)s.pokerHand.push(c);return c},manual:()=>manual,random:()=>0,type:c=>c?.accentColor==='#FF0A68'?'COUNTER':'SUPER',
+    links:()=>({cleanup:()=>{},artifacts:new Set(['042','043','044'])}),setModal:v=>modal=v,modal:()=>modal,esc:String,pushUndo:()=>{}});
+  fx.enqueue({cardId:'catalog_v3_004',playerId:'B',copyOrigin:{cardId:'catalog_v3_053',playerId:'A'},originAllowed:true});
+  fx.enqueue({cardId:'catalog_v3_053',playerId:'A'});
+  fx.finishChain();
+  check(game.states.A.pokerHand.length===1,'Original Super not resolved');
+  check(game.states.B.pokerHand.length===1,'Counter did not copy same effect after original');
+  game.states.A.hand=['catalog_v3_042','catalog_v3_043','catalog_v3_044'];
+  game.states.A.handOwners=['A','A','A'];game.states.A.activeHyper=[0,1,2];
+  fx.enqueue({cardId:'catalog_v3_005',playerId:'A'});fx.finishChain();
+  check(game.states.A.chips===5,'Legendary did not add 5');
+  check(game.states.A.activeHyper.length===2,'Legendary did not return an artifact');
+  check(game.states.A.drawPile.includes('catalog_v3_042'),'Artifact return missing');
+  return 'Counter 004 copies after original; Legendary 005 pays and returns an artifact';
+}
+console.log(testCopyAndTrio(global.window.POKER_BLITZ_ASSISTED_EFFECTS));
