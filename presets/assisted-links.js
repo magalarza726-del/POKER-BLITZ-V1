@@ -32,7 +32,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   }
   function recyclePoker(pid,removed){
     for(const c of removed){
-      if(!virtual(c))game().pokerDrawPile.push(c);
+      if(!virtual(c)){if(c.originalRank!==undefined){c.rank=c.originalRank;delete c.originalRank;}game().pokerDrawPile.push(c);}
       else if(c.virtualPower.type==='SABUESO'){ctx.manual().giveBack(c.virtualPower.cardId,c.virtualPower.owner);log(pid,'040','Sabueso de Ases salió de Poker Hand y regresó al Power Deck.')}
       else{
         const b=bonds(pid).find(b=>b.token===c.virtualPower.token);
