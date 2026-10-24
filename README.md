@@ -2,6 +2,17 @@
 
 Versión web estática basada en `DeckCreator_AndroidStudio_v0_13_NEW_CATALOG` y ajustada para escritorio.
 
+## Versión 1.19.8 — Simulación automática
+
+La pantalla principal incorpora **Simulación**, independiente de **Prueba Manual** y **Prueba Asistida**.
+
+- **Configuración:** 1 a 6 jugadores, Power Deck independiente por jugador, dificultad individual (Principiante, Intermedio, Experto), 1 o 2 barajas de Poker y Blitz Battle (30 fichas) / Rush Battle (15 fichas).
+- **Juego sin intervención:** un motor local reproduce turnos, manos de Poker, fichas, robos, costes, HyperCards activas, respuestas de CounterCards, reacciones simuladas y resolución de efectos utilizando los motores ya compartidos de Prueba Asistida.
+- **Comportamiento según deck:** la IA evalúa las cartas disponibles y prioriza fichas, dados, Artilugios, ases, combos, HyperCards y respuestas según la composición de su deck. Principiante es casi aleatorio; Intermedio utiliza heurísticas; Experto prioriza recursos y combinaciones y no garantiza optimalidad matemática.
+- **PDF como único entregable:** se genera automáticamente al finalizar y se puede solicitar otra descarga en la pantalla final. Incluye ganador o empate (cuando esté confirmado), clasificaciones, fichas, cantidad de eventos, dificultades, efectos registrados, historial por jugador, semilla reproducible e incidencias. No se muestra una segunda interfaz con las cartas durante la simulación.
+- **Seguridad:** ejecución con semilla, límites de acciones y rondas, opción de cancelar y auditoría del inventario de Power Cards. El motor comparte los efectos existentes, que aún requieren pruebas extensivas de interacciones excepcionales.
+- **Pruebas:** `android/tools/check_automatic_simulation.js` se ejecuta en GitHub Actions, junto a la suite existente.
+
 ## Versión 1.19.7 — Efectos vinculados en Prueba Asistida
 
 - El catálogo oficial de **64 cartas** está incluido ahora en el registro de ejecución asistida. Los 13 efectos que estaban inhabilitados se han integrado al motor.
