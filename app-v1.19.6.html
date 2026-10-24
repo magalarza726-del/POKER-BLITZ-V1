@@ -187,7 +187,8 @@ button,input,textarea,select{font:inherit;color:inherit}button{cursor:pointer}bu
 </style>
 <script src="presets/default-decks.js?v=1196"></script>
 <script src="presets/manual-game-rules.js?v=1196"></script>
-<script src="presets/assisted-effects.js?v=1196"></script>
+<script src="presets/assisted-effects.js?v=1197"></script>
+<script src="presets/assisted-links.js?v=1197"></script>
 <script src="presets/portrait-01.js?v=1196"></script>
 <script src="presets/portrait-02.js?v=1196"></script>
 <script src="presets/portrait-03.js?v=1196"></script>
@@ -880,7 +881,7 @@ window.STARTER_CARDS = [
   function restoreAddScroll(top){requestAnimationFrame(()=>{const list=$('.add-list');if(list)list.scrollTop=Number(top||0);});}
   function renderAddPreservingScroll(top){render();restoreAddScroll(top);}
   function closeModal(){
-    if(['counter-window','reference-reaction','assisted-target'].includes(modal?.type)){toast('Termina la resolución pendiente antes de continuar.');return;}
+    if(['counter-window','reference-reaction','assisted-target','linked-picker'].includes(modal?.type)){toast('Termina la resolución pendiente antes de continuar.');return;}
     if(modal?.type==='zoom'&&modal.returnTo){const back=modal.returnTo,top=back.scrollTop||0;modal=back;render();restoreAddScroll(top);return;}
     if(modal?.type==='character-edit')characterDraft=null;
     modal=null;render();
@@ -978,7 +979,7 @@ window.STARTER_CARDS = [
     const powerCards=s.hand.map((id,i)=>({id,i,c:getCard(id)})).filter(x=>x.c&&!activeSet.has(x.i));
     const hyperCards=(s.activeHyper||[]).map(i=>({id:s.hand[i],i,c:getCard(s.hand[i])})).filter(x=>x.c);
     const powerHand=powerCards.length?powerCards.map(({c,i})=>{const type=cardType(c);const primary=type==='HYPER'?`<button class="btn primary" data-action="activate-hyper" data-index="${i}" ${(!canActivate||sim.mode==='ASSISTED'&&!assistedEffects.supported(c.id))?'disabled title="Efecto pendiente de implementar"':''}>${icon('play')} Activar</button>`:`<button class="btn primary" data-action="use-card" data-index="${i}" ${(canUsePowerCard(c)&&(sim.mode!=='ASSISTED'||assistedEffects.canPlay(c.id,d.id)))?'':'disabled title="Efecto pendiente de implementar"'}>${icon('play')} Usar</button>`;return `<article class="hand-card"><div class="hand-preview-wrap" data-action="zoom-card" data-id="${c.id}">${cardHTML(c)}</div><div class="hand-actions">${primary}<button class="btn discard" data-action="discard-card" data-index="${i}" ${canDiscard?'':'disabled'}>${icon('trash')} Descartar</button></div></article>`}).join(''):`<div class="empty" style="width:100%">La Power Hand está vacía.</div>`;
-    const hyperHand=hyperCards.length?hyperCards.map(({c,i})=>`<article class="hand-card hyper-active"><div class="hand-preview-wrap" data-action="zoom-card" data-id="${c.id}">${cardHTML(c)}<div class="active-badge">ACTIVA</div></div><div class="hand-actions"><button class="btn primary" disabled>${icon('play')} Activa</button><button class="btn discard" data-action="discard-card" data-index="${i}" ${canDiscard?'':'disabled'}>${icon('trash')} Descartar</button></div></article>`).join(''):`<div class="empty" style="width:100%">No hay HyperCards activas.</div>`;
+    const hyperHand=hyperCards.length?hyperCards.map(({c,i})=>`<article class="hand-card hyper-active"><div class="hand-preview-wrap" data-action="zoom-card" data-id="${c.id}">${cardHTML(c)}<div class="active-badge">ACTIVA</div></div><div class="hand-actions">${sim.mode==='ASSISTED'&&c.id==='catalog_v3_001'?`<button class="btn primary" data-action="assist-old-rules" data-index="${i}">Intercambiar Poker Card</button>`:`<button class="btn primary" disabled>${icon('play')} Activa</button>`}<button class="btn discard" data-action="discard-card" data-index="${i}" ${canDiscard?'':'disabled'}>${icon('trash')} Descartar</button></div></article>`).join(''):`<div class="empty" style="width:100%">No hay HyperCards activas.</div>`;
     const pokerHand=s.pokerHand.length?s.pokerHand.map((card,i)=>pokerCardHTML(card,i)).join(''):`<div class="poker-empty">Todavía no hay Poker Cards en la mano de este jugador.</div>`;
     const handMarkup=view==='POKER'?pokerHand:(view==='HYPER'?hyperHand:powerHand);
     const title=view==='POKER'?'Poker Hand':(view==='HYPER'?'Hyper Zone':'Power Hand');
@@ -1077,6 +1078,10 @@ window.STARTER_CARDS = [
       if(!Number.isInteger(targetIndex)||targetIndex<0||targetIndex>=b[key].length)return false;
       if(!poker&&(b.activeHyper||[]).includes(targetIndex)){toast('No puedes intercambiar una HyperCard activa');return false;}
     }
+    if(poker&&sim.mode==='ASSISTED'){
+      const src=a.pokerHand[sourceIndex],dest=b?.pokerHand?.[targetIndex];
+      if(src&&assistedLinks.protectedCard(srcId,src)||dest&&destId&&assistedLinks.protectedCard(destId,dest)){toast('Esa Poker Card está protegida por un Artilugio.');return false;}
+    }
     if(!poker){manualRules.own(srcId);if(destId)manualRules.own(destId)}
     const first=a[key][sourceIndex],second=operation==='SWAP'?b[key][targetIndex]:null;
     const firstOwner=poker?null:a.handOwners[sourceIndex],secondOwner=poker||operation!=='SWAP'?null:b.handOwners[targetIndex];
@@ -1108,6 +1113,7 @@ window.STARTER_CARDS = [
     sim.result=action+' · '+(playerB?'J'+playerA.playerNumber+' / J'+playerB.playerNumber:'J'+playerA.playerNumber);
     const owner=sim.decks[sim.activeIndex].id;
     sim.undoStacks[owner].push({label:action,tradeStates:states,tradeHistoryLengths:lengths,tradePokerDrawPile:oldPile,result:oldResult});
+    if(poker&&sim.mode==='ASSISTED')assistedLinks.cleanup();
     modal.picked=null;
     updateTradeView();toast(action+' registrado');
     return true;
@@ -1119,6 +1125,7 @@ window.STARTER_CARDS = [
   }
 
   function renderModal(){
+    if(modal?.type==='linked-picker')return assistedLinks.modalMarkup();
     if(modal?.type==='assisted-target')return assistedEffects.modalMarkup();
     if(['counter-window','reference-reaction'].includes(modal?.type))return manualRules.modalMarkup();
     if(modal?.type==='trade')return tradeModalMarkup();
@@ -1218,7 +1225,8 @@ window.STARTER_CARDS = [
     };
     const pips=(pipMap[card.rank]||[]).map(([x,y,r])=>`<span class="poker-pip" style="--x:${x}%;--y:${y}%;--r:${r}deg">${card.symbol}</span>`).join('');
     const center=pips?`<div class="poker-pips">${pips}</div>`:`<div class="poker-face">${esc(card.rank)}<span>${card.symbol}</span></div>`;
-    return `<article class="poker-card ${card.color} ${index!=null&&sim?.chargeSelection?.includes(index)&&manualRules.canAct()?'charge-selected':''}"><div class="poker-corner">${esc(card.rank)}<br>${card.symbol}</div>${center}<div class="poker-corner bottom">${esc(card.rank)}<br>${card.symbol}</div>${index!=null?`<div class="poker-actions ${sim?.states?.[sim.decks?.[sim.activeIndex]?.id]?.currentPhase==='CHARGE'&&manualRules.canAct()?'charge-actions':''}">${sim?.states?.[sim.decks?.[sim.activeIndex]?.id]?.currentPhase==='CHARGE'&&manualRules.canAct()?`<button class="btn ${sim.chargeSelection?.includes(index)?'primary':''}" data-action="charge-toggle" data-index="${index}">${sim.chargeSelection?.includes(index)?'✓ Seleccionada':'Seleccionar para cobrar'}</button>`:'' }<button class="btn discard" data-action="discard-poker-card" data-index="${index}">${icon('trash')} Descartar</button></div>`:''}</article>`;
+    const attached=index!=null&&sim?.mode==='ASSISTED'&&assistedLinks?assistedLinks.cardLabel(sim.decks[sim.activeIndex].id,card):'';
+    return `<article class="poker-card ${card.color} ${index!=null&&sim?.chargeSelection?.includes(index)&&manualRules.canAct()?'charge-selected':''}"><div class="poker-corner">${esc(card.rank)}<br>${card.symbol}</div>${center}${attached}<div class="poker-corner bottom">${esc(card.rank)}<br>${card.symbol}</div>${index!=null?`<div class="poker-actions ${sim?.states?.[sim.decks?.[sim.activeIndex]?.id]?.currentPhase==='CHARGE'&&manualRules.canAct()?'charge-actions':''}">${sim?.states?.[sim.decks?.[sim.activeIndex]?.id]?.currentPhase==='CHARGE'&&manualRules.canAct()?`<button class="btn ${sim.chargeSelection?.includes(index)?'primary':''}" data-action="charge-toggle" data-index="${index}">${sim.chargeSelection?.includes(index)?'✓ Seleccionada':'Seleccionar para cobrar'}</button>`:'' }<button class="btn discard" data-action="discard-poker-card" data-index="${index}">${icon('trash')} Descartar</button></div>`:''}</article>`;
   }
   function drawPokerOne(deckId,s,action='Robar Poker Card'){
     if(!sim?.pokerDrawPile?.length){const msg='No quedan Poker Cards en el mazo.';sim.result=msg;toast(msg);return null}
@@ -1256,7 +1264,8 @@ sim.undoStacks??={};const snap=structuredClone(sim.states[deckId]);snap.dieRolli
 sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.pokerDrawPile=structuredClone(u.pokerDrawPile);if(sim.histories?.[d.id])sim.histories[d.id]=sim.histories[d.id].slice(0,u.historyLength);sim.result='Deshecho: '+(u.label||'última acción');render()}
   function maxHandMessage(s){const msg=`Límite máximo de Power Cards alcanzado (${s.powerHandLimit}).`;sim.result=msg;toast(msg)}
   function drawRandomOne(deckId,s,action='Robar al azar',detail='Se robó 1 Power Card al azar del deck.'){if(!s.drawPile.length)return null;if(powerHandCount(s)>=s.powerHandLimit){maxHandMessage(s);return null}manualRules.own(deckId);const pos=randomInt(s.drawPile.length),[cid]=s.drawPile.splice(pos,1),[owner]=s.drawOwners.splice(pos,1),c=getCard(cid);s.hand.push(cid);s.handOwners.push(owner||deckId);logSim(deckId,action,detail,c);return c}
-  function enterDrawPhase(d,s){pushUndo(d.id,'Draw Phase');const before=s.currentPhase||'MAIN';s.currentPhase='DRAW';logSim(d.id,'Cambiar fase',`${phaseLabel(before)} → Draw Phase.`);const slots=Math.max(0,s.powerHandLimit-powerHandCount(s)),qty=Math.min(3+(sim?.mode==='ASSISTED'?(s.powerDrawBonus||0):0),slots,s.drawPile.length);const names=[];for(let k=0;k<qty;k++){manualRules.own(d.id);const pos=randomInt(s.drawPile.length),[cid]=s.drawPile.splice(pos,1),[owner]=s.drawOwners.splice(pos,1),c=getCard(cid);s.hand.push(cid);s.handOwners.push(owner||d.id);if(c)names.push(c.name)}if(qty){logSim(d.id,'Robo automático de Draw Phase',`Se robaron ${qty} Power Card${qty===1?'':'s'}: ${names.join(', ')}.`)}else{logSim(d.id,'Robo automático de Draw Phase',slots<=0?`No se robó: límite máximo de Power Cards (${s.powerHandLimit}) alcanzado.`:'No quedaban cartas disponibles en el deck.');if(slots<=0)toast(`Límite máximo de Power Cards alcanzado (${s.powerHandLimit}).`)}if(qty<3&&slots<3)toast(`Draw Phase: ${qty} carta${qty===1?'':'s'} robada${qty===1?'':'s'} por límite de Power Hand (${s.powerHandLimit}).`);s.currentPhase='MAIN';logSim(d.id,'Cambio automático de fase','Draw Phase → Main Phase.');sim.result=`Draw Phase: ${qty} robada${qty===1?'':'s'} · Main Phase`;render()}
+  function enterDrawPhase(d,s){pushUndo(d.id,'Draw Phase');const before=s.currentPhase||'MAIN';s.currentPhase='DRAW';logSim(d.id,'Cambiar fase',`${phaseLabel(before)} → Draw Phase.`);const slots=Math.max(0,s.powerHandLimit-powerHandCount(s)),qty=Math.min(3+(sim?.mode==='ASSISTED'?(s.powerDrawBonus||0):0),slots,s.drawPile.length);const names=[];for(let k=0;k<qty;k++){manualRules.own(d.id);const pos=randomInt(s.drawPile.length),[cid]=s.drawPile.splice(pos,1),[owner]=s.drawOwners.splice(pos,1),c=getCard(cid);s.hand.push(cid);s.handOwners.push(owner||d.id);if(c)names.push(c.name)}if(qty){logSim(d.id,'Robo automático de Draw Phase',`Se robaron ${qty} Power Card${qty===1?'':'s'}: ${names.join(', ')}.`)}else{logSim(d.id,'Robo automático de Draw Phase',slots<=0?`No se robó: límite máximo de Power Cards (${s.powerHandLimit}) alcanzado.`:'No quedaban cartas disponibles en el deck.');if(slots<=0)toast(`Límite máximo de Power Cards alcanzado (${s.powerHandLimit}).`)}if(qty<3&&slots<3)toast(`Draw Phase: ${qty} carta${qty===1?'':'s'} robada${qty===1?'':'s'} por límite de Power Hand (${s.powerHandLimit}).`);if(sim?.mode==='ASSISTED')assistedLinks?.phase('DRAW_END',d.id);
+    s.currentPhase='MAIN';logSim(d.id,'Cambio automático de fase','Draw Phase → Main Phase.');sim.result=`Draw Phase: ${qty} robada${qty===1?'':'s'} · Main Phase`;render()}
   function toolResult(action,result){const {d}=currentSim();sim.result=result;logSim(d.id,action,result)}
   function formatDuration(ms){const sec=Math.max(0,Math.round(Number(ms||0)/1000)),m=Math.floor(sec/60),s=sec%60;return m?`${m} min ${s} s`:`${s} s`}
   function snapshotCardSet(ids){const counts=countIds((ids||[]).filter(Boolean));return Object.entries(counts).map(([id,count])=>{const c=getCard(id);return {id,count,name:c?.name||'Carta no disponible',description:c?.description||'',type:c?cardTypeLabel(c):''}})}
@@ -1412,13 +1421,20 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     if(dragTrade){dragTrade.ghost?.remove();dragTrade.target?.classList.remove('trade-target');dragTrade=null;}
   },true);
 
-  let assistedEffects=null;
+  let assistedEffects=null,assistedLinks=null;
   const manualRules=window.POKER_BLITZ_MANUAL_RULES({sim:()=>sim,modal:()=>modal,setModal:v=>{modal=v},card:getCard,type:cardType,shuffle,log:logSim,toast,render,drawPoker:drawPokerOne,pushUndo,drawPhase:enterDrawPhase,phaseLabel,current:currentSim,esc,
     canAssist:id=>!!assistedEffects?.supported(id),
     canPlayAssisted:(id,pid)=>!!assistedEffects?.canPlay(id,pid),assistedCardUsed:(id,pid)=>assistedEffects?.markUsed(id,pid),
     assistedResolved:item=>assistedEffects?.enqueue(item),assistedChainComplete:()=>assistedEffects?.finishChain(),
-    assistedPhase:(phase,pid)=>assistedEffects?.phase(phase,pid),assistedRound:()=>assistedEffects?.round()});
-  assistedEffects=window.POKER_BLITZ_ASSISTED_EFFECTS({sim:()=>sim,card:getCard,shuffle,log:logSim,toast,render,drawPoker:drawPokerOne,pushUndo,manual:()=>manualRules,random:randomInt,type:cardType,setModal:v=>{modal=v},modal:()=>modal,esc});
+    assistedPhase:(phase,pid)=>assistedEffects?.phase(phase,pid),assistedRound:()=>assistedEffects?.round(),
+    assistedLinkPowerTaken:(pid,index)=>assistedLinks?.onPowerTake(pid,index),
+    assistedPokerOut:(pid,cards)=>assistedLinks?.onPokerOut(pid,cards),
+    assistedScore:(pid,kind,cards,hyper)=>assistedLinks?.score(pid,kind,cards,hyper),
+    assistedChargeBonus:(pid,cards)=>assistedLinks?.onCharge(pid,cards)});
+  assistedEffects=window.POKER_BLITZ_ASSISTED_EFFECTS({sim:()=>sim,card:getCard,shuffle,log:logSim,toast,render,drawPoker:drawPokerOne,pushUndo,manual:()=>manualRules,links:()=>assistedLinks,random:randomInt,type:cardType,setModal:v=>{modal=v},modal:()=>modal,esc});
+  assistedLinks=window.POKER_BLITZ_ASSISTED_LINKS({sim:()=>sim,card:getCard,shuffle,log:logSim,toast,render,drawPoker:drawPokerOne,pushUndo,manual:()=>manualRules,random:randomInt,recalc:pid=>assistedEffects.recalc(pid),setModal:v=>{modal=v},esc,
+    drawPower:(pid,n,ignoreLimit=false)=>{const st=sim.states[pid];let moved=0;manualRules.own(pid);for(let i=0;i<n&&st.drawPile.length;i++){if(!ignoreLimit&&powerHandCount(st)>=st.powerHandLimit)break;const pos=randomInt(st.drawPile.length),cid=st.drawPile.splice(pos,1)[0],own=st.drawOwners.splice(pos,1)[0];st.hand.push(cid);st.handOwners.push(own||pid);moved++;}return moved},
+    discardPower:(pid,n)=>{const st=sim.states[pid];let moved=0;for(let k=0;k<n;k++){const choices=st.hand.map((id,i)=>i).filter(i=>!st.activeHyper.includes(i));if(!choices.length)break;const out=manualRules.take(pid,choices[0]);manualRules.giveBack(out.cardId,out.ownerId);moved++;}return moved}});
   root.addEventListener('click',e=>{
     if(skipTradeClick){skipTradeClick=false;e.preventDefault();return;}
     const el=e.target.closest('[data-action]');if(!el)return;const a=el.dataset.action,id=el.dataset.id;
@@ -1502,10 +1518,11 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='draw-poker-random'){const {d,s}=currentSim();pushUndo(d.id,'Robar Poker Card');const c=drawPokerOne(d.id,s);if(c){sim.handView='POKER';testSetup.handView='POKER';sim.result=`Robaste Poker Card: ${c.rank}`;}render()}
     else if(a==='draw-poker-view'){if(sim?.pokerDrawPile?.length){modal={type:'draw-poker-deck'};render()}}
     else if(a==='draw-poker-select'){const {d,s}=currentSim(),pos=(sim.pokerDrawPile||[]).findIndex(card=>card.id===id);if(pos<0)return;pushUndo(d.id,'Robar viendo Poker Deck');const [card]=sim.pokerDrawPile.splice(pos,1);s.pokerHand??=[];s.pokerHand.push(card);sim.handView='POKER';testSetup.handView='POKER';sim.result=`Elegiste Poker Card: ${card.rank}`;logSim(d.id,'Robar viendo Poker Deck',`Se eligió ${card.rank} de ${card.suit}.`);modal=null;render()}
-    else if(a==='discard-poker-card'){const {d,s}=currentSim(),i=+el.dataset.index;if(!Array.isArray(s.pokerHand)||i<0||i>=s.pokerHand.length)return;pushUndo(d.id,'Descartar Poker Card');const [card]=s.pokerHand.splice(i,1);sim.pokerDrawPile=shuffle([...(sim.pokerDrawPile||[]),card]);sim.handView='POKER';testSetup.handView='POKER';sim.result=`Poker Card descartada: ${card.rank}`;logSim(d.id,'Descartar Poker Card',`Se descartó ${card.rank} de ${card.suit} y volvió al Poker Deck.`);render()}
+    else if(a==='discard-poker-card'){const {d,s}=currentSim(),i=+el.dataset.index;if(!Array.isArray(s.pokerHand)||i<0||i>=s.pokerHand.length)return;pushUndo(d.id,'Descartar Poker Card');const [card]=s.pokerHand.splice(i,1);if(sim.mode==='ASSISTED')assistedLinks.onPokerOut(d.id,[card]);else sim.pokerDrawPile=shuffle([...(sim.pokerDrawPile||[]),card]);sim.handView='POKER';testSetup.handView='POKER';sim.result=`Poker Card descartada: ${card.rank}`;logSim(d.id,'Descartar Poker Card',`Se descartó ${card.rank} de ${card.suit} y volvió al Poker Deck.`);render()}
     else if(a==='draw-select'){const deckId=modal?.deckId,s=sim?.states?.[deckId];if(!s)return;if(powerHandCount(s)>=s.powerHandLimit){maxHandMessage(s);modal=null;render();return}const pos=s.drawPile.indexOf(id);if(pos<0)return;pushUndo(deckId,'Robar viendo Deck');manualRules.own(deckId);const [cid]=s.drawPile.splice(pos,1),[owner]=s.drawOwners.splice(pos,1),c=getCard(cid);s.hand.push(cid);s.handOwners.push(owner||deckId);sim.result=c?'Elegiste del Deck: '+c.name:'Carta elegida del Deck';logSim(deckId,'Robar viendo Deck','Se observó el deck y se seleccionó exactamente 1 Power Card.',c);modal=null;render()}
     else if(a==='use-card'){const {d}=currentSim();manualRules.useCard(d.id,+el.dataset.index)}
     else if(a==='discard-card'){const {d,s}=currentSim(),i=+el.dataset.index,c=getCard(s.hand[i]);if(!c||!['MAIN','END'].includes(s.currentPhase))return;pushUndo(d.id,'Descartar '+cardTypeLabel(c));const wasActive=cardType(c)==='HYPER'&&s.activeHyper.includes(i),item=manualRules.take(d.id,i);if(!item)return;manualRules.giveBack(item.cardId,item.ownerId);logSim(d.id,'Descartar '+cardTypeLabel(c),(wasActive?'HyperCard activa':'Power Card')+' devuelta al deck de su propietario.',c);render()}
+    else if(a==='assist-old-rules'){assistedLinks.ability(+el.dataset.index)}
     else if(a==='activate-hyper'&&sim?.mode==='ASSISTED'){assistedEffects.activate(+el.dataset.index)}
     else if(a==='activate-hyper'){const {d,s}=currentSim(),i=+el.dataset.index,c=getCard(s.hand[i]);if(!c||cardType(c)!=='HYPER'||s.activeHyper.includes(i)||s.currentPhase!=='MAIN')return;if(s.activeHyper.length>=3){const msg='Límite máximo de 3 HyperCards activas alcanzado.';sim.result=msg;toast(msg);render();return}pushUndo(d.id,'Activar HyperCard');s.activeHyper.push(i);logSim(d.id,'Activar HyperCard','La HyperCard fue activada y permanece visible con borde dorado resplandeciente.',c);render()}
     else if(a==='roll-die'){const {d,s}=currentSim();if(s.dieRolling)return;pushUndo(d.id,'Lanzar dado');const deckId=d.id;s.dieBase=1+randomInt(6);s.dieModifier=0;s.dieRolling=true;sim.result='Lanzando dado…';render();setTimeout(()=>{const st=sim?.states?.[deckId];if(!st)return;st.dieRolling=false;const result=Number(st.dieBase||0)+Number(st.dieModifier||0);sim.result='Resultado del dado: '+result;logSim(deckId,'Lanzamiento de dado','Resultado del dado: '+result);render();},1250)}
@@ -1514,6 +1531,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='finish-turn'){manualRules.finishTurn()}
     else if(a==='charge-toggle'){if(!manualRules.canAct())return;const i=Number(el.dataset.index),ss=sim.chargeSelection||[];sim.chargeSelection=ss.includes(i)?ss.filter(x=>x!==i):[...ss,i];render()}
     else if(a==='charge-combo'){manualRules.charge(el.dataset.combo)}
+    else if(a==='linked-option'){assistedLinks.option(el.dataset.id)}
     else if(a==='assist-target'){assistedEffects.choose(el.dataset.player)}
     else if(a==='counter-play'){manualRules.counterPlay(Number(el.dataset.index))}
     else if(a==='counter-pass'){manualRules.counterPass()}
