@@ -87,7 +87,8 @@ async function check(){
  verifyZoom('.add-list .card-preview','deck add modal');
  next('close-modal');
  next('back');
- next('simulator');
+ next('manual-test');
+ next('manual-full');
  next('start-sim');
  let shell=doc.querySelector('.sim-shell');
  if(!shell)throw Error('Simulator not visible');
