@@ -2,6 +2,18 @@
 
 Versión web estática basada en `DeckCreator_AndroidStudio_v0_13_NEW_CATALOG` y ajustada para escritorio.
 
+## Versión 1.19.7 — Efectos vinculados en Prueba Asistida
+
+- El catálogo oficial de **64 cartas** está incluido ahora en el registro de ejecución asistida. Los 13 efectos que estaban inhabilitados se han integrado al motor.
+- **Reglas Antiguas (001):** devuelve cartas para pagar la activación y permite intercambiar 1 Poker Card con el mazo una vez por turno mediante un botón en la Hyper Zone.
+- **Escudo Resplandeciente (004):** copia una SuperCard compatible *después* de resolver la carta original. No se ofrece la copia de una carta que requiere materializar su propia Power Card como As.
+- **Artilugio Legendario (005):** comprueba tres Artilugios activos de distintos colores, entrega 5 fichas y devuelve uno al Power Deck correspondiente.
+- **Simbionte (029), Cambio de Color (030), Joker (035):** crean vínculos con instancias físicas de Poker Cards (por ID); durante Charge Phase el evaluador admite valores y/o símbolos comodín. Los costes se descuentan y las HyperCards regresan al Deck cuando el objetivo abandona la Poker Hand.
+- **Sabueso de Ases (040):** una SuperCard jugada legalmente pasa a estar representada por un As real en Poker Hand; se selecciona palo. Al descartarse o usarse, se devuelve al Power Deck del propietario original y no al mazo de Poker.
+- **Artilugios (042, 043, 044, 058, 059, 060):** se vinculan a Poker Cards elegidas, otorgan protección cuando procede, disparan premios al cobrarlas y programan efectos en fases futuras. Con varios rivales, el usuario puede elegir a quién aplicar las penalizaciones.
+- Se añadieron pruebas específicas de comodines, desvinculación, recompensas, Sabueso, copias de CounterCards y destinos correctos en `android/tools/check_assisted_links.js`.
+- **Alcance:** este es un motor asistido, no una IA. Las decisiones siguen siendo del usuario. Aunque las 64 cartas constan como compatibles, algunas combinaciones de múltiples modificaciones y reglas especiales seguirán requiriendo pruebas de partida y ajustes antes de considerar la implementación íntegramente validada. No afecta Prueba Manual Completo ni Sencillo.
+
 ## Versión 1.19.6 — Dos botones de pruebas
 
 - **Prueba Manual → Completo:** conserva Poker Hand digital, Charge Phase con combinaciones validadas, fichas, Power Hand, Hyper Zone, CounterCards, reacciones y acciones entre jugadores.
