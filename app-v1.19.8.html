@@ -988,7 +988,7 @@ function syncAutoSetup(){
     return `<main class="app-shell">${appBar('Simulación',{back:false})}
       <section class="test-setup-wrap" style="max-width:680px;margin:6vh auto">
         <div class="panel test-setup-card"><h2>${autoBusy?'Simulación en curso':autoResult?'Simulación terminada':'Simulación'}</h2>
-        <p class="small muted">${autoBusy?`Partida ${s.game||1} de ${s.totalGames||1} · Ronda ${s.round||1} · Eventos en esta partida: ${s.events||0}`:autoResult?`${autoBatchResults.length} partida(s) procesada(s). Descarga el PDF consolidado con la clasificación, las incidencias y los eventos.`:'No hay ninguna partida en ejecución.'}</p>
+        <p class="small muted">${autoBusy?`Partida ${s.game||1} de ${s.totalGames||1} · Rotación ${(s.rotation||0)+1} · Ronda ${s.round||1} · Eventos en esta partida: ${s.events||0}`:autoResult?`${autoBatchResults.length} partida(s) procesada(s). Descarga el PDF consolidado con la clasificación, las incidencias y los eventos.`:'No hay ninguna partida en ejecución.'}</p>
         ${autoBusy?`<div style="height:10px;background:#e5e7eb;border-radius:7px;overflow:hidden"><div style="height:100%;background:var(--cyan);width:${Math.min(100,100*((s.completedGames||0)+(s.round||0)/(s.maxRounds||40))/(s.totalGames||1))}%"></div></div><p class="small muted">El análisis se ejecuta localmente. No cierres esta pantalla si deseas conservar el resultado.</p>
         <button class="btn" data-action="auto-cancel">Cancelar</button>`:autoResult?`<button class="btn primary" data-action="auto-download">Descargar PDF`+`</button><button class="btn" data-action="auto-home">Volver al inicio</button>`:`<button class="btn" data-action="auto-home">Inicio</button>`}
         </div>
@@ -1377,37 +1377,37 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
       const pdf=new Pdf({unit:'mm',format:'a4'});let y=16;
       if(autoBatchResults.length>1){
         const runs=autoBatchResults,winCounts={},averages={};
-        for(const run of runs)for(const player of run.players){averages[player.id]??={name:player.name,total:0};averages[player.id].total+=player.chips;}
-        for(const run of runs)if(run.finished&&run.winnerIds.length===1){const winner=run.winnerIds[0];winCounts[winner]=(winCounts[winner]||0)+1;}
+        for(const run of runs)for(const player of run.players){const id=player.participantId;averages[id]??={name:player.name,total:0,played:0,difficulty:player.difficulty,bySeat:{}};averages[id].total+=player.chips;averages[id].played++;averages[id].bySeat[player.seat]=(averages[id].bySeat[player.seat]||0)+1;}
+        for(const run of runs)if(run.finished&&run.winnerIds.length===1){const winner=run.players.find(p=>p.id===run.winnerIds[0]);if(winner)winCounts[winner.participantId]=(winCounts[winner.participantId]||0)+1;}
         y=addPdfWrappedText(pdf,'POKER BLITZ | INFORME DE SIMULACIONES',y,{size:17,bold:true,space:6});
-        y=addPdfWrappedText(pdf,'Partidas: '+runs.length+' | Jugadores: '+runs[0].players.length+' | Modo: '+runs[0].battleMode+' | Barajas de Poker: '+runs[0].pokerDeckCount+' | Version: '+runs[0].version,y,{size:9,space:4});
-        y=addPdfWrappedText(pdf,'Las condiciones, mazos e IA se mantienen constantes. Cada partida utiliza una semilla diferente reproducible.',y,{size:9,space:4});
+        y=addPdfWrappedText(pdf,'Partidas: '+runs.length+' | Jugadores: '+runs[0].players.length+' | Modo: '+runs[0].battleMode+' | Barajas de Poker: '+runs[0].pokerDeckCount+' | Semilla base: '+runs[0].baseSeed+' | Version: '+runs[0].version,y,{size:9,space:4});
+        y=addPdfWrappedText(pdf,'Mismos decks e IA por participante. Asientos rotativos (1 desplazamiento por partida); semilla de encuentro reproducible. La posicion en mesa cambia, pero P1...P6 conserva su identidad.',y,{size:9,space:4});
         y=addPdfWrappedText(pdf,'ESTADISTICAS POR JUGADOR',y,{size:12,bold:true});
-        for(const [id,info] of Object.entries(averages))y=addPdfWrappedText(pdf,info.name+' | Victorias: '+(winCounts[id]||0)+'/'+runs.length+' | Fichas promedio: '+(info.total/runs.length).toFixed(2),y,{size:9,space:2});
+        for(const [id,info] of Object.entries(averages))y=addPdfWrappedText(pdf,id+' '+info.name+' | IA '+info.difficulty+' | Victorias: '+(winCounts[id]||0)+'/'+info.played+' ('+(100*(winCounts[id]||0)/info.played).toFixed(1)+'%) | Fichas promedio: '+(info.total/info.played).toFixed(2)+' | Asientos: '+Object.entries(info.bySeat).map(([seat,n])=>'#'+seat+':'+n).join(', '),y,{size:9,space:2});
         y=addPdfWrappedText(pdf,'RESULTADOS INDIVIDUALES',y,{size:12,bold:true});
         for(const [i,run] of runs.entries()){
-          y=addPdfWrappedText(pdf,'Partida '+(i+1)+' | Semilla '+run.seed+' | Rondas '+run.rounds+' | '+run.outcome+' | Incidencias '+run.incidents.length,y,{size:9,bold:true,space:2});
-          for(const p of run.players)y=addPdfWrappedText(pdf,'J'+p.id.split('-').at(-1)+' '+p.name+': '+p.chips+' fichas | IA '+p.difficulty+' | Hyper '+p.activeHyper+' | Poker '+p.pokerHand,y,{size:8,space:1});
+          y=addPdfWrappedText(pdf,'Partida '+(i+1)+' | Semilla '+run.seed+' | Rotación '+(run.rotation+1)+' | Orden '+run.seatOrder.join(' > ')+' | Rondas '+run.rounds+' | '+run.outcome+' | Incidencias '+run.incidents.length,y,{size:9,bold:true,space:2});
+          for(const p of run.players)y=addPdfWrappedText(pdf,p.participantId+' '+p.name+' [Asiento '+p.seat+']: '+p.chips+' fichas | IA '+p.difficulty+' | Hyper '+p.activeHyper+' | Poker '+p.pokerHand,y,{size:8,space:1});
         }
         y=addPdfWrappedText(pdf,'AUDITORIA DETALLADA POR PARTIDA',y,{size:12,bold:true});
         for(const [i,run] of runs.entries()){
-          y=addPdfWrappedText(pdf,'PARTIDA '+(i+1)+' - SEMILLA '+run.seed,y,{size:11,bold:true,space:2});
+          y=addPdfWrappedText(pdf,'PARTIDA '+(i+1)+' - SEMILLA '+run.seed+' - ORDEN '+run.seatOrder.join(' > '),y,{size:11,bold:true,space:2});
           for(const msg of run.incidents)y=addPdfWrappedText(pdf,'INCIDENCIA: '+msg,y,{size:8,space:1});
           for(const [id,count] of Object.entries(run.effectCounts).sort((a,b)=>b[1]-a[1]))y=addPdfWrappedText(pdf,'Efecto '+(getCard(id)?.name||id)+': '+count,y,{size:8,space:1});
           for(const player of run.players){
-            y=addPdfWrappedText(pdf,'JUGADOR '+player.name+' | '+player.chips+' fichas',y,{size:10,bold:true,space:2});
+            y=addPdfWrappedText(pdf,'JUGADOR '+player.participantId+' '+player.name+' | Asiento '+player.seat+' | '+player.chips+' fichas',y,{size:10,bold:true,space:2});
             for(const ev of player.events){const st=ev.state;const line='[R'+ev.round+'] '+ev.action+(ev.detail?' : '+ev.detail:'')+(st?' [F'+st.chips+' Pk'+st.poker+' Pw'+st.power+' H'+st.hyper+']':'');y=addPdfWrappedText(pdf,line,y,{size:7,indent:2,space:1});}
           }
         }
         return await savePdfDocument(pdf,'POKER_BLITZ_LOTE_'+runs.length+'_seed'+runs[0].seed+'.pdf');
       }
       y=addPdfWrappedText(pdf,'POKER BLITZ | SIMULACION AUTOMATICA',y,{size:17,bold:true,space:7});
-      y=addPdfWrappedText(pdf,'Modo: '+(r.battleMode==='RUSH'?'Rush Battle':'Blitz Battle')+' | Meta: '+r.goal+' fichas | Semilla: '+r.seed+' | Rondas: '+r.rounds+' | Version: '+r.version,y,{size:9,space:3});
+      y=addPdfWrappedText(pdf,'Modo: '+(r.battleMode==='RUSH'?'Rush Battle':'Blitz Battle')+' | Meta: '+r.goal+' fichas | Semilla: '+r.seed+' | Base: '+r.baseSeed+' | Orden: '+r.seatOrder.join(' > ')+' | Rondas: '+r.rounds+' | Version: '+r.version,y,{size:9,space:3});
       y=addPdfWrappedText(pdf,'Resultado: '+r.outcome+' | Inicio: '+new Date(r.startedAt).toLocaleString()+' | Fin: '+new Date(r.endedAt).toLocaleString(),y,{size:9,space:4});
       const best=r.players[0]?.chips??0,winners=r.players.filter(p=>p.chips===best);
       y=addPdfWrappedText(pdf,'Ganador: '+(r.finished&&winners.length===1?winners[0].name:'Sin ganador unico confirmado'),y,{size:12,bold:true,space:4});
       y=addPdfWrappedText(pdf,'CLASIFICACION',y,{size:12,bold:true});
-      for(const [i,p] of r.players.entries())y=addPdfWrappedText(pdf,(i+1)+'. '+p.name+' | '+p.chips+' fichas | IA '+({beginner:'Principiante',intermediate:'Intermedio',expert:'Experto'}[p.difficulty]||p.difficulty)+' | Estilo '+p.style+' | Power '+p.powerHand+' | Poker '+p.pokerHand+' | Hyper '+p.activeHyper,y,{size:9,space:2});
+      for(const [i,p] of r.players.entries())y=addPdfWrappedText(pdf,(i+1)+'. '+p.participantId+' '+p.name+' | Asiento '+p.seat+' | '+p.chips+' fichas | IA '+({beginner:'Principiante',intermediate:'Intermedio',expert:'Experto'}[p.difficulty]||p.difficulty)+' | Estilo '+p.style+' | Power '+p.powerHand+' | Poker '+p.pokerHand+' | Hyper '+p.activeHyper,y,{size:9,space:2});
       y=addPdfWrappedText(pdf,'Indicadores: '+r.eventsCount+' eventos; '+Object.values(r.effectCounts).reduce((a,b)=>a+b,0)+' resoluciones de efectos registradas.',y,{size:9,space:4});
       y=addPdfWrappedText(pdf,'EFECTOS RESUELTOS (por carta)',y,{size:11,bold:true});
       for(const [id,count] of Object.entries(r.effectCounts).sort((a,b)=>b[1]-a[1])){
@@ -1432,9 +1432,10 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     if(autoBusy)return;syncAutoSetup();
     const available=availableTestDecks(),players=Array.from({length:autoSetup.playerCount},(_,i)=>{
       const d=available.find(x=>x.id===autoSetup.deckIds[i])||available[0];
-      return d?{...d,cardIds:[...d.cardIds],difficulty:autoSetup.aiLevels[i]||'intermediate'}:null;
+      return d?{...d,participantId:'P'+(i+1),cardIds:[...d.cardIds],difficulty:autoSetup.aiLevels[i]||'intermediate'}:null;
     });
     if(players.some(p=>!p)){toast('No hay suficientes decks disponibles.');return}
+    let chosenSeed;try{chosenSeed=parseSeed(autoSetup.seedInput)}catch(err){toast(String(err.message||err));return}
     const count=autoSetup.gamesCount;
     autoCancel={cancelled:false};autoResult=null;autoBatchResults=[];autoBusy=true;
     autoStatus={round:1,maxRounds:40,events:0,game:1,totalGames:count,completedGames:0};
@@ -1442,15 +1443,17 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     await new Promise(resolve=>setTimeout(resolve,0));
     try{
       const engine=window.POKER_BLITZ_AUTOMATION({getCard,cardType,version:APP_VERSION});
-      const baseSeed=(Date.now()>>>0)||1;autoSetup.seed=baseSeed;
+      const baseSeed=chosenSeed??generateSeed();autoSetup.seed=baseSeed;
       for(let i=0;i<count;i++){
         if(autoCancel.cancelled)break;
         const seed=(baseSeed+Math.imul(i,0x9e3779b9))>>>0;
-        autoStatus={round:1,maxRounds:40,events:0,game:i+1,totalGames:count,completedGames:i};
-        const result=await engine.play({players,pokerDeckCount:autoSetup.pokerDeckCount,battleMode:autoSetup.battleMode,seed,maxRounds:40,cancel:autoCancel},status=>{
-          autoStatus={...status,game:i+1,totalGames:count,completedGames:i};
+        const rotation=i%players.length,seatedPlayers=players.map((_,seat)=>players[(seat+rotation)%players.length]);
+        autoStatus={round:1,maxRounds:40,events:0,game:i+1,totalGames:count,completedGames:i,rotation};
+        const result=await engine.play({players:seatedPlayers,pokerDeckCount:autoSetup.pokerDeckCount,battleMode:autoSetup.battleMode,seed,maxRounds:40,cancel:autoCancel},status=>{
+          autoStatus={...status,game:i+1,totalGames:count,completedGames:i,rotation};
           if(screen==='autoRunning'&&(status.finished||status.round%3===0))render();
         });
+        result.baseSeed=baseSeed;result.gameNumber=i+1;result.rotation=rotation;result.seatOrder=seatedPlayers.map(p=>p.participantId);
         autoBatchResults.push(result);autoResult=result;
         autoStatus.completedGames=i+1;render();
         if(result.cancelled)break;
