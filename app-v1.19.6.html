@@ -977,7 +977,7 @@ window.STARTER_CARDS = [
     const activeSet=new Set(s.activeHyper||[]);
     const powerCards=s.hand.map((id,i)=>({id,i,c:getCard(id)})).filter(x=>x.c&&!activeSet.has(x.i));
     const hyperCards=(s.activeHyper||[]).map(i=>({id:s.hand[i],i,c:getCard(s.hand[i])})).filter(x=>x.c);
-    const powerHand=powerCards.length?powerCards.map(({c,i})=>{const type=cardType(c);const primary=type==='HYPER'?`<button class="btn primary" data-action="activate-hyper" data-index="${i}" ${(!canActivate||sim.mode==='ASSISTED'&&!assistedEffects.supported(c.id))?'disabled title="Efecto pendiente de implementar"':''}>${icon('play')} Activar</button>`:`<button class="btn primary" data-action="use-card" data-index="${i}" ${(canUsePowerCard(c)&&(sim.mode!=='ASSISTED'||assistedEffects.supported(c.id)))?'':'disabled title="Efecto pendiente de implementar"'}>${icon('play')} Usar</button>`;return `<article class="hand-card"><div class="hand-preview-wrap" data-action="zoom-card" data-id="${c.id}">${cardHTML(c)}</div><div class="hand-actions">${primary}<button class="btn discard" data-action="discard-card" data-index="${i}" ${canDiscard?'':'disabled'}>${icon('trash')} Descartar</button></div></article>`}).join(''):`<div class="empty" style="width:100%">La Power Hand está vacía.</div>`;
+    const powerHand=powerCards.length?powerCards.map(({c,i})=>{const type=cardType(c);const primary=type==='HYPER'?`<button class="btn primary" data-action="activate-hyper" data-index="${i}" ${(!canActivate||sim.mode==='ASSISTED'&&!assistedEffects.supported(c.id))?'disabled title="Efecto pendiente de implementar"':''}>${icon('play')} Activar</button>`:`<button class="btn primary" data-action="use-card" data-index="${i}" ${(canUsePowerCard(c)&&(sim.mode!=='ASSISTED'||assistedEffects.canPlay(c.id,d.id)))?'':'disabled title="Efecto pendiente de implementar"'}>${icon('play')} Usar</button>`;return `<article class="hand-card"><div class="hand-preview-wrap" data-action="zoom-card" data-id="${c.id}">${cardHTML(c)}</div><div class="hand-actions">${primary}<button class="btn discard" data-action="discard-card" data-index="${i}" ${canDiscard?'':'disabled'}>${icon('trash')} Descartar</button></div></article>`}).join(''):`<div class="empty" style="width:100%">La Power Hand está vacía.</div>`;
     const hyperHand=hyperCards.length?hyperCards.map(({c,i})=>`<article class="hand-card hyper-active"><div class="hand-preview-wrap" data-action="zoom-card" data-id="${c.id}">${cardHTML(c)}<div class="active-badge">ACTIVA</div></div><div class="hand-actions"><button class="btn primary" disabled>${icon('play')} Activa</button><button class="btn discard" data-action="discard-card" data-index="${i}" ${canDiscard?'':'disabled'}>${icon('trash')} Descartar</button></div></article>`).join(''):`<div class="empty" style="width:100%">No hay HyperCards activas.</div>`;
     const pokerHand=s.pokerHand.length?s.pokerHand.map((card,i)=>pokerCardHTML(card,i)).join(''):`<div class="poker-empty">Todavía no hay Poker Cards en la mano de este jugador.</div>`;
     const handMarkup=view==='POKER'?pokerHand:(view==='HYPER'?hyperHand:powerHand);
@@ -1415,9 +1415,10 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
   let assistedEffects=null;
   const manualRules=window.POKER_BLITZ_MANUAL_RULES({sim:()=>sim,modal:()=>modal,setModal:v=>{modal=v},card:getCard,type:cardType,shuffle,log:logSim,toast,render,drawPoker:drawPokerOne,pushUndo,drawPhase:enterDrawPhase,phaseLabel,current:currentSim,esc,
     canAssist:id=>!!assistedEffects?.supported(id),
+    canPlayAssisted:(id,pid)=>!!assistedEffects?.canPlay(id,pid),assistedCardUsed:(id,pid)=>assistedEffects?.markUsed(id,pid),
     assistedResolved:item=>assistedEffects?.enqueue(item),assistedChainComplete:()=>assistedEffects?.finishChain(),
     assistedPhase:(phase,pid)=>assistedEffects?.phase(phase,pid),assistedRound:()=>assistedEffects?.round()});
-  assistedEffects=window.POKER_BLITZ_ASSISTED_EFFECTS({sim:()=>sim,card:getCard,shuffle,log:logSim,toast,render,drawPoker:drawPokerOne,pushUndo,manual:()=>manualRules,random:randomInt,setModal:v=>{modal=v},modal:()=>modal,esc});
+  assistedEffects=window.POKER_BLITZ_ASSISTED_EFFECTS({sim:()=>sim,card:getCard,shuffle,log:logSim,toast,render,drawPoker:drawPokerOne,pushUndo,manual:()=>manualRules,random:randomInt,type:cardType,setModal:v=>{modal=v},modal:()=>modal,esc});
   root.addEventListener('click',e=>{
     if(skipTradeClick){skipTradeClick=false;e.preventDefault();return;}
     const el=e.target.closest('[data-action]');if(!el)return;const a=el.dataset.action,id=el.dataset.id;
@@ -1452,7 +1453,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='deck-minus-modal'){const top=$('.add-list')?.scrollTop||0,d=getDeck(editingDeckId),i=d.cardIds.indexOf(id);if(i>=0)d.cardIds.splice(i,1);saveState();renderAddPreservingScroll(top)}
     else if(a==='add-card-modal'){addQuery='';addTypeFilter='ALL';modal={type:'add'};render()}
     else if(a==='add-card-to-deck'){const top=$('.add-list')?.scrollTop||0;getDeck(editingDeckId).cardIds.push(id);saveState();renderAddPreservingScroll(top)}
-    else if(a==='test-deck'){sim=null;syncTestSetup(editingDeckId);go('simSetup')}
+    else if(a==='test-deck'){sim=null;testMode='MANUAL_FULL';syncTestSetup(editingDeckId);go('simSetup')}
     else if(a==='set-test-players'){testSetup.playerCount=Math.max(1,Math.min(6,Number(el.dataset.value)||2));syncTestSetup();render()}
     else if(a==='set-poker-decks'){testSetup.pokerDeckCount=[1,2].includes(Number(el.dataset.value))?Number(el.dataset.value):1;syncTestSetup();render()}
     else if(a==='start-sim'){if(!availableTestDecks().length){toast('No hay decks disponibles');return}initSim();go('simulator')}
