@@ -36,7 +36,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
   function log(pid,action,detail='',card=null){
    if(!game.histories[pid])game.histories[pid]=[];
    const st=game.states[pid];game.histories[pid].push({at:Date.now(),round:game.round,action,detail,cardName:card?.name||'',cardDescription:card?.description||'',state:st?{chips:st.chips,poker:st.pokerHand.length,power:st.hand.length-st.activeHyper.length,hyper:st.activeHyper.length}:null});
-   if(action==='Efecto asistido'||action==='Efecto vinculado')counts[card?.id||'other']=(counts[card?.id||'other']||0)+1;
+   if(['Efecto asistido','Efecto vinculado','Entendí la referencia'].includes(action)){const id=card?.id;if(id)counts[id]=(counts[id]||0)+1;}
   }
   for(const p of players){
    const list=rng.shuffle(p.cardIds),hand=list.splice(0,Math.min(initialPower,list.length)),
@@ -169,7 +169,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    get(times[0].p.id).pokerHand.push(c);
    const loser=times[times.length-1].p.id,s=get(loser);
    if(s.pokerHand.length){const card=s.pokerHand.splice(random(s.pokerHand.length),1)[0];links.onPokerOut(loser,[card])}
-   log(pid,'Entendí la referencia','Reacción virtual: más rápido J'+times[0].p.playerNumber+', último J'+times[times.length-1].p.playerNumber+'.');
+   log(pid,'Entendí la referencia','Reacción virtual: más rápido J'+times[0].p.playerNumber+', último J'+times[times.length-1].p.playerNumber+'.',getCard('catalog_v3_024'));
   }
   function playCard(p,i){
    const s=get(p.id),id=s.hand[i];if(!fx.canPlay(id,p.id))return false;
@@ -183,7 +183,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    for(let j=stack.length-1;j>=0;j--){
     const item=stack[j],kind=code(item.cardId);
     if(denied.has(j)){log(item.playerId,'Efecto negado',getCard(item.cardId)?.name||item.cardId);continue}
-    if(kind==='033'){if(j>0)denied.add(j-1);continue}
+    if(kind==='033'){if(j>0){denied.add(j-1);log(item.playerId,'Efecto asistido','He Dicho Que No: negó la Power Card anterior de la cadena.',getCard(item.cardId));}continue}
     if(kind==='024'){react(p.id);continue}
     resolve.push({...item,copyOrigin:base,originAllowed:!denied.has(0),triggerPlayerId:j>0?base.playerId:null,triggerCardId:j>0?base.cardId:null});
    }
