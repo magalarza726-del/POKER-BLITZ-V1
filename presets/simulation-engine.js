@@ -23,7 +23,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
   if(!Array.isArray(config?.players)||config.players.length<1||config.players.length>6)throw Error('La simulación requiere entre 1 y 6 jugadores.');
   if(![1,2].includes(Number(config.pokerDeckCount||1)))throw Error('Selecciona una o dos barajas de Poker.');
   if(config.players.some(p=>!Array.isArray(p.cardIds)||!p.cardIds.length))throw Error('Cada jugador debe tener un Power Deck no vacío.');
-  const rng=randomFactory(config.seed),players=config.players.map((p,i)=>({...p,id:'AUTO-'+(i+1),sourceDeckId:p.id,playerNumber:i+1,
+  const rng=randomFactory(config.seed),players=config.players.map((p,i)=>({...p,id:'AUTO-'+(i+1),participantId:p.participantId||'P'+(i+1),seat:i+1,sourceDeckId:p.id,playerNumber:i+1,
    difficulty:p.difficulty||'intermediate',style:Object.entries(styleKeys).sort((a,b)=>{
     const n=lst=>p.cardIds.filter(x=>lst.includes(code(x))).length;return n(b[1])-n(a[1]);
    })[0][0]}));
@@ -280,7 +280,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    rounds,startedAt,endedAt,durationMs:endedAt-startedAt,pokerDeckCount:config.pokerDeckCount||1,finished:game.finished,
    outcome,cancelled:!!config.cancel?.cancelled,winnerIds:ranking.filter(p=>get(p.id).chips===top).map(x=>x.id),
    incidents,effectCounts:counts,eventsCount:totals,
-   players:ranking.map(p=>({id:p.id,name:p.name,deckId:p.sourceDeckId,difficulty:p.difficulty,style:p.style,chips:get(p.id).chips,
+   players:ranking.map(p=>({id:p.id,participantId:p.participantId,seat:p.seat,name:p.name,deckId:p.sourceDeckId,difficulty:p.difficulty,style:p.style,chips:get(p.id).chips,
     events:game.histories[p.id],pokerHand:get(p.id).pokerHand.length,powerHand:get(p.id).hand.length-get(p.id).activeHyper.length,
     activeHyper:get(p.id).activeHyper.length,deckLeft:get(p.id).drawPile.length}))
   };
