@@ -20,6 +20,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     if((costPower[num]||0)>freePower)return false;
     if(num==='031'&&(s.chips||0)<1)return false;
     if(num==='003'&&!s.dieBase)return false;
+    if(['006','009','010','012','013','026','038','048','052','055','056','064'].includes(num)&&!opponents(pid).length)return false;
     if(num==='008'&&!s.activeHyper.length)return false;
     if(num==='009'&&!opponents(pid).some(p=>pile(p.id).chips>=5))return false;
     if(num==='010'&&!opponents(pid).some(p=>pile(p.id).pokerHand.length>=7))return false;
@@ -165,7 +166,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     const all=sim().assistedPending||[];
     for(const e of [...all]){
       if(e.type==='GHOST'&&sim().round>=e.round){for(const p of sim().decks)popPoker(p.id,3);log(e.actor,'037','Ronda posterior: se descartaron hasta 3 Poker Cards por jugador.');all.splice(all.indexOf(e),1)}
-      if(e.type==='INVEST'){addChips(e.actor,2);e.remaining--;log(e.actor,'049','Gran inversor: +2 fichas por cierre de ronda.');if(e.remaining<=0){all.splice(all.indexOf(e),1);const st=pile(e.actor),ix=st.activeHyper.find(i=>st.hand[i]==='catalog_v3_049');if(ix!==undefined){const it=ctx.manual().take(e.actor,ix);ctx.manual().giveBack(it.cardId,it.ownerId);recalc(e.actor)}}}
+      if(e.type==='INVEST'){if(!active(e.actor,'049')){all.splice(all.indexOf(e),1);log(e.actor,'049','Gran inversor salió de la mesa: cesan los cobros pendientes.');continue}addChips(e.actor,2);e.remaining--;log(e.actor,'049','Gran inversor: +2 fichas por cierre de ronda.');if(e.remaining<=0){all.splice(all.indexOf(e),1);const st=pile(e.actor),ix=st.activeHyper.find(i=>st.hand[i]==='catalog_v3_049');if(ix!==undefined){const it=ctx.manual().take(e.actor,ix);ctx.manual().giveBack(it.cardId,it.ownerId);recalc(e.actor)}}}
     }
   }
   return {supported,canPlay,markUsed,usable,hypers,enqueue,finishChain,afterReaction,modalMarkup,choose,activate,phase,round,recalc};
