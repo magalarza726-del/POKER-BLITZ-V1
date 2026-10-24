@@ -41,6 +41,28 @@ async function run(){
  assert(rush.players[0].events.length>0);
  const cancelled=await engine.play({players:decks.slice(0,2),seed:55,battleMode:'BLITZ',maxRounds:2,cancel:{cancelled:true}});
  assert.equal(cancelled.cancelled,true,'Cancellation must interrupt run');
+
+ const registry=window.POKER_BLITZ_ASSISTED_EFFECTS({sim:()=>({}),card:id=>catalog[id],links:()=>null});
+ assert.equal(Object.keys(catalog).length,64);
+ assert(Object.keys(catalog).every(id=>registry.supported(id)),'Every one of the 64 official cards must have an assisted effect registration');
+ const decks6=Array.from({length:6},(_,i)=>({...decks[i%decks.length],id:'TEST-'+i,name:'Jugador '+(i+1),difficulty:['beginner','intermediate','expert'][i%3]}));
+ const six=await engine.play({players:decks6,seed:183640,battleMode:'BLITZ',pokerDeckCount:2,maxRounds:5});
+ assert.equal(six.players.length,6,'Six-player simulation must complete');
+ assert(!six.incidents.some(e=>e.includes('Integridad')),'Six-player inventory must remain conserved: '+six.incidents.join('; '));
+ for(const p of six.players)assert(p.events.every(e=>!e.state||e.state.hyper<=3),'Never permit more than 3 active HyperCards');
+ const batch=[];
+ for(let i=0;i<50;i++){
+   const seed=(59123+Math.imul(i,0x9e3779b9))>>>0;
+   const r=await engine.play({players:decks.slice(0,3),seed,battleMode:'RUSH',pokerDeckCount:2,maxRounds:5});
+   assert.equal(r.seed,seed);assert.equal(r.players.length,3);
+   assert(!r.incidents.some(e=>e.includes('Integridad')),'Inventory error in batch game '+(i+1)+': '+r.incidents.join('; '));
+   batch.push(r);
+ }
+ assert.equal(batch.length,50,'Batch must execute up to 50 individual games');
+ assert.equal(new Set(batch.map(x=>x.seed)).size,50,'Batch must use 50 distinct deterministic seeds');
+ const one=await engine.play({players:decks.slice(0,3),seed:batch[0].seed,battleMode:'RUSH',pokerDeckCount:2,maxRounds:5});
+ assert.deepEqual(one.players.map(p=>[p.chips,p.events.length]),batch[0].players.map(p=>[p.chips,p.events.length]),'Replay of the first batch seed should reproduce results');
+ console.log('50-game batch, 6-player setup, 64-card registry, and conservation regressions PASSED.');
  console.log('Simulation AI regression PASSED: 1–3 players, beginner/intermediate/expert, seeded results, Rush, cancellation, events.');
  console.log(JSON.stringify({rounds:a.rounds,events:a.eventsCount,scores:a.players.map(p=>p.chips),incidents:a.incidents.slice(0,5)}));
 }
