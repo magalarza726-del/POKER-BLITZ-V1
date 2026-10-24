@@ -690,7 +690,8 @@ window.STARTER_CARDS = [
   let testMode = 'MANUAL_FULL';
   let autoSetup={playerCount:2,deckIds:[],aiLevels:[],pokerDeckCount:1,battleMode:'BLITZ',seed:0,seedInput:'',gamesCount:1};
   let autoStatus={round:0,maxRounds:40,events:0};
-  let autoResult=null,autoBatchResults=[],autoBusy=false,autoCancel=null;
+  let autoResult=null,autoBatchResults=[],autoBusy=false,autoCancel=null,autoPdfBusy=false;
+  let activePdfUrl=null;
   let toastTimer;
   let characterDraft = null;
 
@@ -990,7 +991,7 @@ function syncAutoSetup(){
         <div class="panel test-setup-card"><h2>${autoBusy?'Simulación en curso':autoResult?'Simulación terminada':'Simulación'}</h2>
         <p class="small muted">${autoBusy?`Partida ${s.game||1} de ${s.totalGames||1} · Rotación ${(s.rotation||0)+1} · Ronda ${s.round||1} · Eventos en esta partida: ${s.events||0}`:autoResult?`${autoBatchResults.length} partida(s) procesada(s). Descarga el PDF consolidado con la clasificación, las incidencias y los eventos.`:'No hay ninguna partida en ejecución.'}</p>
         ${autoBusy?`<div style="height:10px;background:#e5e7eb;border-radius:7px;overflow:hidden"><div style="height:100%;background:var(--cyan);width:${Math.min(100,100*((s.completedGames||0)+(s.round||0)/(s.maxRounds||40))/(s.totalGames||1))}%"></div></div><p class="small muted">El análisis se ejecuta localmente. No cierres esta pantalla si deseas conservar el resultado.</p>
-        <button class="btn" data-action="auto-cancel">Cancelar</button>`:autoResult?`<button class="btn primary" data-action="auto-download">Descargar PDF`+`</button><button class="btn" data-action="auto-home">Volver al inicio</button>`:`<button class="btn" data-action="auto-home">Inicio</button>`}
+        <button class="btn" data-action="auto-cancel">Cancelar</button>`:autoResult?`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-action="auto-download" ${autoPdfBusy?'disabled':''}>${autoPdfBusy?'Comprimiendo PDF…':'Preparar PDF completo'}</button>${autoBatchResults.length>1?`<button class="btn" data-action="auto-summary-download" ${autoPdfBusy?'disabled':''}>Preparar resumen ligero</button>`:''}<button class="btn" data-action="auto-home">Volver al inicio</button></div><p class="small muted" style="margin-top:10px">El PDF se comprime antes de exportar. En el celular, después de prepararlo, pulsa Descargar o Compartir en la ventana que aparece.</p>`:`<button class="btn" data-action="auto-home">Inicio</button>`}
         </div>
       </section></main>`;
   }
@@ -1370,11 +1371,12 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     try{archiveCurrentTest(reason)}catch(err){console.error('Error al archivar la prueba',err);toast('Prueba cerrada; no se pudo guardar el historial.');}
     sim=null;modal=null;screen='home';render();
   }
-  async function downloadAutoPdf(){
-    const r=autoResult;if(!r)return false;
-    const Pdf=await ensurePdfTools(false);if(!Pdf)return false;
+  async function downloadAutoPdf({summaryOnly=false}={}){
+    const r=autoResult;if(!r||autoPdfBusy)return false;
+    autoPdfBusy=true;if(screen==='autoRunning')render();
     try{
-      const pdf=new Pdf({unit:'mm',format:'a4'});let y=16;
+      const Pdf=await ensurePdfTools(false);if(!Pdf)return false;
+      const pdf=new Pdf({unit:'mm',format:'a4',compress:true});let y=16;
       if(autoBatchResults.length>1){
         const runs=autoBatchResults,winCounts={},averages={};
         for(const run of runs)for(const player of run.players){const id=player.participantId;averages[id]??={name:player.name,total:0,played:0,difficulty:player.difficulty,bySeat:{}};averages[id].total+=player.chips;averages[id].played++;averages[id].bySeat[player.seat]=(averages[id].bySeat[player.seat]||0)+1;}
@@ -1389,8 +1391,10 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
           y=addPdfWrappedText(pdf,'Partida '+(i+1)+' | Semilla '+run.seed+' | Rotación '+(run.rotation+1)+' | Orden '+run.seatOrder.join(' > ')+' | Rondas '+run.rounds+' | '+run.outcome+' | Incidencias '+run.incidents.length,y,{size:9,bold:true,space:2});
           for(const p of run.players)y=addPdfWrappedText(pdf,p.participantId+' '+p.name+' [Asiento '+p.seat+']: '+p.chips+' fichas | IA '+p.difficulty+' | Hyper '+p.activeHyper+' | Poker '+p.pokerHand,y,{size:8,space:1});
         }
+        if(summaryOnly)return await savePdfDocument(pdf,'POKER_BLITZ_RESUMEN_'+runs.length+'_seed'+runs[0].seed+'.pdf');
         y=addPdfWrappedText(pdf,'AUDITORIA DETALLADA POR PARTIDA',y,{size:12,bold:true});
         for(const [i,run] of runs.entries()){
+          if(i%5===0)await new Promise(resolve=>setTimeout(resolve,0));
           y=addPdfWrappedText(pdf,'PARTIDA '+(i+1)+' - SEMILLA '+run.seed+' - ORDEN '+run.seatOrder.join(' > '),y,{size:11,bold:true,space:2});
           for(const msg of run.incidents)y=addPdfWrappedText(pdf,'INCIDENCIA: '+msg,y,{size:8,space:1});
           for(const [id,count] of Object.entries(run.effectCounts).sort((a,b)=>b[1]-a[1]))y=addPdfWrappedText(pdf,'Efecto '+(getCard(id)?.name||id)+': '+count,y,{size:8,space:1});
@@ -1426,7 +1430,8 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
       }
       const filename='POKER_BLITZ_SIMULACION_'+safeFileName(new Date(r.startedAt).toISOString().slice(0,19))+'_seed'+r.seed+'.pdf';
       return await savePdfDocument(pdf,filename);
-    }catch(err){console.error('PDF simulacion',err);toast('Error al generar PDF de simulacion.');return false}
+    }catch(err){console.error('PDF simulacion',err);toast('Error al generar PDF de simulacion: '+String(err.message||err));return false}
+    finally{autoPdfBusy=false;if(screen==='autoRunning')render();}
   }
   async function startAutoRun(){
     if(autoBusy)return;syncAutoSetup();
@@ -1459,7 +1464,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
         if(result.cancelled)break;
       }
       autoBusy=false;autoStatus.finished=true;render();
-      if(autoResult&&!autoCancel.cancelled)await downloadAutoPdf();
+      if(autoResult&&!autoCancel.cancelled)toast('Simulación terminada. Pulsa Descargar PDF o Resumen para preparar el archivo.');
     }catch(err){
       console.error('Simulacion automatica',err);autoBusy=false;autoStatus.error=String(err);
       render();toast('No se pudo completar la simulacion: '+String(err.message||err));
@@ -1485,7 +1490,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
   async function downloadHistoryPdfRecord(r,filename,handle=null){
     const JsPDF=await ensurePdfTools(false);if(!JsPDF)return false;
     try{
-      const pdf=new JsPDF({unit:'mm',format:'a4'});let y=16;
+      const pdf=new JsPDF({unit:'mm',format:'a4',compress:true});let y=16;
       y=addPdfWrappedText(pdf,'POKER BLITZ · Historial de prueba',y,{size:18,bold:true,space:5});
       y=addPdfWrappedText(pdf,`Inicio: ${new Date(r.startedAt).toLocaleString()} · Fin: ${new Date(r.endedAt||Date.now()).toLocaleString()} · Duración: ${formatDuration(r.durationMs)} · Modo: ${r.mode==='ASSISTED'?'Asistida':r.mode==='MANUAL_SIMPLE'?'Manual Sencillo':'Manual Completo'} · Mano inicial: ${r.initialHandSize} · Semilla: ${r.seed??'no registrada'} · Mezcla: ${r.randomizationMode||'no registrada'} · Poker Deck: ${r.pokerDeckCount||1} baraja${Number(r.pokerDeckCount||1)===1?'':'s'} · Restan ${r.pokerDeckRemainingCount??'—'} Poker Cards`,y,{size:9,space:6});
       for(const [di,d] of (r.decks||[]).entries()){
@@ -1516,7 +1521,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     }catch(e){console.error(e);toast('No se pudo generar el PDF');return false}
   }
   async function waitElementImages(el){const imgs=[...el.querySelectorAll('img')];await Promise.all(imgs.map(i=>i.complete?Promise.resolve():new Promise(r=>{i.addEventListener('load',r,{once:true});i.addEventListener('error',r,{once:true})})))}
-  async function renderCardForPdf(card){const host=document.createElement('div');host.style.cssText='position:fixed;left:-10000px;top:0;width:360px;height:500px;background:#fff;z-index:-1';host.innerHTML=cardHTML(card);document.body.appendChild(host);const cp=host.querySelector('.card-preview');if(cp){cp.style.width='360px';cp.style.height='500px'}await waitElementImages(host);const canvas=await html2canvas(host,{backgroundColor:'#fff',scale:2,useCORS:true,logging:false});host.remove();return canvas.toDataURL('image/jpeg',.94)}
+  async function renderCardForPdf(card){const host=document.createElement('div');host.style.cssText='position:fixed;left:-10000px;top:0;width:360px;height:500px;background:#fff;z-index:-1';host.innerHTML=cardHTML(card);document.body.appendChild(host);const cp=host.querySelector('.card-preview');if(cp){cp.style.width='360px';cp.style.height='500px'}await waitElementImages(host);const canvas=await html2canvas(host,{backgroundColor:'#fff',scale:2,useCORS:true,logging:false});host.remove();return canvas.toDataURL('image/jpeg',.86)}
   function historyReportHTML(r){
     const decks=(r.decks||[]).map((d,di)=>`<section class="report-deck"><h2>${di+1}. ${esc(d.name)}</h2>${d.description?`<p>${esc(d.description)}</p>`:''}<p><b>Inicio:</b> ${d.initialCards} cartas · <b>Fichas:</b> ${d.chips||0} · <b>Fase final:</b> ${esc(phaseLabel(d.finalPhase||'MAIN'))} · <b>Power Hand:</b> ${d.finalPowerHandCount??d.powerHandCount??'—'}/${d.powerHandLimit??4} · <b>Poker Hand:</b> ${d.finalPokerHandCount??0}/${d.pokerLimit??7} · <b>Hyper Zone:</b> ${d.activeHyperCount||0}/${d.hyperLimit??3}${d.dieFinal!=null?` · <b>Último dado:</b> ${d.dieFinal}`:''}</p><p><b>Power Hand final:</b> ${cardSetText(d.finalPowerHand||d.finalHand)}</p><p><b>Poker Hand final:</b> ${cardSetText(d.finalPokerHand)}</p><p><b>Hyper Zone final:</b> ${cardSetText(d.activeHyper)}</p><p><b>Deck restante:</b> ${cardSetText(d.remainingDeck)}</p>${d.events?.length?`<ol>${d.events.map(ev=>`<li><div><b>[${new Date(ev.at).toLocaleTimeString()}] ${esc(ev.action)}</b></div>${ev.detail?`<div>${esc(ev.detail)}</div>`:''}${ev.cardName?`<div><b>Carta:</b> ${esc(ev.cardName)}</div>`:''}${ev.cardDescription?`<div><b>Descripción:</b> ${esc(ev.cardDescription)}</div>`:''}</li>`).join('')}</ol>`:'<p>Sin acciones registradas.</p>'}</section>`).join('');
     return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>POKER BLITZ · Historial de prueba</title><style>@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#101214;margin:0;font-size:10.5pt}header{border-bottom:3px solid #18E0E5;padding-bottom:8px;margin-bottom:16px}h1{font-size:21pt;margin:0}h2{font-size:15pt;margin:18px 0 6px}.meta{color:#555}.report-deck{break-inside:auto}li{margin:0 0 9px;line-height:1.32}</style></head><body><header><h1>POKER BLITZ · Historial de prueba</h1><div class="meta">Inicio: ${new Date(r.startedAt).toLocaleString()} · Fin: ${new Date(r.endedAt).toLocaleString()} · Duración: ${formatDuration(r.durationMs)} · Mano inicial: ${r.initialHandSize} · Semilla: ${r.seed??'no registrada'}</div></header>${decks}<script>onload=()=>setTimeout(()=>print(),250)<\/script></body></html>`
@@ -1615,6 +1620,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='auto-battle'){autoSetup.battleMode=el.dataset.value==='RUSH'?'RUSH':'BLITZ';render()}
     else if(a==='auto-run'){startAutoRun()}
     else if(a==='auto-download'){downloadAutoPdf()}
+    else if(a==='auto-summary-download'){downloadAutoPdf({summaryOnly:true})}
     else if(a==='auto-cancel'){if(autoCancel)autoCancel.cancelled=true}
     else if(a==='auto-home'){if(!autoBusy)go('home')}
     else if(a==='simulator'){testMode='MANUAL_FULL';sim=null;syncTestSetup();go('simSetup')}
@@ -1726,7 +1732,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
   async function printDeck(deckId){
     const d=getDeck(deckId);if(!d||!d.cardIds.length){toast('El deck está vacío');return false}
     const filename=`${safeFileName(d.name)}.pdf`,target=await requestPdfHandle(filename);if(target.cancelled){toast('Guardado cancelado');return false}const JsPDF=await ensurePdfTools(true);if(!JsPDF||!window.html2canvas)return false;
-    try{toast('Generando PDF…');const p=state.printSettings,pdf=new JsPDF({unit:'mm',format:p.pageSize==='LETTER'?'letter':'a4',orientation:'portrait'}),pageW=pdf.internal.pageSize.getWidth(),pageH=pdf.internal.pageSize.getHeight(),margin=Number(p.marginMm||10),gap=Number(p.gapMm||4),cols=Math.max(1,Number(p.columns||3)),rows=Math.max(1,Number(p.rows||3)),cellW=(pageW-margin*2-gap*(cols-1))/cols,cellH=(pageH-margin*2-gap*(rows-1))/rows,ratio=.72;let drawW=cellW,drawH=drawW/ratio;if(drawH>cellH){drawH=cellH;drawW=drawH*ratio}const cache=new Map(),cards=d.cardIds.map(getCard).filter(Boolean),per=cols*rows;for(let i=0;i<cards.length;i++){if(i>0&&i%per===0)pdf.addPage();const c=cards[i];let data=cache.get(c.id);if(!data){data=await renderCardForPdf(c);cache.set(c.id,data)}const pos=i%per,col=pos%cols,row=Math.floor(pos/cols),x=margin+col*(cellW+gap)+(cellW-drawW)/2,y=margin+row*(cellH+gap)+(cellH-drawH)/2;pdf.addImage(data,'JPEG',x,y,drawW,drawH,undefined,'FAST')}return await savePdfDocument(pdf,filename,target.handle)}catch(e){console.error(e);toast('No se pudo generar el PDF');return false}
+    try{toast('Generando PDF…');const p=state.printSettings,pdf=new JsPDF({unit:'mm',format:p.pageSize==='LETTER'?'letter':'a4',orientation:'portrait',compress:true}),pageW=pdf.internal.pageSize.getWidth(),pageH=pdf.internal.pageSize.getHeight(),margin=Number(p.marginMm||10),gap=Number(p.gapMm||4),cols=Math.max(1,Number(p.columns||3)),rows=Math.max(1,Number(p.rows||3)),cellW=(pageW-margin*2-gap*(cols-1))/cols,cellH=(pageH-margin*2-gap*(rows-1))/rows,ratio=.72;let drawW=cellW,drawH=drawW/ratio;if(drawH>cellH){drawH=cellH;drawW=drawH*ratio}const cache=new Map(),cards=d.cardIds.map(getCard).filter(Boolean),per=cols*rows;for(let i=0;i<cards.length;i++){if(i>0&&i%per===0)pdf.addPage();const c=cards[i];let data=cache.get(c.id);if(!data){data=await renderCardForPdf(c);cache.set(c.id,data)}const pos=i%per,col=pos%cols,row=Math.floor(pos/cols),x=margin+col*(cellW+gap)+(cellW-drawW)/2,y=margin+row*(cellH+gap)+(cellH-drawH)/2;pdf.addImage(data,'JPEG',x,y,drawW,drawH,undefined,'FAST')}return await savePdfDocument(pdf,filename,target.handle)}catch(e){console.error(e);toast('No se pudo generar el PDF');return false}
   }
 
 
