@@ -106,6 +106,28 @@ async function run(){
  assert.equal(new Set(batch.map(x=>x.seed)).size,50,'Batch must use 50 distinct deterministic seeds');
  const one=await engine.play({players:decks.slice(0,3),seed:batch[0].seed,battleMode:'RUSH',pokerDeckCount:2,maxRounds:5});
  assert.deepEqual(one.players.map(p=>[p.chips,p.events.length]),batch[0].players.map(p=>[p.chips,p.events.length]),'Replay of the first batch seed should reproduce results');
+
+ const seatPlayers=decks6.map((p,i)=>({...p,participantId:'P'+(i+1)}));
+ const seatDistribution=Object.fromEntries(seatPlayers.map(p=>[p.participantId,Array(6).fill(0)]));
+ let first=null;
+ for(let k=0;k<200;k++){
+   const rotation=k%6;
+   const seated=seatPlayers.map((_,seat)=>seatPlayers[(seat+rotation)%6]);
+   const seed=(246810+Math.imul(k,0x9e3779b9))>>>0;
+   const r=await engine.play({players:seated,seed,battleMode:'RUSH',pokerDeckCount:2,maxRounds:2});
+   if(!first)first=r;
+   assert.equal(r.players.length,6,'All six players must finish');
+   assert(!r.incidents.some(x=>x.includes('Integridad')),'No inventory loss after seat rotation: '+r.incidents.join('; '));
+   for(const player of r.players)seatDistribution[player.participantId][player.seat-1]++;
+ }
+ for(const places of Object.values(seatDistribution)){
+   assert.equal(places.reduce((a,b)=>a+b,0),200,'Each participant must play all 200 games');
+   assert(places.every(n=>n>=33&&n<=34),'Each seat must be occupied 33 or 34 times, found '+places);
+ }
+ const firstAgain=await engine.play({players:seatPlayers,seed:246810,battleMode:'RUSH',pokerDeckCount:2,maxRounds:2});
+ assert.deepEqual(firstAgain.players.map(p=>[p.participantId,p.seat,p.chips,p.events.length]),first.players.map(p=>[p.participantId,p.seat,p.chips,p.events.length]),'Initial seed must reproduce the same game with the same seats');
+ console.log('200 rotated matches, stable player identity and balanced 6-seat distribution PASSED.');
+
  console.log('50-game batch, 6-player setup, 64-card registry, and conservation regressions PASSED.');
  console.log('Simulation AI regression PASSED: 1–3 players, beginner/intermediate/expert, seeded results, Rush, cancellation, events.');
  console.log(JSON.stringify({rounds:a.rounds,events:a.eventsCount,scores:a.players.map(p=>p.chips),incidents:a.incidents.slice(0,5)}));
