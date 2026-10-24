@@ -9,6 +9,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     if(get()?.mode==='ASSISTED')ctx.assistedLinkPowerTaken?.(id,index);
     const cardId=s.hand.splice(index,1)[0],ownerId=s.handOwners.splice(index,1)[0]||id;
     s.activeHyper=(s.activeHyper||[]).filter(i=>i!==index).map(i=>i>index?i-1:i);
+    if(get()?.mode==='ASSISTED')ctx.assistedPowerRemoved?.(id);
     return {cardId,ownerId,playerId:id};
   };
   const giveBack=(cardId,ownerId)=>{const sim=get(),id=sim.states[ownerId]?ownerId:sim.decks[0].id,s=sim.states[id];own(id);
