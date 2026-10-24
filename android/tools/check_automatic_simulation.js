@@ -1,0 +1,47 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+global.window={};
+require('../../presets/assisted-effects.js');
+require('../../presets/assisted-links.js');
+require('../../presets/simulation-engine.js');
+const src=fs.readFileSync(path.join(__dirname,'../../app-v1.19.8.html'),'utf8');
+const found=[...src.matchAll(/"id":\s*"(catalog_v3_\d+)",\s*"name":\s*("(?:\\.|[^"\\])*"),\s*"description":\s*("(?:\\.|[^"\\])*"),\s*"accentColor":\s*"(#[A-Fa-f0-9]{6})"/g)];
+const catalog=Object.fromEntries(found.map(m=>[m[1],{id:m[1],name:JSON.parse(m[2]),description:JSON.parse(m[3]),accentColor:m[4]}]));
+assert.equal(found.length,64,'Need all official card effects');
+const factory=window.POKER_BLITZ_AUTOMATION;
+const type=c=>!c?'OTHER':c.accentColor==='#FFC31A'?'HYPER':c.accentColor==='#FF0A68'?'COUNTER':'SUPER';
+const mk=(name,difficulty,ids)=>({id:name,name,description:'Deck de prueba',difficulty,cardIds:ids.map(i=>'catalog_v3_'+i)});
+const decks=[
+ mk('Cartas y fichas','beginner',['053','053','011','009','031','032','054','033','029','035','042','044','024','040','005','013','045','061','057','063']),
+ mk('Defensa y artilugios','intermediate',['004','006','033','034','042','043','044','058','059','060','005','049','050','055','053','053','011','016','010','020']),
+ mk('Comodines','expert',['001','029','030','035','040','041','045','046','047','049','050','053','053','011','031','037','039','048','051','064']),
+ mk('Control','expert',['003','004','006','008','009','013','014','015','017','018','019','020','021','022','023','024','026','033','038','052'])
+];
+async function run(){
+ const engine=factory({getCard:id=>catalog[id],cardType:type,version:'1.19.8'});
+ assert(src.includes('data-action="auto-simulation"'),'Missing home Simulation button');
+ assert(src.includes('data-auto-ai'),'Missing per-player reasoning selection');
+ assert(src.includes('downloadAutoPdf'),'Missing PDF download function');
+ assert(src.includes('autoRunning'),'Missing simulation progress screen');
+ const a=await engine.play({players:decks.slice(0,3),seed:347198,battleMode:'BLITZ',pokerDeckCount:2,maxRounds:2});
+ assert.equal(a.players.length,3);
+ assert.equal(a.battleMode,'BLITZ');
+ assert.equal(a.goal,30);
+ assert.equal(a.seed,347198);
+ assert(a.eventsCount>4,'Game did not advance');
+ assert(a.players.every(p=>p.events.some(e=>e.action==='Fin del turno')),'Not all players acted');
+ assert.deepEqual(new Set(a.players.map(p=>p.difficulty)),new Set(['beginner','intermediate','expert']));
+ const b=await engine.play({players:decks.slice(0,3),seed:347198,battleMode:'BLITZ',pokerDeckCount:2,maxRounds:2});
+ assert.deepEqual(a.players.map(p=>[p.name,p.chips,p.events.length]),b.players.map(p=>[p.name,p.chips,p.events.length]),'Seeded simulation must reproduce identical scores and event counts');
+ const rush=await engine.play({players:[decks[3]],seed:101,battleMode:'RUSH',pokerDeckCount:1,maxRounds:1});
+ assert.equal(rush.goal,15);
+ assert.equal(rush.players.length,1);
+ assert(rush.players[0].events.length>0);
+ const cancelled=await engine.play({players:decks.slice(0,2),seed:55,battleMode:'BLITZ',maxRounds:2,cancel:{cancelled:true}});
+ assert.equal(cancelled.cancelled,true,'Cancellation must interrupt run');
+ console.log('Simulation AI regression PASSED: 1–3 players, beginner/intermediate/expert, seeded results, Rush, cancellation, events.');
+ console.log(JSON.stringify({rounds:a.rounds,events:a.eventsCount,scores:a.players.map(p=>p.chips),incidents:a.incidents.slice(0,5)}));
+}
+run().catch(e=>{console.error(e.stack||e);process.exitCode=1});
