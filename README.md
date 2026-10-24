@@ -2,6 +2,16 @@
 
 Versión web estática basada en `DeckCreator_AndroidStudio_v0_13_NEW_CATALOG` y ajustada para escritorio.
 
+## Versión 1.19.6 — Dos botones de pruebas
+
+- **Prueba Manual → Completo:** conserva Poker Hand digital, Charge Phase con combinaciones validadas, fichas, Power Hand, Hyper Zone, CounterCards, reacciones y acciones entre jugadores.
+- **Prueba Manual → Sencillo:** solo gestiona Power Cards y las fichas. Las Poker Cards se llevan físicamente: no hay Poker Hand ni controles de robo, búsqueda o intercambio de Poker Cards, ni ventana de CounterCards o de reacción de *Entendí la referencia*. Los cobros de pareja/trío/escalera/color/póker regresan al sistema anterior de botones manuales durante Charge Phase.
+- **Prueba Asistida:** activa un motor separado que ejecuta efectos compatibles sobre los decks, Poker Cards, HyperCards, dados y fichas reales. En efectos con selección de rival aparece un diálogo. Los efectos sin implementación segura quedan deshabilitados, sin consumir cartas ni fingir su resolución.
+- La **ventana de CounterCards** se mantiene en Completo y Asistida; en Sencillo no aparece.
+- El modo elegido se guarda en los registros y se identifica en el PDF.
+- El motor asistido **aún no cubre los 64 efectos** del catálogo: faltan especialmente imitaciones de SuperCards ajenas, algunos comodines, vínculos de Artilugios y conversiones de cartas entre Power/Poker. Estos están bloqueados en Asistida mientras no exista resolución fiel. La modalidad Completo mantiene las herramientas manuales para esas cartas.
+- El flujo de GitHub Actions ejecuta `android/tools/check_assisted_effects.js` para comprobar cambios reales de estado, objetivos, recursos y enlaces entre modos.
+
 ## Versión 1.19.5 — Modo Prueba, reglas manuales verificables
 
 - **Charge Phase**: seleccionar Poker Cards concretas y cobrar solo con una pareja, trío, escalera, color o póker válido. Las cartas usadas regresan al mazo compartido y se reponen al inicio de End Phase.
