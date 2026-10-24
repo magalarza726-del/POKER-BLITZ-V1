@@ -12,7 +12,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   const ids=(s)=>new Set(s);
   const usable=ids(['003','004','005','006','007','008','009','010','011','012','013','014','015','016','017','018','019','020','021','022','023','024','026','031','032','033','034','036','037','038','039','040','041','045','047','048','051','052','053','054','055','056','057','061','063','064']);
   const hypers=ids(['001','002','025','027','028','029','030','035','042','043','044','046','049','050','058','059','060','062']);
-  let queue=[],pending=null,deferred=[];
+  let queue=[],pending=null,deferred=[],rollingEffect=null;
   function supported(id){const match=String(id||'').match(/catalog_v3_(\d{3})/);const code=match?.[1];return !!code&&(usable.has(code)||hypers.has(code));}
   function copyCandidates(pid){const s=pile(pid);if(!s)return [];return (s.assistedPlayedSupers||[]).filter(x=>x.turn===s.turnsTaken&&x.round===sim().round&&x.cardId!=='catalog_v3_017'&&x.cardId!=='catalog_v3_040'&&supported(x.cardId)&&canPlay(x.cardId,pid)).map(x=>x.cardId);}
   function canPlay(id,pid){if(!supported(id))return false;const s=pile(pid);if(!s)return false;const num=String(id).slice(-3);const freePower=s.hand.filter(x=>x===id).length?Math.max(0,s.hand.length-s.activeHyper.length-1):s.hand.length-s.activeHyper.length;
@@ -20,7 +20,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     if((costPoker[num]||0)>s.pokerHand.length)return false;
     if((costPower[num]||0)>freePower)return false;
     if(num==='031'&&(s.chips||0)<1)return false;
-    if(num==='003'&&!s.dieBase)return false;
+    // Manipulador se valida en el momento de tirar el dado; en Prueba Asistida puede preparar la próxima tirada.
     if(['006','009','010','012','013','026','038','048','052','055','056','064'].includes(num)&&!opponents(pid).length)return false;
     if(num==='008'&&!s.activeHyper.length)return false;
     if(num==='009'&&!opponents(pid).some(p=>pile(p.id).chips>=5))return false;
@@ -31,7 +31,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     if(num==='026'&&!(opponents(pid).length&&(sim().pokerDrawPile.length>=2||(s.pokerHand.length>=3&&opponents(pid).some(p=>pile(p.id).pokerHand.length>=3)))))return false;
     if(num==='047'&&!active(pid,'046')&&s.pokerHand.length<5)return false;
     if(num==='051'&&!sim().decks.some(p=>pile(p.id).activeHyper.length))return false;
-    if(num==='052'&&!opponents(pid).some(p=>pile(p.id).activeHyper.length||pile(p.id).dieBase))return false;
+    // Agujero Negro también puede reaccionar a un efecto de dados todavía sin resolver.
     if(num==='055'&&(s.pokerHand.length<2||!opponents(pid).some(p=>pile(p.id).chips>=1)))return false;
     if((num==='057'||num==='063')&&!active(pid,'062')&&s.pokerHand.length<2)return false;
     if(num==='017'&&!copyCandidates(pid).length)return false;
@@ -85,12 +85,28 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     }
     if(!ctx.modal())ctx.render();
   }
-  function beginTurn(pid){const st=pile(pid);if(!st)return;st.assistedPlayedSupers=[];st.assistedLastSuper=null;st.assistedLastSuperTurn=null;}
+  function beginTurn(pid){const st=pile(pid);if(!st)return;st.assistedPlayedSupers=[];st.assistedLastSuper=null;st.assistedLastSuperTurn=null;st.pendingDieCounter=null;st.pendingDieShift=0;}
   function active(pid,id){return pile(pid).activeHyper.some(i=>pile(pid).hand[i]==='catalog_v3_'+id);}
-  function die(pid){const n=1+random(6);pile(pid).dieBase=n;pile(pid).dieModifier=0;log(pid,'','Dado físico simulado: '+n+'.');return n;}
+  function dieShift(value,source,benefit){
+    const preferEven=['018','020'].includes(source),preferOdd=['008','019'].includes(source);
+    const wantEven=benefit?preferEven:preferOdd,wantOdd=benefit?preferOdd:preferEven;
+    if(wantEven)return value%2===0?0:(value<6?1:-1);
+    if(wantOdd)return value%2?0:-1;
+    if(['014','015'].includes(source))return benefit?(value<6?1:0):(value>1?-1:0);
+    if(source==='036')return benefit?(value===2?-1:value===5?1:0):(value===1?1:value===6?-1:0);
+    return 0;
+  }
+  function die(pid){const st=pile(pid),base=1+random(6);let final=base;
+    const pending=st.pendingDieCounter;if(pending?.source===rollingEffect){const shift=dieShift(final,rollingEffect,false);final=Math.max(1,Math.min(6,final+shift));log(pending.by||pid,'052','Agujero Negro modificó el dado rival de '+base+' a '+final+'.');}st.pendingDieCounter=null;
+    if(st.pendingDieShift){final=Math.max(1,Math.min(6,final+st.pendingDieShift));st.pendingDieShift=0;}
+    if(sim().autoMode){const index=st.hand.findIndex((id,i)=>id==='catalog_v3_003'&&!st.activeHyper.includes(i)&&canPlay(id,pid));const delta=dieShift(final,rollingEffect,true);
+      if(index>=0&&delta){const item=ctx.manual().take(pid,index);if(item){markUsed(item.cardId,pid);ctx.manual().giveBack(item.cardId,item.ownerId);const before=final;final=Math.max(1,Math.min(6,final+delta));log(pid,'003','Manipulador del Destino ajustó el dado propio de '+before+' a '+final+'.');ctx.log(pid,'Usar Power Card','MANIPULADOR DEL DESTINO',card('catalog_v3_003'));}}
+    }
+    st.dieBase=base;st.dieModifier=final-base;log(pid,'','Dado físico simulado: '+base+(final!==base?' → '+final:'')+'.');return final;
+  }
   function apply(item){
     const id=String(item.cardId||'').replace('catalog_v3_',''),pid=item.playerId;
-    const s=pile(pid);
+    const s=pile(pid);rollingEffect=id;
     const doTarget=(title,fn,eligible=null)=>{const forced=item.triggerPlayerId;if(forced&&['006','048','052','064'].includes(id)){if(!pile(forced)||!(eligible?eligible(forced,pile(forced)):true)){log(pid,id,'Counter sin objetivo elegible: efecto no aplicado.');return true;}fn(forced,pile(forced));return true;}return target(pid,title,(enemy)=>{const st=pile(enemy);fn(enemy,st);},eligible);};
     switch(id){
       case '004':{
@@ -106,7 +122,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
         if(!active(pid,'046')){const cost=popPoker(pid,1);log(pid,id,'Pagó '+cost.length+' Poker Card por Sabueso de Ases.');}
         links()?.sabueso(item);return false;
       }
-      case '003':{if(s.dieBase){s.dieModifier=(s.dieModifier||0)+1;log(pid,id,'Manipuló en +1 el último dado lanzado.')}else log(pid,id,'No se había lanzado ningún dado que modificar.');break}
+      case '003':{s.pendingDieShift=1;log(pid,id,'Preparó un ajuste +1 para la próxima tirada; se aplicará al resolver el dado.');break}
       case '005':{const artifacts=s.activeHyper.filter(i=>['042','043','044','058','059','060'].includes(String(s.hand[i]).slice(-3)));const different=[...new Set(artifacts.map(i=>String(s.hand[i]).slice(-3)))];if(different.length>=3){addChips(pid,5);const taken=ctx.manual().take(pid,artifacts[0]);ctx.manual().giveBack(taken.cardId,taken.ownerId);recalc(pid);log(pid,id,'Tres artilugios diferentes: +5 fichas, devolvió un artilugio.')}else log(pid,id,'Se requieren tres artilugios distintos activos para cobrar.');break}
       case '007':{if(s.pokerHand.length<2||s.hand.length-s.activeHyper.length<1){log(pid,id,'Coste de búsqueda insuficiente.');break}popPoker(pid,2);popPower(pid,1);const n=pushPower(pid,1);log(pid,id,'Pagó costes y buscó una Power Card del deck ('+n+' obtenida).');break}
       case '011':for(const player of sim().decks){pushPower(player.id,1);draw(player.id,1)}log(pid,id,'Todos los jugadores robaron hasta 1 Power Card y 1 Poker Card.');break;
@@ -142,7 +158,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
       case '006':return doTarget('Tiro por la culata',enemy=>log(pid,id,'J'+sim().decks.find(p=>p.id===enemy).playerNumber+' descartó '+popPoker(enemy,1,pid).length+' Poker Card.'));
       case '034':log(pid,id,'Robó '+draw(pid,1)+' Poker Card como respuesta al uso de Power Card.');break;
       case '048':return doTarget('Me llaman Robin Hood',enemy=>{const n=Math.min(1,pile(enemy).chips||0);addChips(enemy,-n);addChips(pid,n);log(pid,id,'Robó '+n+' ficha a J'+sim().decks.find(p=>p.id===enemy).playerNumber+'.')},enemy=>pile(enemy).chips>=1);
-      case '052':return doTarget('Agujero negro',enemy=>{const st=pile(enemy);if(st.activeHyper.length){let i=st.activeHyper.at(-1),it=ctx.manual().take(enemy,i);ctx.manual().giveBack(it.cardId,it.ownerId);recalc(enemy);log(pid,id,'Destruyó una HyperCard rival.')}else if(st.dieBase){st.dieModifier=(st.dieModifier||0)+1;log(pid,id,'Modificó un dado rival en +1.')}else log(pid,id,'No hay HyperCard ni dado al que afectar.')});
+      case '052':return doTarget('Agujero negro',enemy=>{const st=pile(enemy),src=String(item.triggerCardId||'').slice(-3);if(st.activeHyper.length){let i=st.activeHyper.at(-1),it=ctx.manual().take(enemy,i);ctx.manual().giveBack(it.cardId,it.ownerId);recalc(enemy);log(pid,id,'Devolvió HyperCard de J'+sim().decks.find(p=>p.id===enemy).playerNumber+' al Deck original.')}else if(['008','014','015','018','019','020','036'].includes(src)){st.pendingDieCounter={source:src,by:pid};log(pid,id,'Alteración del próximo dado del efecto '+(card(item.triggerCardId)?.name||src)+' preparada contra J'+sim().decks.find(p=>p.id===enemy).playerNumber+'.')}else log(pid,id,'Sin HyperCard ni dado de efecto elegible.')},enemy=>pile(enemy).activeHyper.length>0||['008','014','015','018','019','020','036'].includes(String(item.triggerCardId||'').slice(-3)));
       case '064':{const r=die(pid);return doTarget('¿Tú también juegas dados?',enemy=>log(pid,id,r%2===0?'Rival robó '+draw(enemy,1)+' Poker Card.' :'Rival descartó '+popPoker(enemy,2,pid).length+' Poker Cards.'))}
       case '037':{const others=opponents(pid);for(const p of others)draw(p.id,2);sim().assistedPending??=[];sim().assistedPending.push({round:sim().round+1,type:'GHOST',actor:pid});log(pid,id,'Cada rival robó dos Poker Cards. Penalización programada para próxima ronda.');break}
       case '039':{log(pid,id,'Robó '+draw(pid,3)+' Poker Cards.');sim().assistedPending??=[];sim().assistedPending.push({round:sim().round,type:'END_DISCARD',actor:pid,n:5});break}
