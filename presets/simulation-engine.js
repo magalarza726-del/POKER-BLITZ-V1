@@ -121,7 +121,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    if(!id||s.activeHyper.includes(i)||s.activeHyper.length>=3)return false;
    if(links.supported.has(c))return links.eligible(pid,i);
    const copies=s.activeHyper.filter(j=>s.hand[j]===id).length;
-   if(copies>=({'027':2})[c]||copies>=1)return false;
+   if(copies>=(({'027':2})[c]||1))return false;
    const required=({'002':[1,2],'025':[0,2],'027':[1,1],'028':[0,2],'049':[1,2],'050':[1,1]})[c]||[0,0];
    return s.pokerHand.length>=required[1]&&s.hand.filter((_,j)=>j!==i&&!s.activeHyper.includes(j)).length>=required[0];
   }
@@ -160,7 +160,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
   function playCard(p,i){
    const s=get(p.id),id=s.hand[i];if(!fx.canPlay(id,p.id))return false;
    const base=manual.take(p.id,i);fx.markUsed(id,p.id);
-   const stack=[base];const other=players.filter(x=>x.id!==p.id);
+   const stack=[base];game.chain={stack};const other=players.filter(x=>x.id!==p.id);
    for(let j=0;j<Math.min(2,other.length);j++){
     const op=other[j],counter=chooseCounter(op.id);
     if(counter){const item=manual.take(op.id,counter.i);fx.markUsed(item.cardId,op.id);stack.push(item);log(op.id,'CounterCard',getCard(item.cardId)?.name||item.cardId,getCard(item.cardId))}
@@ -175,7 +175,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    }
    for(const item of stack)if(code(item.cardId)!=='040'||denied.has(stack.indexOf(item)))manual.giveBack(item.cardId,item.ownerId);
    for(const x of resolve)fx.enqueue(x);
-   fx.finishChain();autoModal();log(p.id,'Usar Power Card',getCard(id)?.name||id,getCard(id));return true;
+   fx.finishChain();autoModal();game.chain=null;log(p.id,'Usar Power Card',getCard(id)?.name||id,getCard(id));return true;
   }
   function comboList(pid){
    const s=get(pid),hand=s.pokerHand,active=s.activeHyper.map(i=>s.hand[i]),results=[],max=Math.min(14,hand.length);
