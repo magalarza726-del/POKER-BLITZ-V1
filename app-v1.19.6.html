@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#18E0E5">
-<meta name="description" content="POKER BLITZ V1 — Web 1.19.5">
-<title>POKER BLITZ V1 · Web 1.19.5</title>
+<meta name="description" content="POKER BLITZ V1 — Web 1.19.6">
+<title>POKER BLITZ V1 · Web 1.19.6</title>
 <style>
 :root{
   --cyan:#18E0E5;--cyan-soft:#DDFBFC;--page:#F8F9FA;--ink:#101214;--muted:#666;
@@ -185,19 +185,19 @@ button,input,textarea,select{font:inherit;color:inherit}button{cursor:pointer}bu
 }
 
 </style>
-<script src="presets/default-decks.js?v=1195"></script>
+<script src="presets/default-decks.js?v=1196"></script>
 <script src="presets/manual-game-rules.js?v=1196"></script>
 <script src="presets/assisted-effects.js?v=1196"></script>
-<script src="presets/portrait-01.js?v=1195"></script>
-<script src="presets/portrait-02.js?v=1195"></script>
-<script src="presets/portrait-03.js?v=1195"></script>
-<script src="presets/portrait-04.js?v=1195"></script>
-<script src="presets/portrait-05.js?v=1195"></script>
-<script src="presets/portrait-06.js?v=1195"></script>
-<script src="presets/portrait-07.js?v=1195"></script>
-<script src="presets/portrait-08.js?v=1195"></script>
-<script src="presets/portrait-09.js?v=1195"></script>
-<script src="presets/portrait-10.js?v=1195"></script>
+<script src="presets/portrait-01.js?v=1196"></script>
+<script src="presets/portrait-02.js?v=1196"></script>
+<script src="presets/portrait-03.js?v=1196"></script>
+<script src="presets/portrait-04.js?v=1196"></script>
+<script src="presets/portrait-05.js?v=1196"></script>
+<script src="presets/portrait-06.js?v=1196"></script>
+<script src="presets/portrait-07.js?v=1196"></script>
+<script src="presets/portrait-08.js?v=1196"></script>
+<script src="presets/portrait-09.js?v=1196"></script>
+<script src="presets/portrait-10.js?v=1196"></script>
 </head>
 <body>
 <noscript>POKER BLITZ necesita JavaScript activado.</noscript>
@@ -689,7 +689,7 @@ window.STARTER_CARDS = [
   let toastTimer;
   let characterDraft = null;
 
-  const APP_VERSION = '1.19.5';
+  const APP_VERSION = '1.19.6';
   const RULES_SECTIONS = [
     {title:'1. Objetivo', html:`<p>Obtén la meta de fichas antes que los demás jugadores para reclamar el poder de la <b>Mano Imposible</b>. La meta depende del modo de juego.</p><p>Cuando un jugador alcanza la meta, la partida no termina inmediatamente: se completa la ronda actual hasta que todos hayan tenido el mismo número de turnos y luego se comparan las fichas.</p>`},
     {title:'2. Tipos de cartas', html:`<h4>2.1 Poker Cards</h4><p>Son las cartas utilizadas para formar combinaciones de póker y obtener fichas.</p><p><b>Límite base de Poker Cards: 7.</b> Este límite indica cuántas cartas puedes conservar al terminar tu turno; no impide robar por encima de ese número durante el turno.</p><h4>2.2 Power Cards</h4><p>Son las cartas que modifican el juego.</p><div class="rules-table-wrap"><table class="rules-table"><thead><tr><th>Tipo</th><th>Color</th><th>Función</th></tr></thead><tbody><tr><td>SuperCards</td><td>Celeste</td><td>Efectos rápidos que activas durante tu Main Phase.</td></tr><tr><td>CounterCards</td><td>Rojo / magenta</td><td>Efectos rápidos de respuesta durante la Main Phase rival o durante la End Phase.</td></tr><tr><td>HyperCards</td><td>Amarillo</td><td>Efectos persistentes que permanecen activos sobre la mesa.</td></tr></tbody></table></div><p>Una HyperCard activada sale de tu mano y se coloca frente a ti sobre la mesa. Mientras esté activa no cuenta como una Power Card en mano.</p><p>El documento indica en esta sección un límite de <b>3 HyperCards activas</b> por jugador.</p>`},
@@ -971,7 +971,7 @@ window.STARTER_CARDS = [
     const phaseButtons=[['DRAW','Draw Phase'],['MAIN','Main Phase'],['CHARGE','Charge Phase'],['END','End Phase']].map(([v,label])=>`<button class="phase-btn ${s.currentPhase===v?'active':''}" data-action="set-phase" data-phase="${v}" ${(!manualRules.canAct()||!(s.currentPhase===v||s.currentPhase==='MAIN'&&v==='CHARGE'||s.currentPhase==='CHARGE'&&v==='END'))?'disabled':''}>${label}</button>`).join('');
     const comboReasons=new Set(['Par','Trío','Escalera','Color','Póker']);
     const chipButtons=(sim.mode==='MANUAL_SIMPLE'?[[-1,'−1 ajuste','Corrección manual'],[1,'+1 efecto','Efecto manual'],[2,'+2 efecto','Efecto manual'],[1,'+1 par','Par'],[3,'+3 trío','Trío'],[5,'+5 escalera','Escalera'],[5,'+5 color','Color'],[7,'+7 póker','Póker']]:[[-1,'−1 ajuste','Corrección manual'],[1,'+1 efecto','Efecto manual'],[2,'+2 efecto','Efecto manual']]).map(([v,label,reason])=>`<button class="${Number(v)<0?'negative':''}" data-action="add-chips" data-value="${v}" data-reason="${reason}" ${comboReasons.has(reason)&&s.currentPhase!=='CHARGE'?'disabled title="Disponible solo durante Charge Phase"':''}>${label}</button>`).join('');
-    const canUsePowerCard=c=>cardType(c)==='COUNTER'?(sim.mode==='MANUAL_SIMPLE'?['MAIN','END'].includes(s.currentPhase):['MAIN','END'].includes(s.currentPhase)):s.currentPhase==='MAIN';
+    const canUsePowerCard=c=>cardType(c)==='COUNTER'?(sim.mode==='MANUAL_SIMPLE'?['MAIN','END'].includes(s.currentPhase):s.currentPhase==='END'):s.currentPhase==='MAIN';
     const canDiscard=s.currentPhase==='MAIN'||s.currentPhase==='END',canActivate=s.currentPhase==='MAIN';
     const undoCount=(sim.undoStacks?.[d.id]||[]).length;
     const activeSet=new Set(s.activeHyper||[]);
@@ -1265,7 +1265,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
   function cardSetPdfText(items){if(!items?.length)return '—';return items.map(x=>`${x.count||1}× ${x.name||'Carta'}`).join(', ')}
   function buildTestRecord(reason='Prueba finalizada'){
     if(!sim)return null;const endedAt=Date.now(),valid=sim.decks||[];
-    return {id:(crypto?.randomUUID?.()||('test_'+endedAt+'_'+Math.random().toString(36).slice(2))),appVersion:APP_VERSION,startedAt:sim.startedAt||endedAt,endedAt,durationMs:endedAt-(sim.startedAt||endedAt),exitReason:reason,initialHandSize:state.handSize,rounds:Number(sim.round||1),gameFinished:!!sim.finished,pokerDeckCount:Number(sim.pokerDeckCount||1),pokerDeckRemainingCount:(sim.pokerDrawPile||[]).length,decks:valid.map(d=>{const s=sim.states[d.id]||{},activeIndexSet=new Set(s.activeHyper||[]),activeIds=(s.activeHyper||[]).map(i=>s.hand?.[i]).filter(Boolean),powerHandIds=(s.hand||[]).filter((_,i)=>!activeIndexSet.has(i));return {deckId:d.id,sourceDeckId:d.sourceDeckId,playerNumber:d.playerNumber,name:'Jugador '+d.playerNumber+' · '+d.name,description:d.description||'',initialCards:Number(s.initialCards||d.cardIds.length),initialDeck:snapshotCardSet(d.cardIds),remainingCount:s.drawPile?.length||0,remainingDeck:snapshotCardSet(s.drawPile||[]),finalHandCount:s.hand?.length||0,finalHand:snapshotCardSet(s.hand||[]),finalPowerHandCount:powerHandIds.length,finalPowerHand:snapshotCardSet(powerHandIds),finalPokerHandCount:(s.pokerHand||[]).length,finalPokerHand:snapshotPokerSet(s.pokerHand||[]),pokerLimit:Number(s.pokerLimit??7),activeHyperCount:activeIds.length,activeHyper:snapshotCardSet(activeIds),chips:Number(s.chips||0),dieBase:s.dieBase??null,dieModifier:Number(s.dieModifier||0),dieFinal:s.dieBase?Number(s.dieBase)+Number(s.dieModifier||0):null,powerHandLimit:Number(s.powerHandLimit??4),powerHandCount:powerHandCount(s),hyperLimit:3,mainPhasesEnded:Number(s.mainPhasesEnded||0),finalPhase:s.currentPhase||'MAIN',events:structuredClone(sim.histories?.[d.id]||[])}})}
+    return {id:(crypto?.randomUUID?.()||('test_'+endedAt+'_'+Math.random().toString(36).slice(2))),appVersion:APP_VERSION,startedAt:sim.startedAt||endedAt,endedAt,durationMs:endedAt-(sim.startedAt||endedAt),exitReason:reason,initialHandSize:state.handSize,mode:sim.mode||'MANUAL_FULL',rounds:Number(sim.round||1),gameFinished:!!sim.finished,pokerDeckCount:Number(sim.pokerDeckCount||1),pokerDeckRemainingCount:(sim.pokerDrawPile||[]).length,decks:valid.map(d=>{const s=sim.states[d.id]||{},activeIndexSet=new Set(s.activeHyper||[]),activeIds=(s.activeHyper||[]).map(i=>s.hand?.[i]).filter(Boolean),powerHandIds=(s.hand||[]).filter((_,i)=>!activeIndexSet.has(i));return {deckId:d.id,sourceDeckId:d.sourceDeckId,playerNumber:d.playerNumber,name:'Jugador '+d.playerNumber+' · '+d.name,description:d.description||'',initialCards:Number(s.initialCards||d.cardIds.length),initialDeck:snapshotCardSet(d.cardIds),remainingCount:s.drawPile?.length||0,remainingDeck:snapshotCardSet(s.drawPile||[]),finalHandCount:s.hand?.length||0,finalHand:snapshotCardSet(s.hand||[]),finalPowerHandCount:powerHandIds.length,finalPowerHand:snapshotCardSet(powerHandIds),finalPokerHandCount:(s.pokerHand||[]).length,finalPokerHand:snapshotPokerSet(s.pokerHand||[]),pokerLimit:Number(s.pokerLimit??7),activeHyperCount:activeIds.length,activeHyper:snapshotCardSet(activeIds),chips:Number(s.chips||0),dieBase:s.dieBase??null,dieModifier:Number(s.dieModifier||0),dieFinal:s.dieBase?Number(s.dieBase)+Number(s.dieModifier||0):null,powerHandLimit:Number(s.powerHandLimit??4),powerHandCount:powerHandCount(s),hyperLimit:3,mainPhasesEnded:Number(s.mainPhasesEnded||0),finalPhase:s.currentPhase||'MAIN',events:structuredClone(sim.histories?.[d.id]||[])}})}
   }
   function archiveCurrentTest(reason){
     const rec=buildTestRecord(reason);if(!rec)return null;
@@ -1313,7 +1313,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     try{
       const pdf=new JsPDF({unit:'mm',format:'a4'});let y=16;
       y=addPdfWrappedText(pdf,'POKER BLITZ · Historial de prueba',y,{size:18,bold:true,space:5});
-      y=addPdfWrappedText(pdf,`Inicio: ${new Date(r.startedAt).toLocaleString()} · Fin: ${new Date(r.endedAt||Date.now()).toLocaleString()} · Duración: ${formatDuration(r.durationMs)} · Mano inicial: ${r.initialHandSize} · Poker Deck: ${r.pokerDeckCount||1} baraja${Number(r.pokerDeckCount||1)===1?'':'s'} · Restan ${r.pokerDeckRemainingCount??'—'} Poker Cards`,y,{size:9,space:6});
+      y=addPdfWrappedText(pdf,`Inicio: ${new Date(r.startedAt).toLocaleString()} · Fin: ${new Date(r.endedAt||Date.now()).toLocaleString()} · Duración: ${formatDuration(r.durationMs)} · Modo: ${r.mode==='ASSISTED'?'Asistida':r.mode==='MANUAL_SIMPLE'?'Manual Sencillo':'Manual Completo'} · Mano inicial: ${r.initialHandSize} · Poker Deck: ${r.pokerDeckCount||1} baraja${Number(r.pokerDeckCount||1)===1?'':'s'} · Restan ${r.pokerDeckRemainingCount??'—'} Poker Cards`,y,{size:9,space:6});
       for(const [di,d] of (r.decks||[]).entries()){
         y=addPdfWrappedText(pdf,`${di+1}. ${d.name}`,y,{size:13,bold:true,space:2});
         if(d.description)y=addPdfWrappedText(pdf,d.description,y,{size:9,space:2});
