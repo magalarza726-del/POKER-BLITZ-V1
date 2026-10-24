@@ -1209,8 +1209,8 @@ function syncAutoSetup(){
     return'';
   }
   function bindInputs(){
-    $('[data-auto-deck]').forEach(el=>el.addEventListener('change',()=>{autoSetup.deckIds[Number(el.dataset.autoDeck)]=el.value}));
-    $('[data-auto-ai]').forEach(el=>el.addEventListener('change',()=>{autoSetup.aiLevels[Number(el.dataset.autoAi)]=el.value}));
+    $$('[data-auto-deck]').forEach(el=>el.addEventListener('change',()=>{autoSetup.deckIds[Number(el.dataset.autoDeck)]=el.value}));
+    $$('[data-auto-ai]').forEach(el=>el.addEventListener('change',()=>{autoSetup.aiLevels[Number(el.dataset.autoAi)]=el.value}));
     $$('[data-trade-player]').forEach(el=>el.addEventListener('change',e=>{
       if(modal?.type!=='trade'||!sim)return;
       const side=el.dataset.tradePlayer,other=side==='from'?'to':'from',value=e.target.value;
