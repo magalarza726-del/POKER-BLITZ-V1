@@ -21,6 +21,27 @@ const decks=[
 ];
 async function run(){
  const engine=factory({getCard:id=>catalog[id],cardType:type,version:'1.19.8'});
+ // Validate bindInputs on the Home screen (no Simulation nodes), and on Setup (two AIs).
+ const start=src.indexOf('  function bindInputs(){');
+ const end=src.indexOf('  function updateCharacterDraftPreview(){',start);
+ assert(start>=0&&end>start,'Input binding code not found');
+ const makeBinder=new Function('$','$$','autoSetup','characterDraft',src.slice(start,end)+';return bindInputs;');
+ assert.doesNotThrow(()=>makeBinder(()=>null,()=>[],{deckIds:[],aiLevels:[],gamesCount:1},null)(),'Home startup must not crash');
+ const listeners={};
+ const aiInputs=['expert','beginner'].map((value,i)=>({dataset:{autoAi:String(i)},value,addEventListener:(name,fn)=>{listeners[i+':'+name]=fn;}}));
+ const countInput={value:'50',addEventListener:(name,fn)=>{listeners['games:'+name]=fn;}};
+ const uiSetup={deckIds:[],aiLevels:[],gamesCount:1};
+ const findOne=selector=>selector==='#auto-games-count'?countInput:null;
+ const findAll=selector=>selector==='[data-auto-ai]'?aiInputs:[];
+ assert.doesNotThrow(()=>makeBinder(findOne,findAll,uiSetup,null)(),'AI setup must not crash');
+ listeners['0:change']();listeners['1:change']();
+ assert.deepEqual(uiSetup.aiLevels,['expert','beginner'],'Per-player AI choices not bound');
+ listeners['games:change']();
+ assert.equal(uiSetup.gamesCount,50,'Batch count 50 must be accepted');
+ countInput.value='80';listeners['games:change']();
+ assert.equal(uiSetup.gamesCount,50,'Batch count must clamp to 50');
+ console.log('Startup and Simulation UI binding regression PASSED.');
+
  assert(src.includes('data-action="auto-simulation"'),'Missing home Simulation button');
  assert(src.includes('data-auto-ai'),'Missing per-player reasoning selection');
  assert(src.includes('downloadAutoPdf'),'Missing PDF download function');
