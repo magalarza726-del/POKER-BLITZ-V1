@@ -1214,7 +1214,7 @@ function syncAutoSetup(){
   }
   function bindInputs(){
     $$('[data-auto-deck]').forEach(el=>el.addEventListener('change',()=>{autoSetup.deckIds[Number(el.dataset.autoDeck)]=el.value}));
-    $('[data-auto-ai]').forEach(el=>el.addEventListener('change',()=>{autoSetup.aiLevels[Number(el.dataset.autoAi)]=el.value}));
+    $$('[data-auto-ai]').forEach(el=>el.addEventListener('change',()=>{autoSetup.aiLevels[Number(el.dataset.autoAi)]=el.value}));
     const numberOfGames=$('#auto-games-count');if(numberOfGames){numberOfGames.addEventListener('change',()=>{autoSetup.gamesCount=Math.min(50,Math.max(1,Math.trunc(Number(numberOfGames.value)||1)));numberOfGames.value=autoSetup.gamesCount;});numberOfGames.addEventListener('input',()=>{const n=Number(numberOfGames.value);if(Number.isInteger(n)&&n>=1&&n<=50)autoSetup.gamesCount=n;});}
     $$('[data-trade-player]').forEach(el=>el.addEventListener('change',e=>{
       if(modal?.type!=='trade'||!sim)return;
