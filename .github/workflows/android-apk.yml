@@ -55,6 +55,8 @@ jobs:
         run: python3 android/tools/verify_offline_web.py
       - name: Probar reglas manuales, CounterCards, cobros y reacción
         run: node android/tools/check_manual_rules.js
+      - name: Probar motor de efectos asistidos y los tres modos de prueba
+        run: node android/tools/check_assisted_effects.js
       - name: Verificar la vista Android en Chrome horizontal
         run: python3 android/tools/check_mobile_layout.py
       - name: Verificar que Robar, Intercambiar y Descartar figuren en PDF real
