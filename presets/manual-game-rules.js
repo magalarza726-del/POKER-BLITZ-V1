@@ -49,6 +49,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
       ctx.log(d.id,'Inicio End Phase','Se repusieron '+drawn+'/'+qty+' Poker Cards por combinaciones cobradas. Resuelve efectos de End Phase y ajusta la mano.');
     }
     ctx.log(d.id,'Cambiar fase',ctx.phaseLabel(from)+' → '+ctx.phaseLabel(to)+'.');
+    if(sim.mode==='ASSISTED')ctx.assistedPhase?.(to,d.id);
     sim.result=ctx.phaseLabel(to);ctx.render();
   }
   function finishTurn(){
@@ -59,6 +60,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     s.turnsTaken=(s.turnsTaken||0)+1;ctx.log(d.id,'Fin de turno','Turno '+s.turnsTaken+' completado. Fichas: '+s.chips+'.');
     sim.chargeSelection=[];
     if(sim.turnIndex===sim.decks.length-1){
+      if(sim.mode==='ASSISTED')ctx.assistedRound?.();
       const goal=sim.goal||30,players=sim.decks;if(players.some(p=>sim.states[p.id].chips>=goal)){
         const best=Math.max(...players.map(p=>sim.states[p.id].chips)),winners=players.filter(p=>sim.states[p.id].chips===best);
         sim.finished=true;sim.result='Fin de ronda. '+(winners.length===1?'Ganó J'+winners[0].playerNumber:'Empate: '+winners.map(p=>'J'+p.playerNumber).join(', '));
@@ -77,7 +79,14 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     const sim=get(),s=sim.states[playerId],card=ctx.card(s.hand[index]),type=ctx.type(card);
     if(!card||type==='HYPER')return;
     if(type==='SUPER'&&s.currentPhase!=='MAIN')return ctx.toast('La SuperCard debe jugarse en Main Phase.');
-    if(type==='COUNTER'&&s.currentPhase!=='END')return ctx.toast('Responde con CounterCards desde la ventana de respuesta, o durante tu End Phase.');
+    if(type==='COUNTER'&&s.currentPhase!=='END'&&sim.mode!=='MANUAL_SIMPLE')return ctx.toast('Responde con CounterCards desde la ventana de respuesta, o durante tu End Phase.');
+    if(sim.mode==='MANUAL_SIMPLE'){
+      ctx.pushUndo(playerId,'Power Card física: uso manual');const item=take(playerId,index);
+      if(!item)return;giveBack(item.cardId,item.ownerId);
+      ctx.log(playerId,'Usar '+ctx.type(card),'Uso manual sin ventana de CounterCards. Aplica el efecto sobre las cartas físicas si corresponde.',card);
+      sim.result='Power Card usada: '+card.name;ctx.render();return;
+    }
+    if(sim.mode==='ASSISTED'&&ctx.canAssist&&!ctx.canAssist(s.hand[index]))return ctx.toast('Este efecto todavía no está implementado en Prueba Asistida. La carta permanece en mano.');
     // An atomic undo snapshot avoids corrupting other players' hands.
     sim.undoStacks=Object.fromEntries(sim.decks.map(p=>[p.id,[]]));
     const states=Object.fromEntries(sim.decks.map(p=>[p.id,structuredClone(sim.states[p.id])]));
@@ -91,7 +100,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
   function counterPlay(i){
     const sim=get(),chain=sim?.chain;if(!chain)return;
     const p=sim.decks[chain.chooser],c=ctx.card(sim.states[p.id].hand[i]);
-    if(ctx.type(c)!=='COUNTER')return;
+    if(ctx.type(c)!=='COUNTER'||(sim.mode==='ASSISTED'&&ctx.canAssist&&!ctx.canAssist(c?.id)))return;
     chain.stack.push(take(p.id,i));chain.passes=0;chain.chooser=(chain.chooser+1)%sim.decks.length;
     ctx.log(p.id,'CounterCard anunciada','Añadida a la cadena de respuestas.',c);ctx.render();
   }
@@ -107,12 +116,17 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
       const item=chain.stack[i],c=ctx.card(item.cardId);
       if(!denied.has(i)&&item.cardId==='catalog_v3_033'&&i>0)denied.add(i-1);
       if(denied.has(i))ctx.log(item.playerId,'Efecto negado',c?.name+' fue cancelada por la cadena.',c);
-      else ctx.log(item.playerId,'Efecto autorizado','Aplica manualmente '+(c?.name||'la carta')+' con las herramientas de prueba.',c);
+      else if(sim.mode==='ASSISTED'){
+        ctx.log(item.playerId,'Efecto autorizado','Resolución asistida: '+(c?.name||'carta')+'.',c);
+        if(item.cardId!=='catalog_v3_024'&&item.cardId!=='catalog_v3_033')ctx.assistedResolved?.(item);
+      }else ctx.log(item.playerId,'Efecto autorizado','Aplica manualmente '+(c?.name||'la carta')+' con las herramientas de prueba.',c);
       giveBack(item.cardId,item.ownerId);
     }
     const special=chain.stack[0],reference=special.cardId==='catalog_v3_024'&&!denied.has(0);
-    sim.chain=null;setMod(null);sim.result='Cadena resuelta. Ejecuta manualmente los efectos permitidos.';
-    if(reference)startReference(special.playerId);else ctx.render();
+    sim.chain=null;setMod(null);sim.result=sim.mode==='ASSISTED'?'Cadena resuelta; aplicando efectos.':'Cadena resuelta. Ejecuta manualmente los efectos permitidos.';
+    if(reference)startReference(special.playerId);
+    else if(sim.mode==='ASSISTED')ctx.assistedChainComplete?.();
+    else ctx.render();
   }
   function startReference(actorId){
     const sim=get(),participants=sim.decks.filter(p=>p.id!==actorId).map(p=>p.id);
@@ -137,13 +151,13 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     const s=sim.states[r.last];if(s.pokerHand.length&&(!Number.isInteger(i)||i<0||i>=s.pokerHand.length))return ctx.toast('Selecciona una Poker Card.');
     if(s.pokerHand.length){const [c]=s.pokerHand.splice(i,1);sim.pokerDrawPile=ctx.shuffle([...sim.pokerDrawPile,c]);ctx.log(r.last,'Penalización de reacción','Descartó '+c.rank+' de '+c.suit+'.')}
     ctx.log(r.actorId,'Entendí la referencia','Primero: J'+sim.decks.find(p=>p.id===r.first).playerNumber+'. Último: J'+sim.decks.find(p=>p.id===r.last).playerNumber+'.');
-    sim.reference=null;setMod(null);sim.result='Concurso de reacción resuelto.';ctx.render();
+    sim.reference=null;setMod(null);sim.result='Concurso de reacción resuelto.';if(sim.mode==='ASSISTED')ctx.assistedChainComplete?.();else ctx.render();
   }
   function modalMarkup(){
     const sim=get(),modal=getMod();if(!sim||!modal)return'';
     if(modal.type==='counter-window'&&sim.chain){
       const p=sim.decks[sim.chain.chooser],s=sim.states[p.id];
-      const options=s.hand.map((id,i)=>({c:ctx.card(id),i})).filter(x=>ctx.type(x.c)==='COUNTER');
+      const options=s.hand.map((id,i)=>({c:ctx.card(id),i})).filter(x=>ctx.type(x.c)==='COUNTER'&&(sim.mode!=='ASSISTED'||!ctx.canAssist||ctx.canAssist(x.c.id)));
       const cards=options.map(x=>'<button class="btn" data-action="counter-play" data-index="'+x.i+'">'+ctx.esc(x.c.name)+'</button>').join('');
       return '<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>Ventana de CounterCards</h2></div><div class="modal-content"><p>Respuesta de <b>J'+p.playerNumber+' · '+ctx.esc(p.name)+'</b>. Cadena: '+sim.chain.stack.map(x=>ctx.esc(ctx.card(x.cardId)?.name||'Carta')).join(' → ')+'</p><p>Las respuestas se resuelven de la última a la primera. Los efectos autorizados seguirán aplicándose manualmente.</p><div style="display:flex;gap:10px;flex-wrap:wrap">'+cards+'</div><button class="btn primary" data-action="counter-pass">Pasar / No responder</button></div></div></div>';
     }
