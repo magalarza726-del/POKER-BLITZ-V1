@@ -125,7 +125,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
         const rival=game().decks.find(x=>x.id!==pid);
         if(rival){
           const mode={ '058':['DRAW_END','POWER_DISCARD'],'059':['MAIN_START','POKER_DISCARD'],'060':['MAIN_START','CHIP_MINUS']}[b.type];
-          schedule({pid:rival.id,step:mode[0],due:state(rival.id).turnsTaken+2,type:mode[1],owner:pid,card:b.type});
+          schedule({pid:rival.id,step:mode[0],due:state(rival.id).turnsTaken+1,type:mode[1],owner:pid,card:b.type});
           log(pid,b.type,'Penalización programada para el próximo turno de J'+rival.playerNumber+'.');
         }
       }
@@ -164,7 +164,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
       const proxy={id:'BLITZ-ACE-'+serial(),rank:'A',suit:id,symbol:{S:'♠',H:'♥',D:'♦',C:'♣'}[id],color:['D','H'].includes(id)?'red':'black',copy:0,
         virtualPower:{type:'SABUESO',owner:p.item.ownerId,cardId:p.item.cardId}};
       s.pokerHand.push(proxy);log(p.pid,'040','Sabueso de Ases incorporado como As de '+id+' a Poker Hand.');
-      pending=null;ctx.setModal(null);ctx.render();return;
+      pending=null;ctx.setModal(null);ctx.afterSelection?.();ctx.render();return;
     }
     const chosen=s.pokerHand.find(c=>c.id===id&&!virtual(c));if(!chosen)return;
     if(p.kind==='ability'){
