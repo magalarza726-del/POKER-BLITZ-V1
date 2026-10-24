@@ -91,8 +91,8 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     ctx.recalc(pid);log(pid,t,'HyperCard activada con vínculo '+(selected.join(', ')||'autónomo')+'. Costes reales descontados.');
     ctx.render();
   }
-  function wildRank(pid,c){return virtual(c)||refs(pid,c).some(b=>b.type==='029')}
-  function wildSuit(pid,c){return virtual(c)||refs(pid,c).some(b=>b.type==='030')}
+  function wildRank(pid,c){return c?.virtualPower?.type==='JOKER'||refs(pid,c).some(b=>b.type==='029')}
+  function wildSuit(pid,c){return c?.virtualPower?.type==='JOKER'||refs(pid,c).some(b=>b.type==='030')}
   function score(pid,kind,cards,actives){
     const point={Par:1,'Trío':3,Escalera:5,Color:5,'Póker':7}[kind],required={Par:2,'Trío':3,Escalera:5,Color:5,'Póker':4}[kind];
     if(!point||cards.length!==required||cards.some(x=>!x))return 0;
