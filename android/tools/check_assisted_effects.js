@@ -53,7 +53,7 @@ assert.equal(game.states.p1.powerHandLimit,5,'HyperCard changed power hand limit
 assert.equal(game.states.p1.pokerHand.length,1,'HyperCard Poker cost paid');
 assert.equal(events.some(x=>x[1]==='Efecto asistido'),true,'Effect resolution recorded');
 assert.equal(toasts.length,0,'Unexpected errors: '+toasts.join('; '));
-const html=fs.readFileSync(path.join(__dirname,'../../app-v1.19.6.html'),'utf8');
+const html=fs.readFileSync(path.join(__dirname,'../../app-v1.19.7.html'),'utf8');
 for(const key of ['manual-test','manual-full','manual-simple','assisted-test','manualChoice','MANUAL_SIMPLE','ASSISTED','assisted-target']){
  assert(html.includes(key),'Missing mode UI hook: '+key)
 }
