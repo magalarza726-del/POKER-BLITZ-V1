@@ -1060,7 +1060,9 @@ window.STARTER_CARDS = [
       if(!Number.isInteger(targetIndex)||targetIndex<0||targetIndex>=b[key].length)return false;
       if(!poker&&(b.activeHyper||[]).includes(targetIndex)){toast('No puedes intercambiar una HyperCard activa');return false;}
     }
+    if(!poker){manualRules.own(srcId);if(destId)manualRules.own(destId)}
     const first=a[key][sourceIndex],second=operation==='SWAP'?b[key][targetIndex]:null;
+    const firstOwner=poker?null:a.handOwners[sourceIndex],secondOwner=poker||operation!=='SWAP'?null:b.handOwners[targetIndex];
     if(!first||(operation==='SWAP'&&!second))return false;
     const affected=destId?[srcId,destId]:[srcId];
     const states=Object.fromEntries(affected.map(id=>[id,structuredClone(sim.states[id])]));
@@ -1070,12 +1072,14 @@ window.STARTER_CARDS = [
     sim.undoStacks=Object.fromEntries(sim.decks.map(d=>[d.id,[]]));
     if(operation==='SWAP'){
       [a[key][sourceIndex],b[key][targetIndex]]=[second,first];
+      if(!poker)[a.handOwners[sourceIndex],b.handOwners[targetIndex]]=[secondOwner,firstOwner];
     }else{
       a[key].splice(sourceIndex,1);
+      if(!poker)a.handOwners.splice(sourceIndex,1);
       if(!poker)a.activeHyper=(a.activeHyper||[]).filter(i=>i!==sourceIndex).map(i=>i>sourceIndex?i-1:i);
-      if(operation==='STEAL')b[key].push(first);
-      else if(poker)sim.pokerDrawPile.push(first);
-      else a.drawPile.push(first);
+      if(operation==='STEAL'){b[key].push(first);if(!poker)b.handOwners.push(firstOwner||srcId)}
+      else if(poker)sim.pokerDrawPile=shuffle([...sim.pokerDrawPile,first]);
+      else manualRules.giveBack(first,firstOwner||srcId);
     }
     const playerA=sim.decks.find(d=>d.id===srcId),playerB=destId?sim.decks.find(d=>d.id===destId):null;
     const masked=modal.visibility[sourceSide]==='HIDDEN'||(targetSide&&modal.visibility[targetSide]==='HIDDEN');
@@ -1098,6 +1102,7 @@ window.STARTER_CARDS = [
   }
 
   function renderModal(){
+    if(['counter-window','reference-reaction'].includes(modal?.type))return manualRules.modalMarkup();
     if(modal?.type==='trade')return tradeModalMarkup();
     if(!modal)return'';
     if(modal.type==='zoom'){const c=getCard(modal.id);return c?`<div class="modal-backdrop" data-action="modal-backdrop"><div class="zoom-shell"><button class="icon-btn zoom-close" data-action="close-modal" title="Cerrar">${icon('close')}</button><div class="zoom-card">${cardHTML(c)}</div></div></div>`:''}
@@ -1207,8 +1212,8 @@ window.STARTER_CARDS = [
     const valid=testSetup.deckIds.slice(0,testSetup.playerCount).map((sourceId,i)=>{
       const d=sources.find(x=>x.id===sourceId);return d?{...d,id:'test-player-'+(i+1),sourceDeckId:d.id,playerNumber:i+1}:null;
     }).filter(Boolean);
-    sim={decks:valid,activeIndex:0,result:'Listo para jugar',states:{},histories:{},undoStacks:{},startedAt:Date.now(),handView:testSetup.handView||'POWER',pokerDeckCount:testSetup.pokerDeckCount,pokerDrawPile:shuffle(buildPokerDeck(testSetup.pokerDeckCount))};
-    for(const d of valid){const sh=shuffle(d.cardIds),n=Math.min(state.handSize,sh.length),hand=sh.slice(0,n),pokerHand=sim.pokerDrawPile.splice(0,Math.min(5,sim.pokerDrawPile.length));sim.states[d.id]={initialCards:d.cardIds.length,drawPile:sh.slice(n),hand,pokerHand,pokerLimit:7,activeHyper:[],chips:0,dieBase:null,dieModifier:0,dieRolling:false,currentPhase:'MAIN',powerHandLimit:4};sim.histories[d.id]=hand.map(cid=>{const c=getCard(cid);return {at:Date.now(),action:'Carta inicial',detail:'Carta repartida en la mano inicial.',cardName:c?.name||'',cardDescription:c?.description||''}});if(pokerHand.length)sim.histories[d.id].push({at:Date.now(),action:'Poker Hand inicial',detail:`${pokerHand.length} Poker Cards repartidas.`,cardName:'',cardDescription:''});sim.undoStacks[d.id]=[]}
+    sim={decks:valid,activeIndex:0,result:'Listo para jugar',states:{},histories:{},undoStacks:{},startedAt:Date.now(),handView:testSetup.handView||'POWER',pokerDeckCount:testSetup.pokerDeckCount,pokerDrawPile:shuffle(buildPokerDeck(testSetup.pokerDeckCount)),turnIndex:0,round:1,goal:30,chargeSelection:[],finished:false,chain:null};
+    for(const d of valid){const sh=shuffle(d.cardIds),n=Math.min(state.handSize,sh.length),hand=sh.slice(0,n),pokerHand=sim.pokerDrawPile.splice(0,Math.min(5,sim.pokerDrawPile.length));sim.states[d.id]={initialCards:d.cardIds.length,drawPile:sh.slice(n),hand,handOwners:hand.map(()=>d.id),drawOwners:sh.slice(n).map(()=>d.id),pokerHand,pokerLimit:7,activeHyper:[],chips:0,chargeReplacement:0,turnsTaken:0,dieBase:null,dieModifier:0,dieRolling:false,currentPhase:'MAIN',powerHandLimit:4};sim.histories[d.id]=hand.map(cid=>{const c=getCard(cid);return {at:Date.now(),action:'Carta inicial',detail:'Carta repartida en la mano inicial.',cardName:c?.name||'',cardDescription:c?.description||''}});if(pokerHand.length)sim.histories[d.id].push({at:Date.now(),action:'Poker Hand inicial',detail:`${pokerHand.length} Poker Cards repartidas.`,cardName:'',cardDescription:''});sim.undoStacks[d.id]=[]}
   }
   function currentSim(){const valid=sim?.decks||[],d=valid[sim.activeIndex%valid.length];return {valid,d,s:sim.states[d.id]}}
   function phaseLabel(v){return ({DRAW:'Draw Phase',MAIN:'Main Phase',CHARGE:'Charge Phase',END:'End Phase'})[v]||'Main Phase'}
@@ -1232,8 +1237,8 @@ sim.undoStacks??={};const snap=structuredClone(sim.states[deckId]);snap.dieRolli
     }
 sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.pokerDrawPile=structuredClone(u.pokerDrawPile);if(sim.histories?.[d.id])sim.histories[d.id]=sim.histories[d.id].slice(0,u.historyLength);sim.result='Deshecho: '+(u.label||'última acción');render()}
   function maxHandMessage(s){const msg=`Límite máximo de Power Cards alcanzado (${s.powerHandLimit}).`;sim.result=msg;toast(msg)}
-  function drawRandomOne(deckId,s,action='Robar al azar',detail='Se robó 1 Power Card al azar del deck.'){if(!s.drawPile.length)return null;if(powerHandCount(s)>=s.powerHandLimit){maxHandMessage(s);return null}const pos=randomInt(s.drawPile.length),[cid]=s.drawPile.splice(pos,1),c=getCard(cid);s.hand.push(cid);logSim(deckId,action,detail,c);return c}
-  function enterDrawPhase(d,s){pushUndo(d.id,'Draw Phase');const before=s.currentPhase||'MAIN';s.currentPhase='DRAW';logSim(d.id,'Cambiar fase',`${phaseLabel(before)} → Draw Phase.`);const slots=Math.max(0,s.powerHandLimit-powerHandCount(s)),qty=Math.min(3,slots,s.drawPile.length);const names=[];for(let k=0;k<qty;k++){const pos=randomInt(s.drawPile.length),[cid]=s.drawPile.splice(pos,1),c=getCard(cid);s.hand.push(cid);if(c)names.push(c.name)}if(qty){logSim(d.id,'Robo automático de Draw Phase',`Se robaron ${qty} Power Card${qty===1?'':'s'}: ${names.join(', ')}.`)}else{logSim(d.id,'Robo automático de Draw Phase',slots<=0?`No se robó: límite máximo de Power Cards (${s.powerHandLimit}) alcanzado.`:'No quedaban cartas disponibles en el deck.');if(slots<=0)toast(`Límite máximo de Power Cards alcanzado (${s.powerHandLimit}).`)}if(qty<3&&slots<3)toast(`Draw Phase: ${qty} carta${qty===1?'':'s'} robada${qty===1?'':'s'} por límite de Power Hand (${s.powerHandLimit}).`);s.currentPhase='MAIN';logSim(d.id,'Cambio automático de fase','Draw Phase → Main Phase.');sim.result=`Draw Phase: ${qty} robada${qty===1?'':'s'} · Main Phase`;render()}
+  function drawRandomOne(deckId,s,action='Robar al azar',detail='Se robó 1 Power Card al azar del deck.'){if(!s.drawPile.length)return null;if(powerHandCount(s)>=s.powerHandLimit){maxHandMessage(s);return null}manualRules.own(deckId);const pos=randomInt(s.drawPile.length),[cid]=s.drawPile.splice(pos,1),[owner]=s.drawOwners.splice(pos,1),c=getCard(cid);s.hand.push(cid);s.handOwners.push(owner||deckId);logSim(deckId,action,detail,c);return c}
+  function enterDrawPhase(d,s){pushUndo(d.id,'Draw Phase');const before=s.currentPhase||'MAIN';s.currentPhase='DRAW';logSim(d.id,'Cambiar fase',`${phaseLabel(before)} → Draw Phase.`);const slots=Math.max(0,s.powerHandLimit-powerHandCount(s)),qty=Math.min(3,slots,s.drawPile.length);const names=[];for(let k=0;k<qty;k++){manualRules.own(d.id);const pos=randomInt(s.drawPile.length),[cid]=s.drawPile.splice(pos,1),[owner]=s.drawOwners.splice(pos,1),c=getCard(cid);s.hand.push(cid);s.handOwners.push(owner||d.id);if(c)names.push(c.name)}if(qty){logSim(d.id,'Robo automático de Draw Phase',`Se robaron ${qty} Power Card${qty===1?'':'s'}: ${names.join(', ')}.`)}else{logSim(d.id,'Robo automático de Draw Phase',slots<=0?`No se robó: límite máximo de Power Cards (${s.powerHandLimit}) alcanzado.`:'No quedaban cartas disponibles en el deck.');if(slots<=0)toast(`Límite máximo de Power Cards alcanzado (${s.powerHandLimit}).`)}if(qty<3&&slots<3)toast(`Draw Phase: ${qty} carta${qty===1?'':'s'} robada${qty===1?'':'s'} por límite de Power Hand (${s.powerHandLimit}).`);s.currentPhase='MAIN';logSim(d.id,'Cambio automático de fase','Draw Phase → Main Phase.');sim.result=`Draw Phase: ${qty} robada${qty===1?'':'s'} · Main Phase`;render()}
   function toolResult(action,result){const {d}=currentSim();sim.result=result;logSim(d.id,action,result)}
   function formatDuration(ms){const sec=Math.max(0,Math.round(Number(ms||0)/1000)),m=Math.floor(sec/60),s=sec%60;return m?`${m} min ${s} s`:`${s} s`}
   function snapshotCardSet(ids){const counts=countIds((ids||[]).filter(Boolean));return Object.entries(counts).map(([id,count])=>{const c=getCard(id);return {id,count,name:c?.name||'Carta no disponible',description:c?.description||'',type:c?cardTypeLabel(c):''}})}
@@ -1389,9 +1394,11 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     if(dragTrade){dragTrade.ghost?.remove();dragTrade.target?.classList.remove('trade-target');dragTrade=null;}
   },true);
 
+  const manualRules=window.POKER_BLITZ_MANUAL_RULES({sim:()=>sim,modal:()=>modal,setModal:v=>{modal=v},card:getCard,type:cardType,shuffle,log:logSim,toast,render,drawPoker:drawPokerOne,pushUndo,drawPhase:enterDrawPhase,phaseLabel,current:currentSim,esc});
   root.addEventListener('click',e=>{
     if(skipTradeClick){skipTradeClick=false;e.preventDefault();return;}
     const el=e.target.closest('[data-action]');if(!el)return;const a=el.dataset.action,id=el.dataset.id;
+    if(sim&&screen==='simulator'&&['use-card','activate-hyper','discard-card','discard-poker-card','draw-poker-random','draw-poker-view','draw-poker-select','draw-select','draw-random','draw-view','add-chips','roll-die','die-adjust','adjust-hand-limit','set-phase','finish-turn','charge-toggle','charge-combo'].includes(a)&&!manualRules.canAct()){toast('Debes volver al jugador del turno.');return}
     if(a==='back'){if(screen==='cardEditor'||screen==='deckEditor'||screen==='cards'||screen==='decks'||screen==='settings'||screen==='export')go('home');else go('home')}
     else if(a==='settings')go('settings'); else if(a==='rules')go('rules'); else if(a==='all-cards'){libraryTypeFilter='ALL';go('cards')} else if(a==='all-decks')go('decks'); else if(a==='export')go('export'); else if(a==='simulator'){sim=null;syncTestSetup();go('simSetup')}
     else if(a==='new-card'){editingCard=defaultCard();$('#imagePicker').dataset.mode='new';$('#imagePicker').click()}
@@ -1468,13 +1475,20 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='draw-poker-view'){if(sim?.pokerDrawPile?.length){modal={type:'draw-poker-deck'};render()}}
     else if(a==='draw-poker-select'){const {d,s}=currentSim(),pos=(sim.pokerDrawPile||[]).findIndex(card=>card.id===id);if(pos<0)return;pushUndo(d.id,'Robar viendo Poker Deck');const [card]=sim.pokerDrawPile.splice(pos,1);s.pokerHand??=[];s.pokerHand.push(card);sim.handView='POKER';testSetup.handView='POKER';sim.result=`Elegiste Poker Card: ${card.rank}`;logSim(d.id,'Robar viendo Poker Deck',`Se eligió ${card.rank} de ${card.suit}.`);modal=null;render()}
     else if(a==='discard-poker-card'){const {d,s}=currentSim(),i=+el.dataset.index;if(!Array.isArray(s.pokerHand)||i<0||i>=s.pokerHand.length)return;pushUndo(d.id,'Descartar Poker Card');const [card]=s.pokerHand.splice(i,1);sim.pokerDrawPile=shuffle([...(sim.pokerDrawPile||[]),card]);sim.handView='POKER';testSetup.handView='POKER';sim.result=`Poker Card descartada: ${card.rank}`;logSim(d.id,'Descartar Poker Card',`Se descartó ${card.rank} de ${card.suit} y volvió al Poker Deck.`);render()}
-    else if(a==='draw-select'){const deckId=modal?.deckId,s=sim?.states?.[deckId];if(!s)return;if(powerHandCount(s)>=s.powerHandLimit){maxHandMessage(s);modal=null;render();return}const pos=s.drawPile.indexOf(id);if(pos<0)return;pushUndo(deckId,'Robar viendo Deck');const [cid]=s.drawPile.splice(pos,1),c=getCard(cid);s.hand.push(cid);sim.result=c?'Elegiste del Deck: '+c.name:'Carta elegida del Deck';logSim(deckId,'Robar viendo Deck','Se observó el deck y se seleccionó exactamente 1 Power Card.',c);modal=null;render()}
-    else if(a==='use-card'){const {d,s}=currentSim(),i=+el.dataset.index,c=getCard(s.hand[i]),type=cardType(c);const allowed=type==='COUNTER'?['MAIN','END'].includes(s.currentPhase):s.currentPhase==='MAIN';if(!c||type==='HYPER'||!allowed)return;pushUndo(d.id,'Usar '+cardTypeLabel(c));const [cid]=s.hand.splice(i,1);s.drawPile=shuffle([...s.drawPile,cid]);s.activeHyper=s.activeHyper.filter(x=>x!==i).map(x=>x>i?x-1:x);logSim(d.id,'Usar '+cardTypeLabel(c),`La ${cardTypeLabel(c)} fue usada y regresó al deck.`,c);render()}
-    else if(a==='discard-card'){const {d,s}=currentSim(),i=+el.dataset.index,c=getCard(s.hand[i]);if(!c||!['MAIN','END'].includes(s.currentPhase))return;pushUndo(d.id,'Descartar '+cardTypeLabel(c));const wasActive=cardType(c)==='HYPER'&&s.activeHyper.includes(i);const [cid]=s.hand.splice(i,1);s.drawPile=shuffle([...s.drawPile,cid]);s.activeHyper=s.activeHyper.filter(x=>x!==i).map(x=>x>i?x-1:x);logSim(d.id,'Descartar '+cardTypeLabel(c),`${wasActive?'La HyperCard activa fue descartada':'La '+cardTypeLabel(c)+' fue descartada'} y regresó al deck.`,c);render()}
+    else if(a==='draw-select'){const deckId=modal?.deckId,s=sim?.states?.[deckId];if(!s)return;if(powerHandCount(s)>=s.powerHandLimit){maxHandMessage(s);modal=null;render();return}const pos=s.drawPile.indexOf(id);if(pos<0)return;pushUndo(deckId,'Robar viendo Deck');manualRules.own(deckId);const [cid]=s.drawPile.splice(pos,1),[owner]=s.drawOwners.splice(pos,1),c=getCard(cid);s.hand.push(cid);s.handOwners.push(owner||deckId);sim.result=c?'Elegiste del Deck: '+c.name:'Carta elegida del Deck';logSim(deckId,'Robar viendo Deck','Se observó el deck y se seleccionó exactamente 1 Power Card.',c);modal=null;render()}
+    else if(a==='use-card'){const {d}=currentSim();manualRules.useCard(d.id,+el.dataset.index)}
+    else if(a==='discard-card'){const {d,s}=currentSim(),i=+el.dataset.index,c=getCard(s.hand[i]);if(!c||!['MAIN','END'].includes(s.currentPhase))return;pushUndo(d.id,'Descartar '+cardTypeLabel(c));const wasActive=cardType(c)==='HYPER'&&s.activeHyper.includes(i),item=manualRules.take(d.id,i);if(!item)return;manualRules.giveBack(item.cardId,item.ownerId);logSim(d.id,'Descartar '+cardTypeLabel(c),(wasActive?'HyperCard activa':'Power Card')+' devuelta al deck de su propietario.',c);render()}
     else if(a==='activate-hyper'){const {d,s}=currentSim(),i=+el.dataset.index,c=getCard(s.hand[i]);if(!c||cardType(c)!=='HYPER'||s.activeHyper.includes(i)||s.currentPhase!=='MAIN')return;if(s.activeHyper.length>=3){const msg='Límite máximo de 3 HyperCards activas alcanzado.';sim.result=msg;toast(msg);render();return}pushUndo(d.id,'Activar HyperCard');s.activeHyper.push(i);logSim(d.id,'Activar HyperCard','La HyperCard fue activada y permanece visible con borde dorado resplandeciente.',c);render()}
     else if(a==='roll-die'){const {d,s}=currentSim();if(s.dieRolling)return;pushUndo(d.id,'Lanzar dado');const deckId=d.id;s.dieBase=1+randomInt(6);s.dieModifier=0;s.dieRolling=true;sim.result='Lanzando dado…';render();setTimeout(()=>{const st=sim?.states?.[deckId];if(!st)return;st.dieRolling=false;const result=Number(st.dieBase||0)+Number(st.dieModifier||0);sim.result='Resultado del dado: '+result;logSim(deckId,'Lanzamiento de dado','Resultado del dado: '+result);render();},1250)}
     else if(a==='die-adjust'){const {d,s}=currentSim();if(!s.dieBase)return;pushUndo(d.id,'Ajustar dado');const delta=Number(el.dataset.delta||0),before=Number(s.dieBase)+Number(s.dieModifier||0);s.dieModifier=Number(s.dieModifier||0)+delta;const after=Number(s.dieBase)+Number(s.dieModifier||0);sim.result='Resultado ajustado: '+after;logSim(d.id,'Ajustar resultado del dado',`Resultado ${before} → ${after} (${delta>0?'+':''}${delta}).`);render()}
-    else if(a==='set-phase'){const {d,s}=currentSim(),before=s.currentPhase||'MAIN',after=el.dataset.phase||'MAIN';if(after==='DRAW'){enterDrawPhase(d,s);return}if(before!==after){pushUndo(d.id,'Cambiar fase');s.currentPhase=after;sim.result='Fase: '+phaseLabel(after);logSim(d.id,'Cambiar fase',`${phaseLabel(before)} → ${phaseLabel(after)}.`);}render()}
+    else if(a==='set-phase'){manualRules.changePhase(el.dataset.phase||'MAIN')}
+    else if(a==='finish-turn'){manualRules.finishTurn()}
+    else if(a==='charge-toggle'){if(!manualRules.canAct())return;const i=Number(el.dataset.index),ss=sim.chargeSelection||[];sim.chargeSelection=ss.includes(i)?ss.filter(x=>x!==i):[...ss,i];render()}
+    else if(a==='charge-combo'){manualRules.charge(el.dataset.combo)}
+    else if(a==='counter-play'){manualRules.counterPlay(Number(el.dataset.index))}
+    else if(a==='counter-pass'){manualRules.counterPass()}
+    else if(a==='reference-press'){manualRules.pressReference(el.dataset.player)}
+    else if(a==='reference-discard'){manualRules.discardReference(Number(el.dataset.index))}
     else if(a==='add-chips'){const {d,s}=currentSim(),add=Number(el.dataset.value||0),reason=el.dataset.reason||'Ajuste';if(['Par','Trío','Escalera','Color','Póker'].includes(reason)&&s.currentPhase!=='CHARGE'){toast('Ese cobro solo está disponible durante Charge Phase.');return}pushUndo(d.id,'Ajuste de fichas');const before=Number(s.chips||0);s.chips=Math.max(0,before+add);const real=s.chips-before;sim.result=`${reason}: ${real>=0?'+':''}${real} · Total ${s.chips} fichas`;logSim(d.id,'Ajuste de fichas',`${reason}: ${real>=0?'+':''}${real} fichas. Total: ${s.chips}.`);render()}
     else if(a==='set-hand-size'){state.handSize=Math.max(3,Math.min(5,+el.dataset.value||5));saveState();render()}
     else if(a==='set-random'){state.randomizationSettings.mode=el.dataset.value;saveState();render()}
