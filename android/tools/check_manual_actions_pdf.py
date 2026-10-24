@@ -62,7 +62,7 @@ page.write_text(r'''<!doctype html><html><head><meta charset="utf-8"></head><bod
     const card=(side)=>'[data-trade-list="'+side+'"] .trade-tile[data-index="0"]';
 
     report.stage='play';
-    action('simulator');action('start-sim');action('open-trade');
+    action('manual-test');action('manual-full');action('start-sim');action('open-trade');
     if(!d.querySelector('.trade-modal'))throw Error('Actions modal missing');
     if(!d.querySelector('[data-kind="POKER"].active'))throw Error('Poker not default');
 
