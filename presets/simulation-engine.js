@@ -87,7 +87,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
   }
   const effectCtx={sim:()=>game,card:getCard,type:cardType,random,shuffle:rngShuffle,log,toast:issue,render:()=>{},
     drawPoker,manual:()=>manual,pushUndo:()=>{},setModal:m=>{modal=m},modal:()=>modal,esc:s=>String(s||'').replace(/[<>&"]/g,''),
-    links:()=>links};
+    links:()=>links,chooseCopiedSuper:(pid,ids)=>[...ids].sort((a,b)=>scoreCard(pid,b)-scoreCard(pid,a))[0]};
   fx=window.POKER_BLITZ_ASSISTED_EFFECTS(effectCtx);
   links=window.POKER_BLITZ_ASSISTED_LINKS({...effectCtx,recalc:pid=>fx.recalc(pid),drawPower,discardPower,afterSelection:()=>fx.afterSelection()});
   function autoModal(){
@@ -132,7 +132,11 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    const s=get(p.id),available=[];
    for(let i=0;i<s.hand.length;i++){
     if(s.activeHyper.includes(i))continue;
-    const id=s.hand[i],kind=cardType(getCard(id));
+    const id=s.hand[i],kind=cardType(getCard(id)),c=code(id);
+    if(p.difficulty==='expert'){
+      if(c==='045'&&s.pokerHand.filter(x=>x.rank==='A').length<(s.activeHyper.some(j=>code(s.hand[j])==='046')?1:2))continue;
+      if(c==='061'&&s.pokerHand.filter(x=>['J','Q','K'].includes(x.rank)).length<(s.activeHyper.some(j=>code(s.hand[j])==='062')?1:3))continue;
+    }
     if(kind==='HYPER'&&fx.supported(id)&&legalHyper(p.id,i))available.push({i,id,kind});
     else if(kind==='SUPER'&&fx.supported(id)&&fx.canPlay(id,p.id))available.push({i,id,kind});
    }
