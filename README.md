@@ -2,6 +2,15 @@
 
 Versión web estática basada en `DeckCreator_AndroidStudio_v0_13_NEW_CATALOG` y ajustada para escritorio.
 
+## Revisión del motor y simulaciones por lotes — 24/10/2026
+
+- **Lotes editables:** en Configurar Simulación se puede escribir una cantidad de **1 a 50 partidas**. Se mantienen los mismos jugadores, Power Decks, dificultades de IA, barajas de Poker y modo de batalla. Cada partida recibe una semilla distinta y reproducible.
+- **PDF consolidado:** para lotes de más de una partida reúne porcentajes/cantidades de victorias, promedios de fichas, resultados individuales, semilla, incidencias, frecuencias por carta e historial de acciones de cada jugador, incluidos sus saldos y tamaños de mano tras cada evento.
+- **Integridad:** comprobaciones automáticas de las 52/104 Poker Cards físicas, de las Power Cards por propietario, la cantidad máxima de 3 HyperCards activas, las copias legales de SuperCards y la devolución de ases/comodines virtuales.
+- **Correcciones:** Espejador Experto solo copia SuperCards propias de ese turno respetando límites y recursos, sin materializar Sabueso de Ases desde una copia; CounterCards responden al jugador que activó la carta; Números Errantes restaura el valor original al volver al mazo; intercambios circulares simultáneos; protección de comodines vinculados; pagos completos de Secuaz; selección entre alternativas de efectos para Maestro de Fichas, Operación Táctica y Compartir es Ganar; Manipulador y Agujero Negro alteran realmente los dados antes de resolverlos.
+- **Pruebas de regresión:** el test `android/tools/check_automatic_simulation.js` cubre catálogo de 64 cartas, partidas de 1–6 jugadores, lotes de 50, repetición de semillas y conservación de inventario. Las pruebas de enlaces `android/tools/check_assisted_links.js` cubren interacciones especiales, incluida Artilugio Legendario.
+- **Alcance de la verificación:** comprobar 64 identificadores y ejecutar partidas aleatorias **no equivale a certificar todas las combinaciones posibles** de cartas y reglas. Las IA son heurísticas; no cuentan con una búsqueda exhaustiva de jugadas óptimas. La generación de PDF sigue requiriendo que jsPDF esté disponible.
+
 ## Versión 1.19.8 — Simulación automática
 
 La pantalla principal incorpora **Simulación**, independiente de **Prueba Manual** y **Prueba Asistida**.
