@@ -133,6 +133,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    for(let i=0;i<s.hand.length;i++){
     if(s.activeHyper.includes(i))continue;
     const id=s.hand[i],kind=cardType(getCard(id)),c=code(id);
+    if(c==='003')continue; // Manipulador se juega legalmente como reacción al dado, no después.
     if(p.difficulty==='expert'){
       if(c==='045'&&s.pokerHand.filter(x=>x.rank==='A').length<(s.activeHyper.some(j=>code(s.hand[j])==='046')?1:2))continue;
       if(c==='061'&&s.pokerHand.filter(x=>['J','Q','K'].includes(x.rank)).length<(s.activeHyper.some(j=>code(s.hand[j])==='062')?1:3))continue;
@@ -153,7 +154,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    const list=s.hand.map((id,i)=>({id,i})).filter(x=>{if(s.activeHyper.includes(x.i)||cardType(getCard(x.id))!=='COUNTER'||!fx.canPlay(x.id,pid))return false;
     const c=code(x.id),victim=get(trigger);if(c==='004'&&cardType(getCard(originalId))!=='SUPER')return false;
     if(c==='048'&&victim.chips<1)return false;
-    if(c==='052'&&!victim.activeHyper.length&&!victim.dieBase)return false;
+    if(c==='052'&&!victim.activeHyper.length&&!['008','014','015','018','019','020','036'].includes(code(originalId)))return false;
     if(c==='064'&&cardType(getCard(originalId))!=='SUPER')return false;
     if(c==='006'&&victim.pokerHand.length===0)return false;
     return true;});
@@ -184,7 +185,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     if(denied.has(j)){log(item.playerId,'Efecto negado',getCard(item.cardId)?.name||item.cardId);continue}
     if(kind==='033'){if(j>0)denied.add(j-1);continue}
     if(kind==='024'){react(p.id);continue}
-    resolve.push({...item,copyOrigin:base,originAllowed:!denied.has(0),triggerPlayerId:j>0?base.playerId:null});
+    resolve.push({...item,copyOrigin:base,originAllowed:!denied.has(0),triggerPlayerId:j>0?base.playerId:null,triggerCardId:j>0?base.cardId:null});
    }
    for(const item of stack)if(code(item.cardId)!=='040'||denied.has(stack.indexOf(item)))manual.giveBack(item.cardId,item.ownerId);
    for(const x of resolve)fx.enqueue(x);
