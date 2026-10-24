@@ -186,7 +186,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     }
     if(!p.selected.includes(id))p.selected.push(id);
     else p.selected=p.selected.filter(x=>x!==id);
-    if(p.selected.length===p.need){
+    if(p.selected.length===p.needed){
       pending=null;ctx.setModal(null);activate(p.pid,p.index,p.selected);return;
     }
     ctx.render();
@@ -197,7 +197,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
       (p.kind==='offense'?game().decks.filter(x=>x.id!==p.pid).map(x=>({id:x.id,name:'Jugador '+x.playerNumber+' · '+x.name})):state(p.pid).pokerHand.filter(x=>!virtual(x)).map(x=>({id:x.id,name:x.rank+' de '+x.suit})));
     return '<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>'+
       (p.kind==='sabueso'?'Sabueso de Ases · Elegir palo':p.kind==='ability'?'Reglas Antiguas · Intercambiar':p.kind==='offense'?'Artilugio · Elegir rival':'Vincular Poker Cards')+
-      '</h2></div><div class="modal-content"><p>Selecciona '+(p.need||1)+' opción(es).</p><div style="display:flex;flex-wrap:wrap;gap:10px">'+options.map(x=>
+      '</h2></div><div class="modal-content"><p>Selecciona '+(p.needed||1)+' opción(es).</p><div style="display:flex;flex-wrap:wrap;gap:10px">'+options.map(x=>
       '<button class="btn '+(p.selected.includes(x.id)?'primary':'')+'" data-action="linked-option" data-id="'+ctx.esc(x.id)+'">'+ctx.esc(x.name)+'</button>').join('')+'</div></div></div></div>';
   }
   function cardLabel(pid,c){
