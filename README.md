@@ -2,6 +2,16 @@
 
 Versión web estática basada en `DeckCreator_AndroidStudio_v0_13_NEW_CATALOG` y ajustada para escritorio.
 
+## Exportación PDF móvil y compresión — 24/10/2026
+
+- **Android / navegadores integrados:** no se intenta guardar automáticamente al finalizar una simulación; los navegadores móviles pueden bloquear esa descarga sin interacción. La pantalla final ofrece **Preparar PDF completo** y, para lotes, **Preparar resumen ligero**.
+- **Confirmación visible:** al terminar de generar el documento aparece un panel independiente con enlaces reales de usuario **Descargar PDF** (`a[download]` con Blob URL), **Abrir PDF** y **Compartir PDF** (Web Share API, si está disponible). Android debe ejecutar la descarga o compartir al pulsar el usuario. Nunca se afirma éxito basándose únicamente en que `jsPDF.save()` no lanzó excepción.
+- **Compresión antes de exportar:** los PDF de Simulación, Prueba Manual/Asistida e impresión de decks usan `compress:true` (compresión interna de flujos de PDF). Las imágenes de cartas impresas usan JPEG con calidad 0.86 para contener el tamaño, manteniendo salida PDF normal, sin obligar a descomprimir ZIP.
+- **Resumen para 1–200 simulaciones:** conserva estadísticas, clasificación y resultados individuales, pero omite los historiales exhaustivos. El informe completo sigue disponible; su generación cede tiempo al navegador cada cinco partidas para evitar bloqueos prolongados.
+- **Carga de bibliotecas:** se prueban jsDelivr, cdnjs y unpkg (jsPDF) y jsDelivr/cdnjs (html2canvas) cuando son necesarios. Este flujo web **requiere conexión** para descargar bibliotecas que aún no estén en caché; no certifica un APK totalmente offline.
+- **Conservación de datos:** no se modifica el esquema ni se borran los decks o el historial guardado del usuario.
+- **Pruebas:** suite de regresión ampliada con escenario móvil simulado de enlace Blob + Web Share, generación de informes compactos y completos de 200 partidas, arranque y simulación con rotación.
+
 ## Actualización: rotación y semillas — 24/10/2026
 
 - **Simulación automática:** admite entre **1 y 200 partidas**, con cantidad editable desde Configurar partida de IA.
