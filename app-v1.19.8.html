@@ -686,9 +686,9 @@ window.STARTER_CARDS = [
   let deckTypeFilter = 'ALL';
   let addTypeFilter = 'ALL';
   let sim = null;
-  let testSetup = {playerCount:2,deckIds:[],pokerDeckCount:1,handView:'POWER'};
+  let testSetup = {playerCount:2,deckIds:[],pokerDeckCount:1,handView:'POWER',seedInput:''};
   let testMode = 'MANUAL_FULL';
-  let autoSetup={playerCount:2,deckIds:[],aiLevels:[],pokerDeckCount:1,battleMode:'BLITZ',seed:0,gamesCount:1};
+  let autoSetup={playerCount:2,deckIds:[],aiLevels:[],pokerDeckCount:1,battleMode:'BLITZ',seed:0,seedInput:'',gamesCount:1};
   let autoStatus={round:0,maxRounds:40,events:0};
   let autoResult=null,autoBatchResults=[],autoBusy=false,autoCancel=null;
   let toastTimer;
@@ -943,21 +943,27 @@ function syncAutoSetup(){
     autoSetup.playerCount=Math.min(6,Math.max(1,Number(autoSetup.playerCount)||2));
     if(![1,2].includes(Number(autoSetup.pokerDeckCount)))autoSetup.pokerDeckCount=1;
     if(!['BLITZ','RUSH'].includes(autoSetup.battleMode))autoSetup.battleMode='BLITZ';
-    autoSetup.gamesCount=Math.min(50,Math.max(1,Math.trunc(Number(autoSetup.gamesCount)||1)));
+    autoSetup.gamesCount=Math.min(200,Math.max(1,Math.trunc(Number(autoSetup.gamesCount)||1)));
     for(let i=0;i<autoSetup.playerCount;i++){
       if(!decks.some(d=>d.id===autoSetup.deckIds[i]))autoSetup.deckIds[i]=decks[i%Math.max(1,decks.length)]?.id||null;
       if(!['beginner','intermediate','expert'].includes(autoSetup.aiLevels[i]))autoSetup.aiLevels[i]='intermediate';
     }
   }
+  function seedEditorHTML(id,value,kind){return `<label for="${id}" style="display:block;margin:12px 0 6px;font-weight:700">Semilla de condiciones iniciales</label><input id="${id}" type="number" inputmode="numeric" min="0" max="4294967295" step="1" value="${esc(String(value??''))}" placeholder="Aleatoria (dejar vacío)" style="width:min(100%,310px);padding:10px;border:1px solid #9ca3af;border-radius:8px"><p class="small muted">Número entero entre 0 y 4.294.967.295. Vacío: generar semilla nueva; mismo valor: repetir condiciones aleatorias con el mismo modo y decks. La semilla se registra en ${kind==='auto'?'el PDF de Simulación':'el historial y el PDF de la prueba'}.</p>`}
+  function parseSeed(value){const str=String(value??'').trim();if(!str)return null;if(!/^\d+$/.test(str))throw Error('La semilla debe ser un número entero sin signo.');const n=Number(str);if(!Number.isSafeInteger(n)||n<0||n>4294967295)throw Error('La semilla debe estar entre 0 y 4294967295.');return n>>>0;}
+  function generateSeed(){const bytes=new Uint32Array(1);if(typeof crypto!=='undefined'&&crypto.getRandomValues)crypto.getRandomValues(bytes);else bytes[0]=Date.now()>>>0;return bytes[0]>>>0;}
+  function makeSeededRandom(seed){let state=(seed>>>0)||123456789;return {next:()=>{state^=state<<13;state^=state>>>17;state^=state<<5;return (state>>>0)/4294967296;},getState:()=>state>>>0,setState:n=>{state=n|0;}};}
   function renderAutoSetup(){
     syncAutoSetup();const decks=availableTestDecks();
     return `<main class="app-shell">${appBar('Simulación automática',{back:true})}
       <section class="test-setup-wrap" style="max-width:1040px;margin:0 auto;overflow-y:auto;padding-bottom:30px">
         <div class="panel test-setup-card"><h2>Configurar partida de IA</h2>
           <p class="small muted">Las partidas se juegan sin intervención. El resultado y todas las acciones se entregan exclusivamente en PDF.</p>
-          <label for="auto-games-count" style="display:block;margin:12px 0 5px;font-weight:bold">Número de partidas (1–50)</label>
-          <input id="auto-games-count" type="number" inputmode="numeric" min="1" max="50" step="1" value="${autoSetup.gamesCount}" style="width:160px;max-width:100%;padding:10px;border:1px solid #9ca3af;border-radius:8px" aria-describedby="auto-games-hint">
-          <p id="auto-games-hint" class="small muted">Todas tendrán los mismos jugadores, decks, dificultad, modo y número de barajas. Solo cambiará la semilla aleatoria. Se generará un PDF consolidado.</p>
+          <label for="auto-games-count" style="display:block;margin:12px 0 5px;font-weight:bold">Número de partidas (1–200)</label>
+          <input id="auto-games-count" type="number" inputmode="numeric" min="1" max="200" step="1" value="${autoSetup.gamesCount}" style="width:160px;max-width:100%;padding:10px;border:1px solid #9ca3af;border-radius:8px" aria-describedby="auto-games-hint">
+          <p id="auto-games-hint" class="small muted">Jugadores, barajas y dificultades permanecen constantes. Los asientos rotan en cada partida y cada encuentro recibe una semilla reproducible diferente.</p>
+          ${seedEditorHTML('auto-seed-input',autoSetup.seedInput,'auto')}
+          <p class="small muted">Para comparar resultados por jugador se usa su identidad original, aunque cambie su posición en la mesa. Hasta 200 partidas.</p>
           <h3>Jugadores</h3><div class="test-setup-count">${Array.from({length:6},(_,i)=>i+1).map(n=>`<button class="${autoSetup.playerCount===n?'active':''}" data-action="auto-players" data-value="${n}">${n}</button>`).join('')}</div>
           <h3 style="margin:12px 0 4px">Modo</h3><div class="test-poker-options">${[['BLITZ','Blitz Battle · 30 fichas'],['RUSH','Rush Battle · 15 fichas']].map(([id,title])=>`<button type="button" class="test-poker-option ${autoSetup.battleMode===id?'active':''}" data-action="auto-battle" data-value="${id}">${title}</button>`).join('')}</div>
           <h3 style="margin:12px 0 4px">Barajas de póker</h3><div class="test-poker-options">${[1,2].map(n=>`<button class="test-poker-option ${autoSetup.pokerDeckCount===n?'active':''}" data-action="auto-poker-decks" data-value="${n}">${n} baraja${n===1?'':'s'} · ${52*n} cartas</button>`).join('')}</div>
@@ -1009,6 +1015,7 @@ function syncAutoSetup(){
               ${valid.length?valid.map(d=>`<option value="${esc(d.id)}" ${selected?.id===d.id?'selected':''}>${esc(d.name)} (${d.cardIds.length})</option>`).join(''):'<option>No hay decks con cartas</option>'}
             </select></div>`;
         }).join('')}</div>
+        <div class="panel test-setup-card">${seedEditorHTML('test-seed-input',testSetup.seedInput,'test')}</div>
         <div class="test-setup-footer"><span class="small muted">${testMode==='MANUAL_SIMPLE'?`Mano inicial: ${state.handSize} Power Cards. Poker Cards físicas: sin digitalizar.`:`Mano inicial: ${state.handSize} Power Cards y 5 Poker Cards por jugador · Poker Deck: ${testSetup.pokerDeckCount===2?'2 barajas':'1 baraja'}.`}</span>
           <button class="btn primary" data-action="start-sim" ${valid.length?'':'disabled'}>${icon('play')} Iniciar ${testMode==='ASSISTED'?'Prueba Asistida':'Prueba Manual'}</button></div>
       </section></main>`;
@@ -1215,7 +1222,8 @@ function syncAutoSetup(){
   function bindInputs(){
     $$('[data-auto-deck]').forEach(el=>el.addEventListener('change',()=>{autoSetup.deckIds[Number(el.dataset.autoDeck)]=el.value}));
     $$('[data-auto-ai]').forEach(el=>el.addEventListener('change',()=>{autoSetup.aiLevels[Number(el.dataset.autoAi)]=el.value}));
-    const numberOfGames=$('#auto-games-count');if(numberOfGames){numberOfGames.addEventListener('change',()=>{autoSetup.gamesCount=Math.min(50,Math.max(1,Math.trunc(Number(numberOfGames.value)||1)));numberOfGames.value=autoSetup.gamesCount;});numberOfGames.addEventListener('input',()=>{const n=Number(numberOfGames.value);if(Number.isInteger(n)&&n>=1&&n<=50)autoSetup.gamesCount=n;});}
+    const numberOfGames=$('#auto-games-count');if(numberOfGames){numberOfGames.addEventListener('change',()=>{autoSetup.gamesCount=Math.min(200,Math.max(1,Math.trunc(Number(numberOfGames.value)||1)));numberOfGames.value=autoSetup.gamesCount;});numberOfGames.addEventListener('input',()=>{const n=Number(numberOfGames.value);if(Number.isInteger(n)&&n>=1&&n<=200)autoSetup.gamesCount=n;});}
+    for(const [selector,setup] of [['#auto-seed-input',autoSetup],['#test-seed-input',testSetup]]){const el=$(selector);if(el)el.addEventListener('input',()=>{setup.seedInput=el.value.trim()});}
     $$('[data-trade-player]').forEach(el=>el.addEventListener('change',e=>{
       if(modal?.type!=='trade'||!sim)return;
       const side=el.dataset.tradePlayer,other=side==='from'?'to':'from',value=e.target.value;
@@ -1254,11 +1262,12 @@ function syncAutoSetup(){
     const descHelp=$('#cardDesc')?.nextElementSibling;if(descHelp)descHelp.textContent=editingCard.description.length+'/350';
   }
   function countIds(arr){return arr.reduce((o,id)=>(o[id]=(o[id]||0)+1,o),{})}
-  function shuffle(arr){const a=[...arr],mode=state.randomizationSettings.mode;if(mode==='FAST')return fisher(a,false);if(mode==='SECURE')return fisher(a,true);let r=a;for(let i=0;i<3;i++)r=fisher(r,false);if(r.length>2){const cut=Math.floor(Math.random()*r.length);r=r.slice(cut).concat(r.slice(0,cut));}return r}
-  function fisher(a,secure){for(let i=a.length-1;i>0;i--){let j;if(secure&&crypto?.getRandomValues){const x=new Uint32Array(1);crypto.getRandomValues(x);j=x[0]%(i+1)}else j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+  function shuffle(arr){const a=[...arr],mode=state.randomizationSettings.mode;if(mode==='FAST')return fisher(a,false);if(mode==='SECURE')return fisher(a,true);let r=a;for(let i=0;i<3;i++)r=fisher(r,false);if(r.length>2){const cut=randomInt(r.length);r=r.slice(cut).concat(r.slice(0,cut));}return r}
+  function fisher(a,secure){for(let i=a.length-1;i>0;i--){let j;if(sim?.seededRng)j=randomInt(i+1);else if(secure&&typeof crypto!=='undefined'&&crypto.getRandomValues){const x=new Uint32Array(1);crypto.getRandomValues(x);j=x[0]%(i+1)}else j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
   function randomInt(max){
     if(max<=1)return 0;
-    if(crypto?.getRandomValues){const a=new Uint32Array(1);const limit=Math.floor(0x100000000/max)*max;let x;do{crypto.getRandomValues(a);x=a[0]}while(x>=limit);return x%max}
+    if(sim?.seededRng)return Math.floor(sim.seededRng.next()*max);
+    if(typeof crypto!=='undefined'&&crypto.getRandomValues){const a=new Uint32Array(1);const limit=Math.floor(0x100000000/max)*max;let x;do{crypto.getRandomValues(a);x=a[0]}while(x>=limit);return x%max}
     return Math.floor(Math.random()*max);
   }
   function buildPokerDeck(deckCount=1){
@@ -1295,8 +1304,12 @@ function syncAutoSetup(){
     const valid=testSetup.deckIds.slice(0,testSetup.playerCount).map((sourceId,i)=>{
       const d=sources.find(x=>x.id===sourceId);return d?{...d,id:'test-player-'+(i+1),sourceDeckId:d.id,playerNumber:i+1}:null;
     }).filter(Boolean);
-    sim={mode:testMode,decks:valid,activeIndex:0,result:'Listo para jugar',states:{},histories:{},undoStacks:{},startedAt:Date.now(),handView:testSetup.handView||'POWER',pokerDeckCount:testSetup.pokerDeckCount,pokerDrawPile:testMode==='MANUAL_SIMPLE'?[]:shuffle(buildPokerDeck(testSetup.pokerDeckCount)),turnIndex:0,round:1,goal:30,chargeSelection:[],finished:false,chain:null};
+    let chosenSeed;try{chosenSeed=parseSeed(testSetup.seedInput)}catch(err){toast(String(err.message||err));return false}const seed=chosenSeed??generateSeed();
+    sim={mode:testMode,decks:valid,activeIndex:0,result:'Listo para jugar',states:{},histories:{},undoStacks:{},startedAt:Date.now(),handView:testSetup.handView||'POWER',pokerDeckCount:testSetup.pokerDeckCount,seed,seededRng:makeSeededRandom(seed),pokerDrawPile:[],turnIndex:0,round:1,goal:30,chargeSelection:[],finished:false,chain:null};
+    sim.pokerDrawPile=testMode==='MANUAL_SIMPLE'?[]:shuffle(buildPokerDeck(testSetup.pokerDeckCount));
     for(const d of valid){const sh=shuffle(d.cardIds),n=Math.min(state.handSize,sh.length),hand=sh.slice(0,n),pokerHand=testMode==='MANUAL_SIMPLE'?[]:sim.pokerDrawPile.splice(0,Math.min(5,sim.pokerDrawPile.length));sim.states[d.id]={initialCards:d.cardIds.length,drawPile:sh.slice(n),hand,handOwners:hand.map(()=>d.id),drawOwners:sh.slice(n).map(()=>d.id),pokerHand,pokerLimit:7,activeHyper:[],chips:0,chargeReplacement:0,turnsTaken:0,dieBase:null,dieModifier:0,dieRolling:false,currentPhase:'MAIN',powerHandLimit:4};sim.histories[d.id]=hand.map(cid=>{const c=getCard(cid);return {at:Date.now(),action:'Carta inicial',detail:'Carta repartida en la mano inicial.',cardName:c?.name||'',cardDescription:c?.description||''}});if(pokerHand.length)sim.histories[d.id].push({at:Date.now(),action:'Poker Hand inicial',detail:`${pokerHand.length} Poker Cards repartidas.`,cardName:'',cardDescription:''});sim.undoStacks[d.id]=[]}
+    for(const d of valid)logSim(d.id,'Semilla inicial','Semilla '+seed+'; barajado '+state.randomizationSettings.mode+'; modo '+testMode+'.');
+    return true;
   }
   function currentSim(){const valid=sim?.decks||[],d=valid[sim.activeIndex%valid.length];return {valid,d,s:sim.states[d.id]}}
   function phaseLabel(v){return ({DRAW:'Draw Phase',MAIN:'Main Phase',CHARGE:'Charge Phase',END:'End Phase'})[v]||'Main Phase'}
@@ -1308,7 +1321,7 @@ function syncAutoSetup(){
         sim.undoStacks[owner]=stack.filter(u=>!u.tradeStates||!Object.hasOwn(u.tradeStates,deckId));
       }
     }
-sim.undoStacks??={};const snap=structuredClone(sim.states[deckId]);snap.dieRolling=false;(sim.undoStacks[deckId]??=[]).push({label,state:snap,pokerDrawPile:structuredClone(sim.pokerDrawPile||[]),historyLength:(sim.histories?.[deckId]||[]).length,result:sim.result});if(sim.undoStacks[deckId].length>60)sim.undoStacks[deckId].shift()}
+sim.undoStacks??={};const snap=structuredClone(sim.states[deckId]);snap.dieRolling=false;(sim.undoStacks[deckId]??=[]).push({label,state:snap,pokerDrawPile:structuredClone(sim.pokerDrawPile||[]),rngState:sim.seededRng?.getState(),historyLength:(sim.histories?.[deckId]||[]).length,result:sim.result});if(sim.undoStacks[deckId].length>60)sim.undoStacks[deckId].shift()}
   function undoCurrentAction(){const {d}=currentSim(),stack=sim.undoStacks?.[d.id]||[];if(!stack.length){toast('No hay acciones para deshacer');return}const u=stack.pop();
     if(u.tradeStates){
       for(const [id,snapshot] of Object.entries(u.tradeStates)){
@@ -1318,7 +1331,7 @@ sim.undoStacks??={};const snap=structuredClone(sim.states[deckId]);snap.dieRolli
       if(Array.isArray(u.tradePokerDrawPile))sim.pokerDrawPile=structuredClone(u.tradePokerDrawPile);
       sim.result='Deshecho: '+(u.label||'acción manual');modal=null;render();return;
     }
-sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.pokerDrawPile=structuredClone(u.pokerDrawPile);if(sim.histories?.[d.id])sim.histories[d.id]=sim.histories[d.id].slice(0,u.historyLength);sim.result='Deshecho: '+(u.label||'última acción');render()}
+sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.pokerDrawPile=structuredClone(u.pokerDrawPile);if(Number.isInteger(u.rngState))sim.seededRng?.setState(u.rngState);if(sim.histories?.[d.id])sim.histories[d.id]=sim.histories[d.id].slice(0,u.historyLength);sim.result='Deshecho: '+(u.label||'última acción');render()}
   function maxHandMessage(s){const msg=`Límite máximo de Power Cards alcanzado (${s.powerHandLimit}).`;sim.result=msg;toast(msg)}
   function drawRandomOne(deckId,s,action='Robar al azar',detail='Se robó 1 Power Card al azar del deck.'){if(!s.drawPile.length)return null;if(powerHandCount(s)>=s.powerHandLimit){maxHandMessage(s);return null}manualRules.own(deckId);const pos=randomInt(s.drawPile.length),[cid]=s.drawPile.splice(pos,1),[owner]=s.drawOwners.splice(pos,1),c=getCard(cid);s.hand.push(cid);s.handOwners.push(owner||deckId);logSim(deckId,action,detail,c);return c}
   function enterDrawPhase(d,s){pushUndo(d.id,'Draw Phase');const before=s.currentPhase||'MAIN';s.currentPhase='DRAW';logSim(d.id,'Cambiar fase',`${phaseLabel(before)} → Draw Phase.`);const slots=Math.max(0,s.powerHandLimit-powerHandCount(s)),qty=Math.min(3+(sim?.mode==='ASSISTED'?(s.powerDrawBonus||0):0),slots,s.drawPile.length);const names=[];for(let k=0;k<qty;k++){manualRules.own(d.id);const pos=randomInt(s.drawPile.length),[cid]=s.drawPile.splice(pos,1),[owner]=s.drawOwners.splice(pos,1),c=getCard(cid);s.hand.push(cid);s.handOwners.push(owner||d.id);if(c)names.push(c.name)}if(qty){logSim(d.id,'Robo automático de Draw Phase',`Se robaron ${qty} Power Card${qty===1?'':'s'}: ${names.join(', ')}.`)}else{logSim(d.id,'Robo automático de Draw Phase',slots<=0?`No se robó: límite máximo de Power Cards (${s.powerHandLimit}) alcanzado.`:'No quedaban cartas disponibles en el deck.');if(slots<=0)toast(`Límite máximo de Power Cards alcanzado (${s.powerHandLimit}).`)}if(qty<3&&slots<3)toast(`Draw Phase: ${qty} carta${qty===1?'':'s'} robada${qty===1?'':'s'} por límite de Power Hand (${s.powerHandLimit}).`);if(sim?.mode==='ASSISTED')assistedLinks?.phase('DRAW_END',d.id);
@@ -1331,7 +1344,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
   function cardSetPdfText(items){if(!items?.length)return '—';return items.map(x=>`${x.count||1}× ${x.name||'Carta'}`).join(', ')}
   function buildTestRecord(reason='Prueba finalizada'){
     if(!sim)return null;const endedAt=Date.now(),valid=sim.decks||[];
-    return {id:(crypto?.randomUUID?.()||('test_'+endedAt+'_'+Math.random().toString(36).slice(2))),appVersion:APP_VERSION,startedAt:sim.startedAt||endedAt,endedAt,durationMs:endedAt-(sim.startedAt||endedAt),exitReason:reason,initialHandSize:state.handSize,mode:sim.mode||'MANUAL_FULL',rounds:Number(sim.round||1),gameFinished:!!sim.finished,pokerDeckCount:Number(sim.pokerDeckCount||1),pokerDeckRemainingCount:(sim.pokerDrawPile||[]).length,decks:valid.map(d=>{const s=sim.states[d.id]||{},activeIndexSet=new Set(s.activeHyper||[]),activeIds=(s.activeHyper||[]).map(i=>s.hand?.[i]).filter(Boolean),powerHandIds=(s.hand||[]).filter((_,i)=>!activeIndexSet.has(i));return {deckId:d.id,sourceDeckId:d.sourceDeckId,playerNumber:d.playerNumber,name:'Jugador '+d.playerNumber+' · '+d.name,description:d.description||'',initialCards:Number(s.initialCards||d.cardIds.length),initialDeck:snapshotCardSet(d.cardIds),remainingCount:s.drawPile?.length||0,remainingDeck:snapshotCardSet(s.drawPile||[]),finalHandCount:s.hand?.length||0,finalHand:snapshotCardSet(s.hand||[]),finalPowerHandCount:powerHandIds.length,finalPowerHand:snapshotCardSet(powerHandIds),finalPokerHandCount:(s.pokerHand||[]).length,finalPokerHand:snapshotPokerSet(s.pokerHand||[]),pokerLimit:Number(s.pokerLimit??7),activeHyperCount:activeIds.length,activeHyper:snapshotCardSet(activeIds),chips:Number(s.chips||0),dieBase:s.dieBase??null,dieModifier:Number(s.dieModifier||0),dieFinal:s.dieBase?Number(s.dieBase)+Number(s.dieModifier||0):null,powerHandLimit:Number(s.powerHandLimit??4),powerHandCount:powerHandCount(s),hyperLimit:3,mainPhasesEnded:Number(s.mainPhasesEnded||0),finalPhase:s.currentPhase||'MAIN',events:structuredClone(sim.histories?.[d.id]||[])}})}
+    return {id:(crypto?.randomUUID?.()||('test_'+endedAt+'_'+Math.random().toString(36).slice(2))),appVersion:APP_VERSION,startedAt:sim.startedAt||endedAt,endedAt,durationMs:endedAt-(sim.startedAt||endedAt),exitReason:reason,initialHandSize:state.handSize,mode:sim.mode||'MANUAL_FULL',rounds:Number(sim.round||1),gameFinished:!!sim.finished,seed:sim.seed,randomizationMode:state.randomizationSettings.mode,pokerDeckCount:Number(sim.pokerDeckCount||1),pokerDeckRemainingCount:(sim.pokerDrawPile||[]).length,decks:valid.map(d=>{const s=sim.states[d.id]||{},activeIndexSet=new Set(s.activeHyper||[]),activeIds=(s.activeHyper||[]).map(i=>s.hand?.[i]).filter(Boolean),powerHandIds=(s.hand||[]).filter((_,i)=>!activeIndexSet.has(i));return {deckId:d.id,sourceDeckId:d.sourceDeckId,playerNumber:d.playerNumber,name:'Jugador '+d.playerNumber+' · '+d.name,description:d.description||'',initialCards:Number(s.initialCards||d.cardIds.length),initialDeck:snapshotCardSet(d.cardIds),remainingCount:s.drawPile?.length||0,remainingDeck:snapshotCardSet(s.drawPile||[]),finalHandCount:s.hand?.length||0,finalHand:snapshotCardSet(s.hand||[]),finalPowerHandCount:powerHandIds.length,finalPowerHand:snapshotCardSet(powerHandIds),finalPokerHandCount:(s.pokerHand||[]).length,finalPokerHand:snapshotPokerSet(s.pokerHand||[]),pokerLimit:Number(s.pokerLimit??7),activeHyperCount:activeIds.length,activeHyper:snapshotCardSet(activeIds),chips:Number(s.chips||0),dieBase:s.dieBase??null,dieModifier:Number(s.dieModifier||0),dieFinal:s.dieBase?Number(s.dieBase)+Number(s.dieModifier||0):null,powerHandLimit:Number(s.powerHandLimit??4),powerHandCount:powerHandCount(s),hyperLimit:3,mainPhasesEnded:Number(s.mainPhasesEnded||0),finalPhase:s.currentPhase||'MAIN',events:structuredClone(sim.histories?.[d.id]||[])}})}
   }
   function archiveCurrentTest(reason){
     const rec=buildTestRecord(reason);if(!rec)return null;
@@ -1629,7 +1642,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='test-deck'){sim=null;testMode='MANUAL_FULL';syncTestSetup(editingDeckId);go('simSetup')}
     else if(a==='set-test-players'){testSetup.playerCount=Math.max(1,Math.min(6,Number(el.dataset.value)||2));syncTestSetup();render()}
     else if(a==='set-poker-decks'){testSetup.pokerDeckCount=[1,2].includes(Number(el.dataset.value))?Number(el.dataset.value):1;syncTestSetup();render()}
-    else if(a==='start-sim'){if(!availableTestDecks().length){toast('No hay decks disponibles');return}initSim();go('simulator')}
+    else if(a==='start-sim'){if(!availableTestDecks().length){toast('No hay decks disponibles');return}if(initSim())go('simulator')}
     else if(a==='open-trade'){openTrade()}
     else if(a==='trade-kind'&&modal?.type==='trade'){modal.kind=el.dataset.kind==='POWER'?'POWER':'POKER';modal.picked=null;updateTradeView()}
     else if(a==='trade-operation'&&modal?.type==='trade'){
