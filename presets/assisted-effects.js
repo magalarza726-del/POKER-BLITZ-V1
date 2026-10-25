@@ -58,6 +58,123 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     pending={kind:'target',players,title,callback};
     ctx.setModal({type:'assisted-target'});ctx.render();return false;
   }
+  function openChoice(p){pending=p;ctx.setModal({type:'assisted-choice'});ctx.render();return false;}
+  function finishChoice(){
+    pending=null;ctx.setModal(null);links()?.cleanup();drain();
+  }
+  const pokerValue=c=>({A:14,K:13,Q:12,J:11})[c?.rank]||Number(c?.rank)||0;
+  function choiceOptions(){
+    if(!pending||pending.kind==='target')return [];
+    const p=pending,actor=pile(p.pid);
+    if(p.kind==='hyper-search')return actor.drawPile.map((id,i)=>({value:'hyper:'+i,label:card(id)?.name||id,score:ctx.cardScore?.(p.pid,id)||1}))
+      .filter(x=>ctx.type?.(card(actor.drawPile[Number(x.value.slice(6))]))==='HYPER');
+    if(p.kind==='maestro'){
+      const victim=pile(p.enemy),slots=victim.hand.filter((_,i)=>!victim.activeHyper.includes(i)),count=victim.pokerHand.filter(c=>!links()?.protectedCard(p.enemy,c)).length;
+      const options=[];
+      if(victim.chips>=10)options.push({value:'chips',label:'Robar '+Math.floor(victim.chips/10)+' ficha(s) por cada 10 fichas',score:Math.floor(victim.chips/10)*1.8});
+      if(count>=2)options.push({value:'poker',label:'Robar 2 Poker Cards al azar',score:2.9});
+      if(slots.length)options.push({value:'power',label:'Activar una Power Card aleatoria del rival; devolverla si no es aplicable',score:1.6});
+      return options;
+    }
+    if(p.kind==='forced-swap'){
+      const src=p.phase==='own'?p.pid:p.enemy,hand=pile(src).pokerHand,used=p.phase==='own'?p.usedOwn:p.usedEnemy;
+      const options=hand.map(c=>({value:p.phase+':'+c.id,label:c.rank+' '+(c.symbol||c.suit)+(links()?.protectedCard(src,c)?' (protegida)':''),score:p.phase==='own'?15-pokerValue(c):pokerValue(c),disabled:!!links()?.protectedCard(src,c)||used.includes(c.id)}));
+      if(p.phase==='own'&&p.done>0)options.push({value:'finish',label:'Terminar intercambio ('+p.done+' de 2 pares)',score:-10});
+      return options;
+    }
+    return [];
+  }
+  function choiceMarkup(){
+    const p=pending,options=choiceOptions(),who=sim().decks.find(x=>x.id===p.enemy);
+    const title=p.kind==='hyper-search'?'Anzuelo de Mejoras: elige una HyperCard':p.kind==='maestro'?'Maestro de Fichas: elige uno de los 3 efectos':
+      'Intercambio Forzado: mira la mano completa de J'+(who?.playerNumber||'?');
+    const hint=p.kind==='forced-swap'
+      ?(p.phase==='own'?'Selecciona una de tus Poker Cards para entregar. Pares completados: '+p.done+'/2.':'Mano completa del rival (señaladas las protegidas). Elige qué carta recibir.')
+      :p.kind==='hyper-search'?'Solo se muestran HyperCards que realmente están en tu Deck. El coste ya se descontó.':
+        'El rival tiene al menos 5 fichas; elige exactamente una de las opciones aplicables.';
+    let preview='';
+    if(p.kind==='forced-swap'){
+      const enemy=pile(p.enemy);preview='<p class="small muted">Mano completa de J'+(who?.playerNumber||'?')+': '+
+        (enemy.pokerHand.length?enemy.pokerHand.map(c=>ctx.esc(c.rank+' '+(c.symbol||c.suit))+(links()?.protectedCard(p.enemy,c)?' (protegida)':'')).join(' · '):'sin Poker Cards')+'</p>';
+    }
+    return '<div class="modal-backdrop"><div class="modal" style="max-width:720px;max-height:92vh;overflow-y:auto"><div class="modal-head"><h2>'+ctx.esc(title)+'</h2></div><div class="modal-content"><p>'+ctx.esc(hint)+'</p>'+preview+
+      '<div style="display:flex;flex-wrap:wrap;gap:8px">'+options.map(o=>'<button type="button" class="btn '+(o.value==='finish'?'soft':'primary')+'" data-action="assist-option" data-value="'+ctx.esc(o.value)+'" data-ai-score="'+Number(o.score||0)+'" '+(o.disabled?'disabled':'')+'>'+ctx.esc(o.label)+'</button>').join('')+'</div></div></div></div>';
+  }
+  function openHyperSearch(pid){
+    if(!pile(pid).drawPile.some(cid=>ctx.type?.(card(cid))==='HYPER')){log(pid,'007','No quedó ninguna HyperCard elegible en el Deck.');return true}
+    return openChoice({kind:'hyper-search',pid});
+  }
+  function openMaestroChoice(pid,enemy){return openChoice({kind:'maestro',pid,enemy});}
+  function openForcedSwap(pid,enemy){return openChoice({kind:'forced-swap',pid,enemy,phase:'own',done:0,usedOwn:[],usedEnemy:[],ownId:null});}
+  function resolveBorrowedPower(pid,enemy){
+    const actor=pile(pid),victim=pile(enemy),slots=victim.hand.map((cid,i)=>({cid,i})).filter(x=>!victim.activeHyper.includes(x.i));
+    if(!slots.length){log(pid,'009','El rival no tenía Power Cards disponibles.');return}
+    const picked=slots[random(slots.length)],taken=ctx.manual().take(enemy,picked.i);
+    if(!taken){log(pid,'009','No pudo extraerse la Power Card rival.');return}
+    const type=ctx.type?.(card(taken.cardId)),num=taken.cardId.slice(-3);
+    const returnToOwner=()=>ctx.manual().giveBack(taken.cardId,taken.ownerId);
+    if(type==='SUPER'&&num!=='040'&&supported(taken.cardId)&&canPlay(taken.cardId,pid)){
+      markUsed(taken.cardId,pid);returnToOwner();queue.unshift({cardId:taken.cardId,playerId:pid,copied:true});
+      log(pid,'009','Activó como propia la SuperCard '+(card(taken.cardId)?.name||taken.cardId)+' de J'+sim().decks.find(p=>p.id===enemy).playerNumber+'. La carta vuelve al Deck propietario.');return;
+    }
+    if(type==='HYPER'&&actor.currentPhase==='MAIN'&&actor.activeHyper.length<3){
+      const count=actor.activeHyper.filter(i=>actor.hand[i]===taken.cardId).length;
+      const maxCopies=num==='027'?2:1;
+      if(count<maxCopies){
+        const i=actor.hand.length;actor.hand.push(taken.cardId);actor.handOwners.push(taken.ownerId);
+        const linked=!!links()?.supported.has(num);
+        const costs=({'001':[1,1],'002':[1,2],'025':[0,2],'027':[1,1],'028':[0,2],'049':[1,2],'050':[1,1]})[num]||[0,0];
+        const eligible=linked?links().eligible(pid,i):
+          actor.hand.filter((_,j)=>j!==i&&!actor.activeHyper.includes(j)).length>=costs[0]&&actor.pokerHand.length>=costs[1];
+        if(eligible){
+          const previous=sim().activeIndex;sim().activeIndex=sim().decks.findIndex(x=>x.id===pid);
+          try{if(linked)links().open(i);else activate(i);}
+          finally{sim().activeIndex=previous;}
+          log(pid,'009','Intentó activar como propia HyperCard '+(card(taken.cardId)?.name||taken.cardId)+' de J'+sim().decks.find(p=>p.id===enemy).playerNumber+'. Se conserva su dueño original.');
+          return;
+        }
+        actor.hand.pop();actor.handOwners.pop();
+      }
+    }
+    returnToOwner();
+    log(pid,'009','Power Card aleatoria '+(card(taken.cardId)?.name||taken.cardId)+' no aplicable. Devuelta al Deck de J'+sim().decks.find(p=>p.id===enemy).playerNumber+'.');
+  }
+  function chooseOption(value){
+    if(!pending||pending.kind==='target')return;
+    const p=pending,options=choiceOptions(),choice=options.find(o=>o.value===value&&!o.disabled);
+    if(!choice)return;
+    if(p.kind==='hyper-search'){
+      const s=pile(p.pid),index=Number(value.slice(6)),id=s.drawPile[index];
+      if(!Number.isInteger(index)||!id||ctx.type?.(card(id))!=='HYPER')return;
+      if(s.hand.length-s.activeHyper.length>=s.powerHandLimit){log(p.pid,'007','No se pudo tomar HyperCard: Power Hand llena.');finishChoice();return;}
+      const owner=s.drawOwners[index]||p.pid;
+      s.drawPile.splice(index,1);s.drawOwners.splice(index,1);
+      s.hand.push(id);s.handOwners.push(owner);
+      log(p.pid,'007','Buscó y eligió HyperCard '+(card(id)?.name||id)+' de su Deck. Coste completo registrado.');
+      finishChoice();return;
+    }
+    if(p.kind==='maestro'){
+      const victim=pile(p.enemy);
+      pending=null;ctx.setModal(null);
+      if(value==='chips'){const n=Math.floor(victim.chips/10),taken=Math.min(n,victim.chips);addChips(p.enemy,-taken);addChips(p.pid,taken);
+        log(p.pid,'009','Maestro de Fichas: robó '+taken+' fichas (1 por cada 10) de J'+sim().decks.find(q=>q.id===p.enemy).playerNumber+'.');
+      }else if(value==='poker'){const moved=movePoker(p.enemy,p.pid,2);log(p.pid,'009','Maestro de Fichas: robó '+moved.length+' Poker Cards aleatorias de J'+sim().decks.find(q=>q.id===p.enemy).playerNumber+'.');}
+      else if(value==='power')resolveBorrowedPower(p.pid,p.enemy);
+      links()?.cleanup();drain();return;
+    }
+    if(p.kind==='forced-swap'){
+      if(value==='finish'){log(p.pid,'013','Intercambio Forzado terminó con '+p.done+' pares de Poker Cards seleccionadas.');finishChoice();return;}
+      const id=value.slice(value.indexOf(':')+1);
+      if(p.phase==='own'){p.ownId=id;p.phase='rival';ctx.render();return;}
+      const own=pile(p.pid),rival=pile(p.enemy),i=own.pokerHand.findIndex(c=>c.id===p.ownId),j=rival.pokerHand.findIndex(c=>c.id===id);
+      if(i<0||j<0||links()?.protectedCard(p.pid,own.pokerHand[i])||links()?.protectedCard(p.enemy,rival.pokerHand[j]))return;
+      const gave=own.pokerHand[i],got=rival.pokerHand[j];
+      [own.pokerHand[i],rival.pokerHand[j]]=[got,gave];p.done++;p.usedOwn.push(gave.id);p.usedEnemy.push(got.id);p.ownId=null;p.phase='own';
+      log(p.pid,'013','Intercambio Forzado: entregó '+gave.rank+'/'+gave.suit+' y eligió '+got.rank+'/'+got.suit+' viendo toda la mano de J'+sim().decks.find(q=>q.id===p.enemy).playerNumber+'. Par '+p.done+'/2.');
+      if(p.done>=2||!choiceOptions().some(o=>o.value.startsWith('own:')&&!o.disabled)){finishChoice();return;}
+      links()?.cleanup();ctx.render();
+    }
+  }
   function modalMarkup(){
     if(!pending)return '';
     if(pending.kind!=='target')return choiceMarkup();
@@ -211,5 +328,5 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
       if(e.type==='INVEST'){if(!active(e.actor,'049')){all.splice(all.indexOf(e),1);log(e.actor,'049','Gran inversor salió de la mesa: cesan los cobros pendientes.');continue}addChips(e.actor,2);e.remaining--;log(e.actor,'049','Gran inversor: +2 fichas por cierre de ronda.');if(e.remaining<=0){all.splice(all.indexOf(e),1);const st=pile(e.actor),ix=st.activeHyper.find(i=>st.hand[i]==='catalog_v3_049');if(ix!==undefined){const it=ctx.manual().take(e.actor,ix);ctx.manual().giveBack(it.cardId,it.ownerId);recalc(e.actor)}}}
     }
   }
-  return {supported,canPlay,markUsed,usable,hypers,enqueue,finishChain,afterSelection,afterReaction,modalMarkup,choose,activate,phase,round,recalc,beginTurn};
+  return {supported,canPlay,markUsed,usable,hypers,enqueue,finishChain,afterSelection,afterReaction,modalMarkup,choose,chooseOption,choiceOptions,activate,phase,round,recalc,beginTurn};
 };
