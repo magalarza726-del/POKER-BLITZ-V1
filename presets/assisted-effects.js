@@ -79,7 +79,9 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     if(p.kind==='forced-swap'){
       const src=p.phase==='own'?p.pid:p.enemy,hand=pile(src).pokerHand,used=p.phase==='own'?p.usedOwn:p.usedEnemy;
       const options=hand.map(c=>({value:p.phase+':'+c.id,label:c.rank+' '+(c.symbol||c.suit)+(links()?.protectedCard(src,c)?' (protegida)':''),score:p.phase==='own'?15-pokerValue(c):pokerValue(c),disabled:!!links()?.protectedCard(src,c)||used.includes(c.id)}));
-      if(p.phase==='own'&&p.done>0)options.push({value:'finish',label:'Terminar intercambio ('+p.done+' de 2 pares)',score:-10});
+      const remainingEnemy=pile(p.enemy).pokerHand.some(c=>!links()?.protectedCard(p.enemy,c)&&!p.usedEnemy.includes(c.id));
+      if(p.phase==='own'&&!remainingEnemy){for(const option of options)option.disabled=true;}
+      if(p.phase==='own'&&p.done>0)options.push({value:'finish',label:'Terminar intercambio ('+p.done+' de 2 pares)',score:remainingEnemy?-10:100});
       return options;
     }
     return [];
