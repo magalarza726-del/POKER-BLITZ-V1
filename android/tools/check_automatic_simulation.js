@@ -91,6 +91,28 @@ async function run(){
    effectStart(h,'063');
    assert.equal(h.game.states.A.pokerHand.length,4,'Vínculo Noble waives the 2 Poker Card payment');
  }
+
+ {
+   const h=makeFourCardHarness();h.game.states.B.chips=6;h.game.states.B.hand=['catalog_v3_033'];h.game.states.B.handOwners=['B'];
+   effectStart(h,'009','B');h.fx.chooseOption('power');
+   assert.deepEqual(h.game.states.B.drawPile,['catalog_v3_033'],'Inapplicable stolen CounterCard must return to owner Deck');
+   assert.equal(h.game.states.A.pokerHand.length,2,'Inapplicable CounterCard must not produce effects');
+ }
+ {
+   const h=makeFourCardHarness();h.game.states.B.chips=6;h.game.states.B.hand=['catalog_v3_049'];h.game.states.B.handOwners=['B'];
+   h.game.states.A.hand=['catalog_v3_053','catalog_v3_053','catalog_v3_053'];h.game.states.A.handOwners=['A','A','A'];
+   effectStart(h,'009','B');h.fx.chooseOption('power');
+   assert(h.game.states.A.activeHyper.some(i=>h.game.states.A.hand[i]==='catalog_v3_049'),'Borrowed HyperCard should activate if costs allow');
+   assert.equal(h.game.states.A.handOwners[h.game.states.A.activeHyper[0]],'B','Borrowed active HyperCard must retain owner identity');
+ }
+ {
+   const h=makeFourCardHarness();h.game.states.B.chips=7;h.game.states.B.hand=[];h.game.states.B.pokerHand=[h.mkCard('BJ','J'),h.mkCard('BK','K')];
+   assert(h.fx.canPlay('catalog_v3_009','A'),'Maestro must work with 5-9 chips when the 2-Poker option is available');
+   effectStart(h,'009','B');assert(!h.fx.choiceOptions().some(o=>o.value==='chips'),'Zero-chip option should not be offered');
+   h.fx.chooseOption('poker');
+   assert.equal(h.game.states.A.pokerHand.length,4,'Maestro steals exactly two eligible Poker Cards');
+ }
+
  console.log('Updated Maestro, Intercambio Forzado, Reino Amable and Anzuelo behaviors PASSED.');
 
 
