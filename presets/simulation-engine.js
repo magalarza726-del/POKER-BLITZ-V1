@@ -222,15 +222,55 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    }
    if(modal){issue('Límite de decisiones automáticas de efecto alcanzado.');modal=null}
   }
-  function scoreCard(pid,card){
-   const p=players.find(x=>x.id===pid),s=get(pid),c=code(card);
-   let val=({'053':3,'011':2.4,'009':3.2,'029':4.3,'030':4,'035':4.7,'005':4.3,'042':4.3,'043':4.1,'044':4.5,'049':3.7,'040':3.4,'045':3.5,'061':3.3,'033':3.6})[c]||2;
-   if(styleKeys[p.style].includes(c))val+=1.5;
-   if(['040','045','046'].includes(c)&&s.pokerHand.some(x=>x.rank==='A'))val+=1;
-   if(['061','062'].includes(c)&&s.pokerHand.some(x=>['J','Q','K'].includes(x.rank)))val+=1;
-   if(c==='049'&&game.round<8)val+=1;
-   if(p.difficulty==='expert'){val+=Math.min(1.8,s.pokerHand.length*0.15);
-    if(c==='009'&&game.decks.some(x=>x.id!==pid&&get(x.id).chips>=10))val+=1.5}
+  function scoreCard(pid,id){
+   const p=players.find(x=>x.id===pid),s=get(pid),c=code(id),plan=planFor(p),hand=s.pokerHand;
+   const active=c=>s.activeHyper.some(i=>code(s.hand[i])===c);
+   let val=({'053':3.5,'011':3.2,'009':3.1,'029':3.4,'030':3.6,'035':3.2,'005':4.2,'042':3.1,'043':3.2,'044':3.5,'049':3.6,'040':3.2,'045':1.6,'061':1.6,'033':4,'007':3.1,'013':2.8,'063':2.8,'032':3.3,'016':3.5,'031':2.7})[c]||2;
+   if(styleKeys[p.style].includes(c))val+=.35;
+   if(s.pokerHand.length>=s.pokerLimit&&['011','016','031','032','053','063','039','018'].includes(c))val-=1;
+   if(s.pokerHand.length<=3&&['011','016','032','053','063','039'].includes(c))val+=.8;
+   if(c==='049'&&game.round<9)val+=1.1;
+   if(c==='009'){const rivals=players.filter(x=>x.id!==pid),chips=Math.max(0,...rivals.map(x=>get(x.id).chips));val+=chips>=10?2.6:chips>=5?1.1:-3;}
+   if(c==='013'||c==='010'||c==='038'){
+    const candidates=players.filter(x=>x.id!==pid);
+    let best=-100;
+    for(const rival of candidates){
+     const their=get(rival.id).pokerHand;
+     for(const ours of hand.filter(c=>!links.protectedCard?.(pid,c)))for(const theirs of their.filter(c=>!links.protectedCard?.(rival.id,c)))
+      best=Math.max(best,pairGain(pid,rival.id,ours.id,theirs.id));
+    }
+    val+=best>0?Math.min(3,best*.85):best===-100?-4:-2;
+   }
+   if(c==='020'||c==='021')val+=plan.role==='swaps'&&handPotential(pid,hand,plan)<9?1.2:-2;
+   if(c==='030')val+=plan.role==='relics'&&!active('030')?4.2:active('030')?-5:.7;
+   if(c==='029')val+=plan.role==='relics'?2:1;
+   if(c==='035')val+=plan.role==='relics'&&hand.length>=4?1.3:0;
+   if(c==='007'){
+    const search=s.drawPile.filter(cid=>cardType(getCard(cid))==='HYPER').map(code);
+    const favored=plan.role==='relics'?['030','029','035','027']:plan.role==='aces'?['046']:plan.role==='faces'?['062']:['030','046','062'];
+    val+=search.some(x=>favored.includes(x))?3.9:search.length?1:-4;
+    if(s.pokerHand.length<=3)val-=.9;
+   }
+   if(plan.role==='aces'){
+    if(['053','011','016','032','039','026','031','047'].includes(c))val+=plan.aces===0?2.1:1.2;
+    if(c==='046')val+=plan.aces||s.hand.some(x=>code(x)==='040')?3.7:-.7;
+    if(c==='040')val+=plan.aces<2?3.2:plan.aces>=4?-4:1;
+    if(c==='045')val+=plan.aces>=2?plan.aces*2.7:plan.aces===1&&active('046')?2:-8;
+    if(c==='041')val+=hand.length>=4?1.4:0;
+   }
+   if(plan.role==='faces'){
+    if(['053','011','016','032','039','026','063','031'].includes(c))val+=plan.faces<3?2.3:1;
+    if(c==='062')val+=plan.faces>=1?3.2:-2;
+    if(c==='061')val+=plan.faces>=3?plan.faces*2.25:plan.faces>=2&&active('062')?5:-8;
+    if(c==='023')val+=plan.faces>=1?2:3;
+    if(c==='057'&&active('062'))val+=2;
+    if(c==='063'&&active('062'))val+=1.5;
+   }
+   if(plan.role==='artifacts'&&['042','043','044','058','059','060','005'].includes(c))val+=2;
+   if(plan.role==='swaps'&&['013','010','038','012','026','016'].includes(c))val+=2;
+   if(plan.role==='swaps'&&c==='013'&&hand.length>=3)val+=1.8;
+   // Keep scarce combo enablers and avoid clearing the entire Power Hand.
+   if(s.hand.length-s.activeHyper.length<=2&&['007','029','030','045','061','013'].includes(c))val+=.4;
    return val;
   }
   function legalHyper(pid,i){
@@ -246,20 +286,31 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    const s=get(p.id),available=[];
    for(let i=0;i<s.hand.length;i++){
     if(s.activeHyper.includes(i))continue;
-    const id=s.hand[i],kind=cardType(getCard(id)),c=code(id);
-    if(c==='003')continue; // Manipulador se juega legalmente como reacción al dado, no después.
-    if(p.difficulty==='expert'){
-      if(c==='045'&&s.pokerHand.filter(x=>x.rank==='A').length<(s.activeHyper.some(j=>code(s.hand[j])==='046')?1:2))continue;
-      if(c==='061'&&s.pokerHand.filter(x=>['J','Q','K'].includes(x.rank)).length<(s.activeHyper.some(j=>code(s.hand[j])==='062')?1:3))continue;
-    }
-    if(kind==='HYPER'&&fx.supported(id)&&legalHyper(p.id,i))available.push({i,id,kind});
-    else if(kind==='SUPER'&&fx.supported(id)&&fx.canPlay(id,p.id))available.push({i,id,kind});
+    const id=s.hand[i],kind=cardType(getCard(id)),c=code(id),plan=planFor(p);
+    if(c==='003')continue; // Reactive dice modifier, not a standalone proactive play.
+    if(c==='040'&&plan.role==='aces'&&plan.aces>=4)continue;
+    if(c==='045'&&plan.aces<2&&!(plan.aces>=1&&s.activeHyper.some(j=>code(s.hand[j])==='046')))continue;
+    if(c==='061'&&plan.faces<3&&!(plan.faces>=2&&s.activeHyper.some(j=>code(s.hand[j])==='062')))continue;
+    if(c==='062'&&plan.faces===0&&s.hand.some(x=>code(x)==='061'))continue;
+    if(kind==='HYPER'&&fx.supported(id)&&legalHyper(p.id,i))available.push({i,id,kind,score:scoreCard(p.id,id)});
+    else if(kind==='SUPER'&&fx.supported(id)&&fx.canPlay(id,p.id))available.push({i,id,kind,score:scoreCard(p.id,id)});
    }
    if(!available.length)return null;
-   if(p.difficulty==='beginner')return rng.next()<0.6?available[random(available.length)]:null;
-   if(p.difficulty==='intermediate'&&rng.next()<0.19)return null;
-   available.sort((a,b)=>scoreCard(p.id,b.id)-scoreCard(p.id,a.id));
-   if(p.difficulty==='intermediate'&&available.length>1&&rng.next()<0.23)return available[1];
+   available.sort((a,b)=>b.score-a.score);
+   const threshold={beginner:2.25,intermediate:2.8,expert:3.35}[p.difficulty]||2.8;
+   // Passing is always available: carrying a valuable combo tool into the
+   // next turn often outperforms firing a weak Power Card right now.
+   if(available[0].score<threshold)return null;
+   if(p.difficulty==='beginner'){
+    if(rng.next()<.29)return null;
+    const plausible=available.filter(x=>x.score>=threshold);
+    return plausible[random(Math.min(4,plausible.length))];
+   }
+   if(p.difficulty==='intermediate'){
+    if(rng.next()<.14)return null;
+    return available[Math.min(available.length-1,rng.next()<.17?1:0)];
+   }
+   if(p.difficulty==='expert'&&available[0].score<threshold+.45&&rng.next()<.20)return null;
    return available[0];
   }
   function chooseCounter(pid,trigger,originalId){
