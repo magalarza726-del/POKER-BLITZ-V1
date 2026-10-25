@@ -212,7 +212,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
      fx.choose(selection);
     }else if(modal.type==='assisted-choice'){
      const options=fx.choiceOptions().filter(o=>!o.disabled);
-     if(!options.length){issue('Decisión asistida sin opciones elegibles.');modal=null;break}
+     if(!options.length){fx.cancelChoice();if(modal)issue('Decisión asistida no finalizada tras cancelación segura.');break}
      const p=my(),chosen=chooseSwapOption(p,options)||(p.difficulty==='beginner'?options[random(options.length)]:[...options].sort((a,b)=>Number(b.score||0)-Number(a.score||0))[0]);
      fx.chooseOption(chosen.value);
     }else if(modal.type==='linked-picker'){
