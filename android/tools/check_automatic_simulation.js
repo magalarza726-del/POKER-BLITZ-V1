@@ -261,6 +261,42 @@ async function run(){
  console.log('200 rotated matches, stable player identity and balanced 6-seat distribution PASSED.');
 
  console.log('50-game batch, 6-player setup, 64-card registry, and conservation regressions PASSED.');
+
+ // Regression of real specialist decks, rather than fabricated card collections.
+ require('../../presets/default-decks.js');
+ const strategicNames=['Astra, La Bruja de las Reliquias','Vórtice, El Torbellino Bandido','Aceron, El Maldito de los Ases','Regulus, El Caballero Real'];
+ const specialists=strategicNames.map((name,i)=>{
+  const d=window.POKER_BLITZ_DEFAULT_DECKS.find(deck=>deck.name===name);
+  assert(d&&d.cardIds.length>15,'Missing canonical specialist deck '+name);
+  return {...d,participantId:'P'+(i+1),difficulty:'expert'};
+ });
+ const strategicTotals={plans:0,held:0,discarded:0,relicColorSearch:0,relicColorCharge:0,torbellinoSwaps:0,acesCashed:0,royalsCashed:0};
+ for(let i=0;i<12;i++){
+  const rotated=specialists.map((_,seat)=>specialists[(i+seat)%4]);
+  const g=await engine.play({players:rotated,seed:(321987+Math.imul(i,0x9e3779b9))>>>0,battleMode:i%2?'BLITZ':'RUSH',pokerDeckCount:2,maxRounds:22});
+  assert.equal(g.players.length,4);
+  assert(!g.incidents.length,'Strategic AI integrity/choice issue: '+g.incidents.join('; '));
+  for(const player of g.players)for(const ev of player.events){
+   if(ev.action==='Plan IA')strategicTotals.plans++;
+   if(ev.action==='Fin del turno'&&ev.state?.power>0)strategicTotals.held++;
+   if(ev.action.includes('Descarte')&&ev.action.includes('End Phase'))strategicTotals.discarded++;
+   if(player.name.startsWith('Astra')){
+    if(ev.detail.includes('Buscó y eligió HyperCard CAMBIO DE COLOR'))strategicTotals.relicColorSearch++;
+    if(ev.action==='Cobro automático'&&ev.detail.startsWith('Color '))strategicTotals.relicColorCharge++;
+   }
+   if(player.name.startsWith('Vórtice')&&ev.detail.includes('Intercambio Forzado: entregó'))strategicTotals.torbellinoSwaps++;
+   if(player.name.startsWith('Aceron')&&ev.detail.startsWith('Cobró')&&ev.detail.includes('cartas A'))strategicTotals.acesCashed++;
+   if(player.name.startsWith('Regulus')&&ev.detail.startsWith('Cobró')&&ev.detail.includes('cartas J/Q/K'))strategicTotals.royalsCashed++;
+  }
+ }
+ for(const [k,v] of Object.entries(strategicTotals))assert(v>0,'Named specialist planning never exercised: '+k);
+ for(const level of ['beginner','intermediate','expert']){
+  const g=await engine.play({players:specialists.map(p=>({...p,difficulty:level})),seed:880011,battleMode:'BLITZ',pokerDeckCount:2,maxRounds:8});
+  assert(!g.incidents.length,'Difficulty '+level+' has AI issue: '+g.incidents.join('; '));
+  assert(g.players.every(p=>p.events.some(e=>e.action==='Plan IA')),'All difficulties must make plans');
+ }
+ console.log('Deck specialist plans, Color, Aces, Royals, tactical swap, holding and End Phase discards PASSED.',JSON.stringify(strategicTotals));
+
  console.log('Simulation AI regression PASSED: 1–3 players, beginner/intermediate/expert, seeded results, Rush, cancellation, events.');
  console.log(JSON.stringify({rounds:a.rounds,events:a.eventsCount,scores:a.players.map(p=>p.chips),incidents:a.incidents.slice(0,5)}));
 }
