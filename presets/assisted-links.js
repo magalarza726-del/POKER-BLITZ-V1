@@ -205,6 +205,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     if(virtual(c))tags.unshift(c.virtualPower.type==='SABUESO'?'As de Sabueso':'Joker comodín');
     return tags.length?'<span class="small" style="background:#fff0b8;padding:2px;border-radius:3px;font-size:10px">'+ctx.esc(tags.join(' · '))+'</span>':'';
   }
-  return {supported,artifacts,eligible,open,ability,sabueso,option,modalMarkup,cardLabel,
+  function choiceState(){return pending?{kind:pending.kind,pid:pending.pid,type:pending.type,needed:pending.needed,selected:[...(pending.selected||[])]}:null;}
+  return {choiceState,supported,artifacts,eligible,open,ability,sabueso,option,modalMarkup,cardLabel,
     score,onCharge,onPokerOut,cleanup,onPowerTake,protectedCard,virtual,phase};
 };
