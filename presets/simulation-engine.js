@@ -356,8 +356,8 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    for(const x of resolve)fx.enqueue(x);
    fx.finishChain();autoModal();game.chain=null;log(p.id,'Usar Power Card',getCard(id)?.name||id,getCard(id));return true;
   }
-  function comboList(pid){
-   const s=get(pid),hand=s.pokerHand,active=s.activeHyper.map(i=>s.hand[i]),results=[],max=Math.min(14,hand.length);
+  function comboList(pid,handOverride=null){
+   const s=get(pid),hand=handOverride||s.pokerHand,active=s.activeHyper.map(i=>s.hand[i]),results=[],max=Math.min(14,hand.length);
    for(let count=2;count<=5&&count<=max;count++){
     let checked=0;
     function visit(start,inds){
@@ -374,17 +374,70 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    return results;
   }
   function charge(p){
-   const s=get(p.id);
+   const s=get(p.id),plan=planFor(p);
+   const has=(id)=>s.hand.some(c=>code(c)===id)||s.drawPile.some(c=>code(c)===id);
    for(let n=0;n<8;n++){
     const groups=comboList(p.id);if(!groups.length)break;
+    const initial=handPotential(p.id,s.pokerHand,plan);
+    const forecast=(pick)=>{
+     const used=new Set(pick.inds),remaining=s.pokerHand.filter((_,i)=>!used.has(i));
+     const follow=comboList(p.id,remaining).reduce((best,x)=>Math.max(best,x.points),0);
+     const nextPotential=handPotential(p.id,remaining,plan);
+     const acesSpent=pick.inds.filter(i=>s.pokerHand[i].rank==='A').length;
+     const facesSpent=pick.inds.filter(i=>['J','Q','K'].includes(s.pokerHand[i].rank)).length;
+     const savingAce=plan.role==='aces'&&has('045'),savingRoyal=plan.role==='faces'&&has('061');
+     let reserve=0;
+     if(savingAce)reserve+=acesSpent*(plan.aces>=2?1.45:2.45);
+     if(savingRoyal)reserve+=facesSpent*(plan.faces>=2?1.2:2.15);
+     const horizon=p.difficulty==='expert'?.72:p.difficulty==='intermediate'?.43:.18;
+     return pick.points+horizon*follow+Math.max(-5,Math.min(5,(nextPotential-initial)*.18))-reserve;
+    };
     let pick;
-    if(p.difficulty==='beginner'){if(rng.next()>0.67)break;pick=groups[random(groups.length)]}
-    else{groups.sort((a,b)=>b.points-a.points);pick=p.difficulty==='intermediate'&&rng.next()<0.18?groups[Math.min(1,groups.length-1)]:groups[0]}
+    if(p.difficulty==='beginner'){if(rng.next()>.7)break;pick=groups[random(groups.length)]}
+    else{
+     groups.sort((a,b)=>forecast(b)-forecast(a));
+     pick=p.difficulty==='intermediate'&&groups.length>1&&rng.next()<.12?groups[1]:groups[0];
+     const projected=forecast(pick);
+     if(p.difficulty==='expert'&&projected<.6)break;
+     if(p.difficulty==='intermediate'&&projected<.15&&rng.next()<.7)break;
+    }
     const spent=pick.inds.map(i=>s.pokerHand[i]);
     links.onCharge(p.id,spent);
     for(const i of [...pick.inds].sort((a,b)=>b-a))s.pokerHand.splice(i,1);
     links.onPokerOut(p.id,spent);s.chips+=pick.points;s.chargeReplacement+=spent.length;
     log(p.id,'Cobro automático',pick.name+' +'+pick.points+' fichas con '+spent.map(x=>x.rank+'/'+x.suit).join(', '));
+   }
+  }
+  function endPhaseDiscard(p){
+   const s=get(p.id),plan=planFor(p);
+   const out=[];
+   while(s.pokerHand.length>s.pokerLimit){
+    const index=chooseDiscardPoker(p.id);
+    if(index<0){issue('No hay Poker Cards descartables pese a superar el límite.');break}
+    out.push(s.pokerHand.splice(index,1)[0]);
+   }
+   if(out.length){
+    links.onPokerOut(p.id,out);
+    log(p.id,'Descarte estratégico End Phase','Descartó '+out.length+' Poker Cards con menor valor proyectado; plan: '+plan.goal+'.');
+   }
+   while(s.hand.length-s.activeHyper.length>s.powerHandLimit){
+    const slots=s.hand.map((id,i)=>({id,i})).filter(x=>!s.activeHyper.includes(x.i));
+    if(!slots.length)break;
+    slots.sort((a,b)=>scoreCard(p.id,a.id)-scoreCard(p.id,b.id));
+    const it=manual.take(p.id,slots[0].i);
+    if(!it)break;
+    manual.giveBack(it.cardId,it.ownerId);
+    log(p.id,'Descarte estratégico End Phase','Power Card menos útil '+(getCard(it.cardId)?.name||it.cardId)+'. Plan: '+plan.goal+'.');
+   }
+   // Optional discard is legal for the digital Power Hand, and it frees one
+   // future draw slot while preserving cards that serve a longer-term plan.
+   if(s.turnsTaken>0&&s.drawPile.length&&s.hand.length-s.activeHyper.length>=s.powerHandLimit){
+    const slots=s.hand.map((id,i)=>({id,i})).filter(x=>!s.activeHyper.includes(x.i));
+    slots.sort((a,b)=>scoreCard(p.id,a.id)-scoreCard(p.id,b.id));
+    if(slots.length&&scoreCard(p.id,slots[0].id)<(p.difficulty==='expert'?2.5:p.difficulty==='intermediate'?2.1:1.45)){
+     const it=manual.take(p.id,slots[0].i);
+     if(it){manual.giveBack(it.cardId,it.ownerId);log(p.id,'Descarte táctico End Phase','Liberó 1 espacio para futuros robos; conservó el resto del plan '+plan.goal+'.');}
+    }
    }
   }
   function audit(){
@@ -413,6 +466,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     const p=players[i],s=get(p.id);s.currentPhase='DRAW';
     if(s.turnsTaken>0){drawPower(p.id,3+(s.powerDrawBonus||0));links.phase('DRAW_END',p.id)}
     s.currentPhase='MAIN';fx.beginTurn(p.id);links.phase('MAIN_START',p.id);
+    const currentPlan=planFor(p);s.aiPlan=currentPlan.goal;log(p.id,'Plan IA',currentPlan.role+': '+currentPlan.goal+' (ases '+currentPlan.aces+', figuras '+currentPlan.faces+').');
     for(let j=0;j<8;j++){
      const choice=selectAction(p);if(!choice)break;
      if(choice.kind==='HYPER'){
@@ -428,9 +482,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     s.currentPhase='END';fx.phase('END',p.id);links.phase('END',p.id);
     const cards=s.chargeReplacement||0;s.chargeReplacement=0;
     for(let k=0;k<cards;k++)drawPoker(p.id,s,'Reposición de cobro');
-    const out=[];while(s.pokerHand.length>s.pokerLimit)out.push(s.pokerHand.splice(random(s.pokerHand.length),1)[0]);
-    if(out.length)links.onPokerOut(p.id,out);
-    while(s.hand.length-s.activeHyper.length>s.powerHandLimit)discardPower(p.id,1);
+    endPhaseDiscard(p);
     s.turnsTaken++;log(p.id,'Fin del turno','Ronda '+round+', fichas '+s.chips+'.');
    }
    if(config.cancel?.cancelled)break;
