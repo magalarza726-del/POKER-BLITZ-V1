@@ -87,7 +87,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
   }
   const effectCtx={sim:()=>game,card:getCard,type:cardType,random,shuffle:rngShuffle,log,toast:issue,render:()=>{},
     drawPoker,manual:()=>manual,pushUndo:()=>{},setModal:m=>{modal=m},modal:()=>modal,esc:s=>String(s||'').replace(/[<>&"]/g,''),
-    links:()=>links,cardScore:(pid,id)=>scoreCard(pid,id),pokerCardValue,planFor,chooseCopiedSuper:(pid,ids)=>[...ids].sort((a,b)=>scoreCard(pid,b)-scoreCard(pid,a))[0]};
+    links:()=>links,cardScore:(pid,id)=>scoreCard(pid,id),pokerCardValue,planFor,choosePowerPayment:(pid,id)=>scoreCard(pid,id),choosePokerPayment:(pid,c)=>pokerCardValue(pid,c),chooseCopiedSuper:(pid,ids)=>[...ids].sort((a,b)=>scoreCard(pid,b)-scoreCard(pid,a))[0]};
   fx=window.POKER_BLITZ_ASSISTED_EFFECTS(effectCtx);
   links=window.POKER_BLITZ_ASSISTED_LINKS({...effectCtx,recalc:pid=>fx.recalc(pid),drawPower,discardPower,afterSelection:()=>fx.afterSelection()});
 
@@ -196,7 +196,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    const pick=candidates.map(id=>{
     const c=cards.find(c=>c.id===id);if(!c)return {id,score:0};
     const score=pokerCardValue(pid,c)+
-      (plan.role==='relics'?(Object.entries(ranks.suits).sort((a,b)=>b[1]-a[1])[0]?.[0]!==c.suit?1.1:0):0)+
+      (plan.role==='relics'?(Object.entries(ranks.suits).sort((a,b)=>b[1]-a[1])[0]?.[0]!==c.suit?3.4:-1.5):0)+
       (plan.role==='aces'&&c.rank==='A'?1.2:0)+(plan.role==='faces'&&['J','Q','K'].includes(c.rank)?1.1:0);
     return {id,score};
    }).sort((a,b)=>b.score-a.score);
@@ -257,6 +257,13 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     val+=search.some(x=>favored.includes(x))?3.9:search.length?1:-4;
     if(s.pokerHand.length<=3)val-=.9;
    }
+   if(plan.role==='relics'){
+    if(['053','011','016','032','039','031'].includes(c))val+=hand.length<6?2.4:.3;
+    if(c==='030'&&hand.length<5)val-=4;
+    if(c==='007'&&hand.length<5)val-=4;
+    if(c==='035'&&hand.length<6)val-=3.2;
+    if(c==='029'&&hand.length<4)val-=2;
+   }
    if(plan.role==='aces'){
     if(['053','011','016','032','039','026','031','047'].includes(c))val+=plan.aces===0?2.1:1.2;
     if(c==='046')val+=plan.aces||s.hand.some(x=>code(x)==='040')?3.7:-.7;
@@ -294,6 +301,8 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     if(s.activeHyper.includes(i))continue;
     const id=s.hand[i],kind=cardType(getCard(id)),c=code(id),plan=planFor(p);
     if(c==='003')continue; // Reactive dice modifier, not a standalone proactive play.
+    if(plan.role==='relics'&&((c==='030'&&s.pokerHand.length<5)||(c==='007'&&s.pokerHand.length<5)||(c==='029'&&s.pokerHand.length<4)||(c==='035'&&s.pokerHand.length<6)))continue;
+    if(plan.role==='faces'&&c==='061'&&!s.activeHyper.some(j=>code(s.hand[j])==='062')&&s.pokerHand.length<8)continue;
     if(c==='040'&&plan.role==='aces'&&plan.aces>=4)continue;
     if(c==='045'&&plan.aces<2&&!(plan.aces>=1&&s.activeHyper.some(j=>code(s.hand[j])==='046')))continue;
     if(c==='061'&&plan.faces<3&&!(plan.faces>=2&&s.activeHyper.some(j=>code(s.hand[j])==='062')))continue;
@@ -395,6 +404,12 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
      let reserve=0;
      if(savingAce)reserve+=acesSpent*(plan.aces>=2?1.45:2.45);
      if(savingRoyal)reserve+=facesSpent*(plan.faces>=2?1.2:2.15);
+     if(plan.role==='relics'){
+       const peak=Object.entries(ranksOf(s.pokerHand).suits).sort((a,b)=>b[1]-a[1])[0];
+       const targetSuit=peak?.[0];
+       const ownCount=peak?.[1]||0;
+       if(ownCount>=3&&pick.name!=='Color')reserve+=pick.inds.filter(i=>s.pokerHand[i].suit===targetSuit).length*(s.activeHyper.some(j=>code(s.hand[j])==='030')?2.7:1.25);
+     }
      const horizon=p.difficulty==='expert'?.72:p.difficulty==='intermediate'?.43:.18;
      return pick.points+horizon*follow+Math.max(-5,Math.min(5,(nextPotential-initial)*.18))-reserve;
     };
