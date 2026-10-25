@@ -79,7 +79,10 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
       const x=s.pokerHand.splice(picked.n,1)[0];recyclePoker(pid,[x]);
     }
     for(let i=0;i<pc;i++){
-      const j=s.hand.findIndex((_,j)=>j!==index&&!s.activeHyper.includes(j));const x=ctx.manual().take(pid,j);
+      const eligible=s.hand.map((cid,j)=>({cid,j})).filter(x=>x.j!==index&&!s.activeHyper.includes(x.j));
+      const choice=ctx.choosePowerPayment?[...eligible].sort((a,b)=>ctx.choosePowerPayment(pid,a.cid)-ctx.choosePowerPayment(pid,b.cid))[0]:eligible[0];
+      if(!choice){ctx.toast('No hay Power Card disponible para pagar el vínculo.');return;}
+      const j=choice.j,x=ctx.manual().take(pid,j);
       ctx.manual().giveBack(x.cardId,x.ownerId);if(j<index)index--;
     }
     s.activeHyper.push(index);
