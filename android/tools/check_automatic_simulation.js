@@ -82,6 +82,17 @@ async function run(){
    assert.equal(h.game.states.B.pokerHand[1].id,'A1','Selected own card must be delivered');
  }
  {
+   // One rival Poker Card: Intercambio Forzado must stop after one pair,
+   // not open an empty second selection and interrupt automatic simulation.
+   const h=makeFourCardHarness();
+   h.game.states.B.pokerHand=[h.mkCard('only-card','A','H')];
+   effectStart(h,'013','B');
+   h.fx.chooseOption('own:A1');h.fx.chooseOption('rival:only-card');
+   assert.equal(h.game.states.A.pokerHand[0].id,'only-card');
+   assert.equal(h.game.states.B.pokerHand.length,1);
+   assert.equal(h.fx.modalMarkup(),'','Forced swap must finish once no unused rival choices remain');
+ }
+ {
    const h=makeFourCardHarness();h.game.states.A.chips=18;
    effectStart(h,'063');
    assert.equal(h.game.states.A.pokerHand.length,2,'Reino Amable must draw 2 even above 8 chips, after paying 2');
