@@ -22,6 +22,78 @@ const decks=[
 async function run(){
  const engine=factory({getCard:id=>catalog[id],cardType:type,version:'1.19.8'});
 
+ // Four updated cards: precise prices, player-chosen cards and AI legality.
+ const cardsByNumber=n=>catalog['catalog_v3_'+n];
+ assert(cardsByNumber('009').description.includes('cada 10 fichas'));
+ assert(cardsByNumber('013').description.includes('viendo la mano completa'));
+ assert(!cardsByNumber('063').description.includes('8 fichas'));
+ assert(cardsByNumber('007').description.includes('Hyper Card de tu preferencia'));
+ function makeFourCardHarness(){
+   const mkCard=(id,rank,suit='S')=>({id,rank,suit,symbol:{S:'♠',H:'♥',D:'♦',C:'♣'}[suit]});
+   const makeState=id=>({hand:[],handOwners:[],drawPile:[],drawOwners:[],activeHyper:[],pokerHand:[mkCard(id+'1','2'),mkCard(id+'2','3')],chips:0,currentPhase:'MAIN',turnsTaken:1,powerHandLimit:4,pokerLimit:7});
+   const game={mode:'ASSISTED',round:1,activeIndex:0,decks:[{id:'A',playerNumber:1,name:'A'},{id:'B',playerNumber:2,name:'B'}],states:{A:makeState('A'),B:makeState('B')},pokerDrawPile:Array.from({length:12},(_,i)=>mkCard('draw'+i,'9'))};
+   let modal=null;const logs=[];
+   const manual={
+     own(){},
+     take(pid,i){const state=game.states[pid];if(i<0||i>=state.hand.length)return null;
+       const cardId=state.hand.splice(i,1)[0],ownerId=state.handOwners.splice(i,1)[0]||pid;
+       state.activeHyper=state.activeHyper.filter(v=>v!==i).map(v=>v>i?v-1:v);
+       return {cardId,ownerId,playerId:pid};},
+     giveBack(id,owner){const state=game.states[owner];state.drawPile.push(id);state.drawOwners.push(owner);}
+   };
+   const fx=window.POKER_BLITZ_ASSISTED_EFFECTS({sim:()=>game,card:id=>catalog[id],type,random:n=>0,shuffle:x=>x,log:(pid,action,detail)=>logs.push({pid,action,detail}),toast:()=>{},
+     render:()=>{},setModal:m=>{modal=m},modal:()=>modal,esc:x=>String(x),drawPoker:(pid,state)=>{const c=game.pokerDrawPile.shift();if(c)state.pokerHand.push(c);return c;},
+     pushUndo:()=>{},manual:()=>manual,links:()=>null});
+   return {game,fx,logs,mkCard};
+ }
+ const effectStart=(h,id,target)=>{h.fx.enqueue({cardId:'catalog_v3_'+id,playerId:'A'});h.fx.finishChain();if(target)h.fx.choose(target);};
+ {
+   const h=makeFourCardHarness();h.game.states.B.chips=25;h.game.states.B.hand=['catalog_v3_053'];h.game.states.B.handOwners=['B'];
+   effectStart(h,'009','B');
+   assert(h.fx.choiceOptions().some(x=>x.value==='chips'));
+   h.fx.chooseOption('chips');
+   assert.equal(h.game.states.A.chips,2,'Maestro gets 1 per 10, not per 5');assert.equal(h.game.states.B.chips,23);
+ }
+ {
+   const h=makeFourCardHarness();h.game.states.B.chips=6;h.game.states.B.hand=['catalog_v3_053'];h.game.states.B.handOwners=['B'];
+   effectStart(h,'009','B');h.fx.chooseOption('power');
+   assert.equal(h.game.states.A.pokerHand.length,3,'Borrowed SuperCard must activate');
+   assert.deepEqual(h.game.states.B.drawPile,['catalog_v3_053'],'Borrowed Power Card must return to owner');
+ }
+ {
+   const h=makeFourCardHarness();h.game.states.A.hand=['catalog_v3_053'];h.game.states.A.handOwners=['A'];
+   h.game.states.A.drawPile=['catalog_v3_049','catalog_v3_062','catalog_v3_053'];h.game.states.A.drawOwners=['A','A','A'];
+   assert(h.fx.canPlay('catalog_v3_007','A'),'Search is legal with a HyperCard in deck');
+   effectStart(h,'007');
+   assert(h.fx.choiceOptions().length===2,'Only HyperCards must be selectable');
+   const target=h.fx.choiceOptions().find(o=>o.label==='VÍNCULO NOBLE');
+   assert(target);h.fx.chooseOption(target.value);
+   assert(h.game.states.A.hand.includes('catalog_v3_062'),'Search must retrieve the selected HyperCard');
+   assert.equal(h.game.states.A.pokerHand.length,0,'Anzuelo discards exactly 2 Poker Cards');
+   assert(!h.game.states.A.drawPile.includes('catalog_v3_062'),'Chosen HyperCard must leave the deck');
+ }
+ {
+   const h=makeFourCardHarness();
+   h.game.states.B.pokerHand=[h.mkCard('B-K','K','H'),h.mkCard('B-Q','Q','D')];
+   effectStart(h,'013','B');
+   assert(h.fx.modalMarkup().includes('K ♥'),'The entire rival hand must be visible');
+   h.fx.chooseOption('own:A1');h.fx.chooseOption('rival:B-Q');h.fx.chooseOption('finish');
+   assert.equal(h.game.states.A.pokerHand[0].id,'B-Q','Selected rival card must be received');
+   assert.equal(h.game.states.B.pokerHand[1].id,'A1','Selected own card must be delivered');
+ }
+ {
+   const h=makeFourCardHarness();h.game.states.A.chips=18;
+   effectStart(h,'063');
+   assert.equal(h.game.states.A.pokerHand.length,2,'Reino Amable must draw 2 even above 8 chips, after paying 2');
+ }
+ {
+   const h=makeFourCardHarness();h.game.states.A.hand=['catalog_v3_062'];h.game.states.A.handOwners=['A'];h.game.states.A.activeHyper=[0];h.game.states.A.chips=30;
+   effectStart(h,'063');
+   assert.equal(h.game.states.A.pokerHand.length,4,'Vínculo Noble waives the 2 Poker Card payment');
+ }
+ console.log('Updated Maestro, Intercambio Forzado, Reino Amable and Anzuelo behaviors PASSED.');
+
+
  // Mobile PDF exports must offer a direct Blob link and the native share sheet.
  const mobileStart=src.indexOf('  // Android browsers require a fresh user gesture');
  const mobileEnd=src.indexOf('  // jsPDF core Helvetica',mobileStart);
