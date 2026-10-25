@@ -87,7 +87,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
   }
   const effectCtx={sim:()=>game,card:getCard,type:cardType,random,shuffle:rngShuffle,log,toast:issue,render:()=>{},
     drawPoker,manual:()=>manual,pushUndo:()=>{},setModal:m=>{modal=m},modal:()=>modal,esc:s=>String(s||'').replace(/[<>&"]/g,''),
-    links:()=>links,chooseCopiedSuper:(pid,ids)=>[...ids].sort((a,b)=>scoreCard(pid,b)-scoreCard(pid,a))[0]};
+    links:()=>links,cardScore:(pid,id)=>scoreCard(pid,id),chooseCopiedSuper:(pid,ids)=>[...ids].sort((a,b)=>scoreCard(pid,b)-scoreCard(pid,a))[0]};
   fx=window.POKER_BLITZ_ASSISTED_EFFECTS(effectCtx);
   links=window.POKER_BLITZ_ASSISTED_LINKS({...effectCtx,recalc:pid=>fx.recalc(pid),drawPower,discardPower,afterSelection:()=>fx.afterSelection()});
   function autoModal(){
@@ -98,6 +98,11 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
      const p=my(),score=id=>get(id).chips*2+get(id).pokerHand.length+random(5);
      const selection=p.difficulty==='beginner'?ids[random(ids.length)]:ids.sort((a,b)=>score(b)-score(a))[0];
      fx.choose(selection);
+    }else if(modal.type==='assisted-choice'){
+     const options=fx.choiceOptions().filter(o=>!o.disabled);
+     if(!options.length){issue('Decisión asistida sin opciones elegibles.');modal=null;break}
+     const p=my(),chosen=p.difficulty==='beginner'?options[random(options.length)]:[...options].sort((a,b)=>Number(b.score||0)-Number(a.score||0))[0];
+     fx.chooseOption(chosen.value);
     }else if(modal.type==='linked-picker'){
      const opts=[...links.modalMarkup().matchAll(/data-action="linked-option" data-id="([^"]+)"/g)].map(x=>x[1]);
      if(!opts.length){issue('Vínculo sin opciones elegibles.');modal=null;break}
