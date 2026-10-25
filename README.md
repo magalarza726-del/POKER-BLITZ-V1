@@ -2,6 +2,16 @@
 
 Versión web estática basada en `DeckCreator_AndroidStudio_v0_13_NEW_CATALOG` y ajustada para escritorio.
 
+## Actualización de cuatro efectos oficiales — 24/10/2026
+
+- **Maestro de Fichas (009):** mantiene el requisito de seleccionar a un rival con 5 fichas o más y jugarse una vez por turno. La opción de fichas ahora roba **1 ficha por cada 10** (parte entera); se mantienen las opciones de robar 2 Poker Cards aleatorias o extraer una Power Card aleatoria y activarla como propia cuando resulte aplicable. Una carta no aplicable regresa al Deck de su dueño; las HyperCards que se activan conservan su titular original. La elección entre las tres alternativas se hace explícitamente en Prueba Asistida o mediante heurística en Simulación.
+- **Intercambio Forzado (013):** el jugador puede ver **toda la Poker Hand rival** y seleccionar una carta propia y una carta rival para cada uno de **hasta dos intercambios**, sin escoger cartas al azar. Los vínculos protegidos se muestran pero no pueden elegirse. Hasta 2 activaciones por turno. En Simulación, la IA selecciona cartas válidas según sus criterios.
+- **Reino Amable (063):** al tener **Vínculo Noble** activo, no consume Poker Cards; de lo contrario descarta 2 Poker Cards. Después roba **siempre 2 Poker Cards**, sin límite por fichas. Hasta 2 activaciones por turno.
+- **Anzuelo de Mejoras (007):** consume **2 Poker Cards y 1 Power Card**, permite buscar en el Deck y elegir **una HyperCard** específica (no una Power Card cualquiera). La lista de búsqueda solo muestra HyperCards presentes en el mazo; la elegida entra en Power Hand. Una vez por turno.
+- **Persistencia:** el catálogo inicial actualizado reemplaza automáticamente las descripciones oficiales de estas cartas al restaurar una sesión, manteniendo imágenes personalizadas y decks del usuario.
+- **Verificación:** las pruebas dirigidas abarcan pagos, selección de Poker Cards, copia de una Power Card rival, extracción exclusiva de HyperCards, activación de una HyperCard ajena con conservación de propiedad y Reino Amable por encima de 8 fichas. Adicionalmente se realizaron 60 partidas de estrés con 24.615 eventos y 0 incidencias detectadas por los controles automáticos. Esto no sustituye todas las pruebas interactivas de navegador.
+- **Verificación de HyperCards:** la Simulación ahora comprueba que se haya registrado un evento real de activación; no depende solo del cambio neto de HyperCards, evitando falsos positivos al desaparecer un vínculo simultáneamente.
+
 ## Exportación PDF móvil y compresión — 24/10/2026
 
 - **Android / navegadores integrados:** no se intenta guardar automáticamente al finalizar una simulación; los navegadores móviles pueden bloquear esa descarga sin interacción. La pantalla final ofrece **Preparar PDF completo** y, para lotes, **Preparar resumen ligero**.
