@@ -87,9 +87,118 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
   }
   const effectCtx={sim:()=>game,card:getCard,type:cardType,random,shuffle:rngShuffle,log,toast:issue,render:()=>{},
     drawPoker,manual:()=>manual,pushUndo:()=>{},setModal:m=>{modal=m},modal:()=>modal,esc:s=>String(s||'').replace(/[<>&"]/g,''),
-    links:()=>links,cardScore:(pid,id)=>scoreCard(pid,id),chooseCopiedSuper:(pid,ids)=>[...ids].sort((a,b)=>scoreCard(pid,b)-scoreCard(pid,a))[0]};
+    links:()=>links,cardScore:(pid,id)=>scoreCard(pid,id),pokerCardValue,planFor,chooseCopiedSuper:(pid,ids)=>[...ids].sort((a,b)=>scoreCard(pid,b)-scoreCard(pid,a))[0]};
   fx=window.POKER_BLITZ_ASSISTED_EFFECTS(effectCtx);
   links=window.POKER_BLITZ_ASSISTED_LINKS({...effectCtx,recalc:pid=>fx.recalc(pid),drawPower,discardPower,afterSelection:()=>fx.afterSelection()});
+
+  // Persistent, reproducible, per-deck objectives. This is an in-engine planning
+  // policy, not online training and not hidden information about opponents.
+  function role(p){
+   const name=String(p.name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+   if(/astra|bruja|reliquia/.test(name))return 'relics';
+   if(/vortice|torbellino/.test(name))return 'swaps';
+   if(/aceron|maldito.*as/.test(name))return 'aces';
+   if(/regulus|caballero real/.test(name))return 'faces';
+   return p.style==='hyper'?'relics':p.style==='aces'?'aces':p.style==='faces'?'faces':p.style==='poker'?'swaps':p.style;
+  }
+  function ranksOf(cards){
+   const counts={},suits={S:0,H:0,D:0,C:0};
+   for(const c of cards){counts[c.rank]=(counts[c.rank]||0)+1;if(c.suit in suits)suits[c.suit]++;}
+   return {counts,suits};
+  }
+  function planFor(p){
+   const s=get(p.id),roleName=role(p),r=ranksOf(s.pokerHand);
+   const aces=r.counts.A||0,faces=(r.counts.J||0)+(r.counts.Q||0)+(r.counts.K||0);
+   const available=id=>s.hand.some((c,i)=>code(c)===id&&!s.activeHyper.includes(i))||s.drawPile.some(c=>code(c)===id);
+   let goal='balanced';
+   if(roleName==='relics')goal=!s.activeHyper.some(i=>code(s.hand[i])==='030')&&available('030')?'install-color':'link-and-convert';
+   if(roleName==='swaps')goal='prepare-targeted-swap';
+   if(roleName==='aces')goal=aces>=2&&available('045')?'cash-aces':aces===0?'find-aces':'hold-and-build-aces';
+   if(roleName==='faces')goal=faces>=2&&available('061')?'cash-royals':faces<2?'find-royals':'hold-and-build-royals';
+   if(roleName==='artifacts')goal='assemble-artifacts';
+   if(roleName==='chips')goal='economic-pressure';
+   return {role:roleName,goal,aces,faces,hyperCount:s.activeHyper.length,suit:r.suits};
+  }
+  function handPotential(pid,hand,plan=planFor(players.find(p=>p.id===pid))){
+   const r=ranksOf(hand),n=hand.length,counts=Object.values(r.counts),suits=Object.values(r.suits).sort((a,b)=>b-a);
+   let value=n*.19;
+   for(const count of counts){if(count>=2)value+=1.6;if(count>=3)value+=2.2;if(count>=4)value+=3;}
+   value+=Math.max(0,(suits[0]||0)-2)*1.05+Math.max(0,(suits[1]||0)-2)*.25;
+   const unique=new Set(hand.flatMap(c=>c.rank==='A'?[1,14]:[Number(({J:11,Q:12,K:13})[c.rank]||c.rank)]));
+   let windowMax=0;
+   for(let low=1;low<=10;low++){let hits=0;for(let k=0;k<5;k++)if(unique.has(low+k))hits++;windowMax=Math.max(windowMax,hits);}
+   value+=Math.max(0,windowMax-2)*.9;
+   if(plan.role==='aces')value+=(r.counts.A||0)*(plan.goal==='cash-aces'?2.7:2.05);
+   if(plan.role==='faces')value+=((r.counts.J||0)+(r.counts.Q||0)+(r.counts.K||0))*(plan.goal==='cash-royals'?2.5:1.95);
+   if(plan.role==='relics')value+=(suits[0]||0)*.65;
+   return value;
+  }
+  function pokerCardValue(pid,c,hand=get(pid).pokerHand){
+   const plan=planFor(players.find(p=>p.id===pid)),before=handPotential(pid,hand,plan);
+   const i=hand.findIndex(x=>x.id===c.id);
+   if(i<0)return 0;
+   return before-handPotential(pid,hand.filter((_,j)=>j!==i),plan);
+  }
+  function chooseDiscardPoker(pid){
+   const s=get(pid),plan=planFor(players.find(p=>p.id===pid));
+   const pool=s.pokerHand.map((c,i)=>({i,c})).filter(x=>!links.protectedCard?.(pid,x.c));
+   if(!pool.length)return -1;
+   pool.sort((a,b)=>(handPotential(pid,s.pokerHand.filter((_,i)=>i!==a.i),plan))-(handPotential(pid,s.pokerHand.filter((_,i)=>i!==b.i),plan)));
+   return pool[pool.length-1].i;
+  }
+  function pairGain(pid,enemy,ownId,rivalId,ownHand=get(pid).pokerHand,rivalHand=get(enemy).pokerHand){
+   const a=ownHand.findIndex(c=>c.id===ownId),b=rivalHand.findIndex(c=>c.id===rivalId);
+   if(a<0||b<0)return -100;
+   const plan=planFor(players.find(p=>p.id===pid)),rivalPlan=planFor(players.find(p=>p.id===enemy));
+   const exchangedOwn=[...ownHand],exchangedRival=[...rivalHand];
+   [exchangedOwn[a],exchangedRival[b]]=[exchangedRival[b],exchangedOwn[a]];
+   return handPotential(pid,exchangedOwn,plan)-handPotential(pid,ownHand,plan)+
+     .42*(handPotential(enemy,rivalHand,rivalPlan)-handPotential(enemy,exchangedRival,rivalPlan));
+  }
+  let plannedSwap=null;
+  function chooseSwapOption(p,options){
+   const state=fx.choiceState?.();if(!state||state.kind!=='forced-swap')return null;
+   const actor=state.pid,enemy=state.enemy;
+   if(state.phase==='rival'){
+    const planned=options.find(o=>o.value==='rival:'+plannedSwap?.rivalId);
+    if(planned){plannedSwap=null;return planned;}
+    plannedSwap=null;
+    return [...options].sort((a,b)=>pairGain(actor,enemy,state.ownId,b.value.slice(6))-pairGain(actor,enemy,state.ownId,a.value.slice(6)))[0];
+   }
+   const original=get(actor).pokerHand,opponent=get(enemy).pokerHand,usedOwn=new Set(state.usedOwn),usedEnemy=new Set(state.usedEnemy);
+   const own=original.filter(c=>!usedOwn.has(c.id)&&!links.protectedCard?.(actor,c));
+   const rival=opponent.filter(c=>!usedEnemy.has(c.id)&&!links.protectedCard?.(enemy,c));
+   if(!own.length||!rival.length)return options.find(o=>o.value==='finish')||options[0];
+   const scored=[];
+   for(const a of own)for(const b of rival){
+    const gain=pairGain(actor,enemy,a.id,b.id);
+    let ahead=0;
+    if(p.difficulty==='expert'&&state.done===0&&own.length>1&&rival.length>1){
+     const ownAfter=original.map(c=>c.id===a.id?b:c),rivalAfter=opponent.map(c=>c.id===b.id?a:c);
+     for(const c of ownAfter)for(const d of rivalAfter){
+      if([a.id,b.id].includes(c.id)||[a.id,b.id].includes(d.id))continue;
+      ahead=Math.max(ahead,pairGain(actor,enemy,c.id,d.id,ownAfter,rivalAfter)*.72);
+     }
+    }
+    scored.push({ownId:a.id,rivalId:b.id,value:gain+ahead});
+   }
+   scored.sort((a,b)=>b.value-a.value);
+   const best=p.difficulty==='beginner'?scored[random(Math.min(4,scored.length))]:scored[0];
+   if(state.done>0&&best.value<(p.difficulty==='expert'?.15:-.7))return options.find(o=>o.value==='finish')||options[0];
+   plannedSwap=best;return options.find(o=>o.value==='own:'+best.ownId)||options[0];
+  }
+  function chooseLinkedOption(p,opts){
+   if(p.difficulty==='beginner')return opts[random(opts.length)];
+   const pid=p.id,s=get(pid),cards=s.pokerHand,ranks=ranksOf(cards),plan=planFor(p);
+   const pick=opts.map(id=>{
+    const c=cards.find(c=>c.id===id);if(!c)return {id,score:0};
+    const score=pokerCardValue(pid,c)+
+      (plan.role==='relics'?(Object.entries(ranks.suits).sort((a,b)=>b[1]-a[1])[0]?.[0]!==c.suit?1.1:0):0)+
+      (plan.role==='aces'&&c.rank==='A'?1.2:0)+(plan.role==='faces'&&['J','Q','K'].includes(c.rank)?1.1:0);
+    return {id,score};
+   }).sort((a,b)=>b.score-a.score);
+   return (p.difficulty==='expert'?pick[0]:pick[Math.min(pick.length-1,random(2))]).id;
+  }
   function autoModal(){
    for(let i=0;modal&&i<28;i++){
     if(modal.type==='assisted-target'){
@@ -101,14 +210,14 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     }else if(modal.type==='assisted-choice'){
      const options=fx.choiceOptions().filter(o=>!o.disabled);
      if(!options.length){issue('Decisión asistida sin opciones elegibles.');modal=null;break}
-     const p=my(),chosen=p.difficulty==='beginner'?options[random(options.length)]:[...options].sort((a,b)=>Number(b.score||0)-Number(a.score||0))[0];
+     const p=my(),chosen=chooseSwapOption(p,options)||(p.difficulty==='beginner'?options[random(options.length)]:[...options].sort((a,b)=>Number(b.score||0)-Number(a.score||0))[0]);
      fx.chooseOption(chosen.value);
     }else if(modal.type==='linked-picker'){
      const opts=[...links.modalMarkup().matchAll(/data-action="linked-option" data-id="([^"]+)"/g)].map(x=>x[1]);
      if(!opts.length){issue('Vínculo sin opciones elegibles.');modal=null;break}
      const isPlayer=opts.every(x=>game.states[x]);
      if(isPlayer)opts.sort((a,b)=>get(b).chips-get(a).chips);
-     links.option(isPlayer&&my().difficulty!=='beginner'?opts[0]:opts[random(opts.length)]);
+     links.option(isPlayer&&my().difficulty!=='beginner'?opts[0]:isPlayer?opts[random(opts.length)]:chooseLinkedOption(my(),opts));
     }else{issue('Ventana no reconocida: '+modal.type);modal=null}
    }
    if(modal){issue('Límite de decisiones automáticas de efecto alcanzado.');modal=null}
