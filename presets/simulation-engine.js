@@ -188,9 +188,12 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    plannedSwap=best;return options.find(o=>o.value==='own:'+best.ownId)||options[0];
   }
   function chooseLinkedOption(p,opts){
-   if(p.difficulty==='beginner')return opts[random(opts.length)];
+   const linked=links.choiceState?.(),selected=new Set(linked?.selected||[]),candidates=opts.filter(id=>!selected.has(id));
+   if(!candidates.length)return null;
+   if(p.difficulty==='beginner')return candidates[random(candidates.length)];
    const pid=p.id,s=get(pid),cards=s.pokerHand,ranks=ranksOf(cards),plan=planFor(p);
-   const pick=opts.map(id=>{
+   if(linked?.kind==='sabueso')return [...candidates].sort((a,b)=>(ranks.suits[b]||0)-(ranks.suits[a]||0))[0];
+   const pick=candidates.map(id=>{
     const c=cards.find(c=>c.id===id);if(!c)return {id,score:0};
     const score=pokerCardValue(pid,c)+
       (plan.role==='relics'?(Object.entries(ranks.suits).sort((a,b)=>b[1]-a[1])[0]?.[0]!==c.suit?1.1:0):0)+
@@ -217,7 +220,10 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
      if(!opts.length){issue('Vínculo sin opciones elegibles.');modal=null;break}
      const isPlayer=opts.every(x=>game.states[x]);
      if(isPlayer)opts.sort((a,b)=>get(b).chips-get(a).chips);
-     links.option(isPlayer&&my().difficulty!=='beginner'?opts[0]:isPlayer?opts[random(opts.length)]:chooseLinkedOption(my(),opts));
+     const selected=links.choiceState?.(),actor=players.find(p=>p.id===selected?.pid)||my();
+     const chosen=isPlayer?(actor.difficulty!=='beginner'?opts[0]:opts[random(opts.length)]):chooseLinkedOption(actor,opts);
+     if(!chosen){issue('No hay nuevos objetivos seleccionables para HyperCard vinculada.');modal=null;break}
+     links.option(chosen);
     }else{issue('Ventana no reconocida: '+modal.type);modal=null}
    }
    if(modal){issue('Límite de decisiones automáticas de efecto alcanzado.');modal=null}
