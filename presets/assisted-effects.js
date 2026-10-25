@@ -171,7 +171,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
       const own=pile(p.pid),rival=pile(p.enemy),i=own.pokerHand.findIndex(c=>c.id===p.ownId),j=rival.pokerHand.findIndex(c=>c.id===id);
       if(i<0||j<0||links()?.protectedCard(p.pid,own.pokerHand[i])||links()?.protectedCard(p.enemy,rival.pokerHand[j]))return;
       const gave=own.pokerHand[i],got=rival.pokerHand[j];
-      [own.pokerHand[i],rival.pokerHand[j]]=[got,gave];p.done++;p.usedOwn.push(gave.id);p.usedEnemy.push(got.id);p.ownId=null;p.phase='own';
+      [own.pokerHand[i],rival.pokerHand[j]]=[got,gave];p.done++;p.usedOwn.push(gave.id,got.id);p.usedEnemy.push(got.id,gave.id);p.ownId=null;p.phase='own';
       log(p.pid,'013','Intercambio Forzado: entregó '+gave.rank+'/'+gave.suit+' y eligió '+got.rank+'/'+got.suit+' viendo toda la mano de J'+sim().decks.find(q=>q.id===p.enemy).playerNumber+'. Par '+p.done+'/2.');
       if(p.done>=2||!choiceOptions().some(o=>o.value.startsWith('own:')&&!o.disabled)){finishChoice();return;}
       links()?.cleanup();ctx.render();
