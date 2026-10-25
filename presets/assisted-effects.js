@@ -107,7 +107,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     return openChoice({kind:'hyper-search',pid});
   }
   function openMaestroChoice(pid,enemy){return openChoice({kind:'maestro',pid,enemy});}
-  function openForcedSwap(pid,enemy){return openChoice({kind:'forced-swap',pid,enemy,phase:'own',done:0,usedOwn:[],usedEnemy:[],ownId:null});}
+  function openForcedSwap(pid,enemy){const valid=id=>pile(id).pokerHand.some(c=>!links()?.protectedCard(id,c));if(!valid(pid)||!valid(enemy)){log(pid,'013','Intercambio Forzado omitido: uno de los jugadores se quedó sin Poker Cards intercambiables antes de resolver el efecto.');return true;}return openChoice({kind:'forced-swap',pid,enemy,phase:'own',done:0,usedOwn:[],usedEnemy:[],ownId:null});}
   function resolveBorrowedPower(pid,enemy){
     const actor=pile(pid),victim=pile(enemy),slots=victim.hand.map((cid,i)=>({cid,i})).filter(x=>!victim.activeHyper.includes(x.i));
     if(!slots.length){log(pid,'009','El rival no tenía Power Cards disponibles.');return}
@@ -331,5 +331,6 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     }
   }
   function choiceState(){if(!pending)return null;return {kind:pending.kind,pid:pending.pid,enemy:pending.enemy,phase:pending.phase,ownId:pending.ownId,done:pending.done,usedOwn:[...(pending.usedOwn||[])],usedEnemy:[...(pending.usedEnemy||[])]};}
-  return {supported,canPlay,markUsed,usable,hypers,enqueue,finishChain,afterSelection,afterReaction,modalMarkup,choose,chooseOption,choiceOptions,choiceState,activate,phase,round,recalc,beginTurn};
+  function cancelChoice(){if(!pending)return;const p=pending;log(p.pid||sim().decks[0]?.id,'','La elección del efecto se canceló por falta de opciones legales: '+p.kind+'.');pending=null;ctx.setModal(null);drain();}
+  return {supported,canPlay,markUsed,usable,hypers,enqueue,finishChain,afterSelection,afterReaction,modalMarkup,choose,chooseOption,choiceOptions,choiceState,cancelChoice,activate,phase,round,recalc,beginTurn};
 };
