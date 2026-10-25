@@ -256,8 +256,11 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     for(let j=0;j<8;j++){
      const choice=selectAction(p);if(!choice)break;
      if(choice.kind==='HYPER'){
-      const before=s.activeHyper.filter(ix=>s.hand[ix]===choice.id).length;fx.activate(choice.i);autoModal();
-      if(s.activeHyper.filter(ix=>s.hand[ix]===choice.id).length<=before){issue('HyperCard sin activación: '+choice.id);break}
+      const historyBefore=(game.histories[p.id]||[]).length;
+      fx.activate(choice.i);autoModal();
+      const activationLogged=(game.histories[p.id]||[]).slice(historyBefore).some(ev=>
+        ev.cardName===(getCard(choice.id)?.name||'')&&/HyperCard activada (realmente|con vínculo)/i.test(ev.detail));
+      if(!activationLogged){issue('HyperCard sin activación confirmada: '+choice.id);break}
       log(p.id,'HyperCard activada',getCard(choice.id)?.name||choice.id);
      }else if(!playCard(p,choice.i))break;
     }
