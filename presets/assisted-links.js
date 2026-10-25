@@ -74,8 +74,9 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     if(hc>s.pokerHand.filter(c=>!selected.includes(c.id)).length){ctx.toast('Debes conservar las Poker Cards vinculadas para pagar el coste.');return}
     ctx.pushUndo(pid,'Activar vínculo '+t);
     for(let i=0;i<hc;i++){
-      const n=s.pokerHand.findIndex(c=>!selected.includes(c.id));
-      const x=s.pokerHand.splice(n,1)[0];recyclePoker(pid,[x]);
+      const choices=s.pokerHand.map((c,n)=>({c,n})).filter(x=>!selected.includes(x.c.id));
+      const picked=ctx.choosePokerPayment?[...choices].sort((a,b)=>ctx.choosePokerPayment(pid,a.c)-ctx.choosePokerPayment(pid,b.c))[0]:choices[0];
+      const x=s.pokerHand.splice(picked.n,1)[0];recyclePoker(pid,[x]);
     }
     for(let i=0;i<pc;i++){
       const j=s.hand.findIndex((_,j)=>j!==index&&!s.activeHyper.includes(j));const x=ctx.manual().take(pid,j);
