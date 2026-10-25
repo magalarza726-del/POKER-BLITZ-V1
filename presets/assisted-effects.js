@@ -24,7 +24,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     // Manipulador se valida en el momento de tirar el dado; en Prueba Asistida puede preparar la próxima tirada.
     if(['006','009','010','012','013','026','038','048','052','055','056','064'].includes(num)&&!opponents(pid).length)return false;
     if(num==='008'&&!s.activeHyper.length)return false;
-    if(num==='009'&&!opponents(pid).some(p=>pile(p.id).chips>=5&&(p.chips>=10||p.pokerHand.filter(c=>!links()?.protectedCard(p.id,c)).length>=2||p.hand.some((_,i)=>!p.activeHyper.includes(i)))))return false;
+    if(num==='009'&&!opponents(pid).some(p=>pile(p.id).chips>=5&&(pile(p.id).chips>=10||pile(p.id).pokerHand.filter(c=>!links()?.protectedCard(p.id,c)).length>=2||pile(p.id).hand.some((_,i)=>!pile(p.id).activeHyper.includes(i)))))return false;
     if(num==='010'&&!opponents(pid).some(p=>pile(p.id).pokerHand.length>=7))return false;
     if(num==='012'&&(!s.pokerHand.length||!opponents(pid).some(p=>pile(p.id).pokerHand.length)))return false;
     if(num==='013'&&(!s.pokerHand.some(c=>!links()?.protectedCard(pid,c))||!opponents(pid).some(p=>pile(p.id).pokerHand.some(c=>!links()?.protectedCard(p.id,c)))))return false;
