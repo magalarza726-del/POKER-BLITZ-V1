@@ -886,7 +886,7 @@ window.STARTER_CARDS = [
   function restoreAddScroll(top){requestAnimationFrame(()=>{const list=$('.add-list');if(list)list.scrollTop=Number(top||0);});}
   function renderAddPreservingScroll(top){render();restoreAddScroll(top);}
   function closeModal(){
-    if(['counter-window','reference-reaction','assisted-target','linked-picker'].includes(modal?.type)){toast('Termina la resolución pendiente antes de continuar.');return;}
+    if(['counter-window','reference-reaction','assisted-target','assisted-choice','linked-picker'].includes(modal?.type)){toast('Termina la resolución pendiente antes de continuar.');return;}
     if(modal?.type==='zoom'&&modal.returnTo){const back=modal.returnTo,top=back.scrollTop||0;modal=back;render();restoreAddScroll(top);return;}
     if(modal?.type==='character-edit')characterDraft=null;
     modal=null;render();
@@ -1188,7 +1188,7 @@ function syncAutoSetup(){
 
   function renderModal(){
     if(modal?.type==='linked-picker')return assistedLinks.modalMarkup();
-    if(modal?.type==='assisted-target')return assistedEffects.modalMarkup();
+    if(['assisted-target','assisted-choice'].includes(modal?.type))return assistedEffects.modalMarkup();
     if(['counter-window','reference-reaction'].includes(modal?.type))return manualRules.modalMarkup();
     if(modal?.type==='trade')return tradeModalMarkup();
     if(!modal)return'';
@@ -1787,6 +1787,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='charge-combo'){manualRules.charge(el.dataset.combo)}
     else if(a==='linked-option'){assistedLinks.option(el.dataset.id)}
     else if(a==='assist-target'){assistedEffects.choose(el.dataset.player)}
+    else if(a==='assist-option'){assistedEffects.chooseOption(el.dataset.value)}
     else if(a==='counter-play'){manualRules.counterPlay(Number(el.dataset.index))}
     else if(a==='counter-pass'){manualRules.counterPass()}
     else if(a==='reference-press'){manualRules.pressReference(el.dataset.player)}
