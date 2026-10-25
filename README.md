@@ -2,6 +2,17 @@
 
 Versión web estática basada en `DeckCreator_AndroidStudio_v0_13_NEW_CATALOG` y ajustada para escritorio.
 
+## IA estratégica y táctica por deck — 24/10/2026
+
+- **Astra (Bruja de las Reliquias):** identifica como objetivo prioritario buscar y activar *Cambio de Color*, si está disponible y no está ya activado. Retrasa costes que dejarían insuficientes Poker Cards para formar Color; selecciona cartas de palos minoritarios para vincularlas y no consume recursos estratégicos de forma indiscriminada. También valora Simbionte y Joker según oportunidades.
+- **Vórtice (Torbellino):** Intercambio Forzado utiliza la información completa revelada por el efecto y evalúa el aumento de potencial de ambas manos. Experto simula dos intercambios consecutivos (búsqueda limitada de profundidad dos) y evita reutilizar cartas previamente intercambiadas; Intermedio usa un enfoque más simple y Principiante escoge entre opciones legales. No se inspeccionan manos ocultas fuera de lo permitido por las cartas.
+- **Aceron (Maldito de los Ases):** coordina Sabueso de Ases, Maldición y Artimaña del As con robos y protección de ases; estima su valor futuro antes de cobrar combinaciones normales o pagar costes.
+- **Regulus (Caballero Real):** prioriza robos amplios y figura J/Q/K, Vínculo Noble, Reino Amable y Caballero Real. Evita gastar el cobro de figuras cuando todavía no ofrece valor efectivo y protege las figuras que necesita.
+- **Todos los niveles:** el motor actualiza objetivos en cada turno (registrados como `Plan IA`); elegir `pasar` o conservar Power Cards es legal y se evalúa frente a jugar inmediatamente. Los descartes End Phase priorizan las cartas con menor utilidad prevista y pueden liberar espacio de robo; los pagos de costes intentan preservar cartas vinculadas y combinaciones.
+- **Planificación:** la evaluación de Poker Hand combina parejas/tríos, concentración de palos, proximidad a escaleras y sinergias de As/J/Q/K. Los cobros incorporan una segunda combinación estimada y la pérdida de potencial por descartar. Las reglas y probabilidades se ajustan por nivel, sin suponer optimalidad global.
+- **Precisión de término:** esto es **planificación heurística adaptada al estado de cada turno**, no entrenamiento persistente de aprendizaje automático entre partidas. Las semillas reproducibles se mantienen para comparar desempeños.
+- **Pruebas:** 40 enfrentamientos completos entre los cuatro decks Expertos (22 rondas máximo) sin incidencias; 60 partidas adicionales con niveles Principiante, Intermedio y Experto alternados, 20.998 eventos y cero incidencias detectadas. La prueba automatizada incluye 12 enfrentamientos dirigidos donde comprueba búsqueda de Cambio de Color, cobros de Color, intercambios, cobros de ases y figuras, conservación selectiva de cartas y descartes End Phase. Las pruebas no demuestran que todos los planes sean matemáticamente óptimos.
+
 ## Actualización de cuatro efectos oficiales — 24/10/2026
 
 - **Maestro de Fichas (009):** mantiene el requisito de seleccionar a un rival con 5 fichas o más y jugarse una vez por turno. La opción de fichas ahora roba **1 ficha por cada 10** (parte entera); se mantienen las opciones de robar 2 Poker Cards aleatorias o extraer una Power Card aleatoria y activarla como propia cuando resulte aplicable. Una carta no aplicable regresa al Deck de su dueño; las HyperCards que se activan conservan su titular original. La elección entre las tres alternativas se hace explícitamente en Prueba Asistida o mediante heurística en Simulación.
