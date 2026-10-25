@@ -213,7 +213,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
      if(!ids.length){issue('Sin rivales válidos en selección asistida.');modal=null;break}
      const p=my(),objective=planFor(p),score=id=>{
       const st=get(id),eligible=st.pokerHand.filter(c=>!links.protectedCard?.(id,c)).length;
-      if(objective.role==='swaps')return eligible*2.8+st.pokerHand.length*.3;
+      if(objective.role==='swaps')return st.chips*1.4+eligible*1.2+st.pokerHand.length*.6;
       if(objective.role==='chips')return st.chips*2.2+st.pokerHand.length*.15;
       if(objective.role==='aces'||objective.role==='faces')return st.pokerHand.length*1.7+st.chips*.22;
       return st.chips*1.5+st.pokerHand.length*.4;
@@ -295,7 +295,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    if(plan.role==='artifacts'&&['042','043','044','058','059','060','005'].includes(c))val+=2;
    if(plan.role==='swaps'&&['013','010','038','012','026','016'].includes(c))val+=2;
    if(plan.role==='swaps'&&c==='013'&&hand.length>=3)val+=1.8;
-   if(plan.role==='swaps'&&c==='013'&&handPotential(pid,hand,plan)>15)val-=2.3;
+   if(plan.role==='swaps'&&c==='013'&&handPotential(pid,hand,plan)>20)val-=.7;
    if(c==='053'&&plan.role==='aces'&&plan.aces<=1)val+=1.25;
    if(c==='053'&&plan.role==='faces'&&plan.faces<=2)val+=1.25;
    if(c==='016'&&['aces','faces','relics'].includes(plan.role))val+=1.15;
@@ -329,7 +329,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    }
    if(!available.length)return null;
    available.sort((a,b)=>b.score-a.score);
-   const threshold={beginner:2.45,intermediate:3,expert:3.6}[p.difficulty]||3;
+   const threshold=(planFor(p).role==='swaps'?{beginner:2.2,intermediate:2.6,expert:3}: {beginner:2.45,intermediate:3,expert:3.6})[p.difficulty]||3;
    // Passing is always available: carrying a valuable combo tool into the
    // next turn often outperforms firing a weak Power Card right now.
    if(available[0].score<threshold)return null;
