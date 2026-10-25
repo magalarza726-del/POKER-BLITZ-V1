@@ -117,7 +117,10 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    if(roleName==='faces')goal=faces>=2&&available('061')?'cash-royals':faces<2?'find-royals':'hold-and-build-royals';
    if(roleName==='artifacts')goal='assemble-artifacts';
    if(roleName==='chips')goal='economic-pressure';
-   return {role:roleName,goal,aces,faces,hyperCount:s.activeHyper.length,suit:r.suits};
+   const ranked=Object.entries(r.suits).sort((a,b)=>b[1]-a[1]),suitCount=ranked[0]?.[1]||0;
+   const active=id=>s.activeHyper.some(i=>code(s.hand[i])===id);
+   return {role:roleName,goal,aces,faces,hyperCount:s.activeHyper.length,suit:r.suits,suitCount,
+    hasColor:active('030'),wantsColor:roleName==='relics'&&!active('030')&&available('030'),pokerSize:s.pokerHand.length};
   }
   function handPotential(pid,hand,plan=planFor(players.find(p=>p.id===pid))){
    const r=ranksOf(hand),n=hand.length,counts=Object.values(r.counts),suits=Object.values(r.suits).sort((a,b)=>b-a);
@@ -130,7 +133,8 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    value+=Math.max(0,windowMax-2)*.9;
    if(plan.role==='aces')value+=(r.counts.A||0)*(plan.goal==='cash-aces'?2.7:2.05);
    if(plan.role==='faces')value+=((r.counts.J||0)+(r.counts.Q||0)+(r.counts.K||0))*(plan.goal==='cash-royals'?2.5:1.95);
-   if(plan.role==='relics')value+=(suits[0]||0)*.65;
+   if(plan.role==='relics'){const major=suits[0]||0;value+=major*.65+(major>=4?3:major>=3?1.5:0);
+    if(plan.wantsColor||plan.hasColor)value+=Math.max(0,major-2)*1.15;}
    return value;
   }
   function pokerCardValue(pid,c,hand=get(pid).pokerHand){
@@ -207,7 +211,13 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     if(modal.type==='assisted-target'){
      const ids=[...fx.modalMarkup().matchAll(/data-action="assist-target" data-player="([^"]+)"/g)].map(x=>x[1]);
      if(!ids.length){issue('Sin rivales válidos en selección asistida.');modal=null;break}
-     const p=my(),score=id=>get(id).chips*2+get(id).pokerHand.length+random(5);
+     const p=my(),objective=planFor(p),score=id=>{
+      const st=get(id),eligible=st.pokerHand.filter(c=>!links.protectedCard?.(id,c)).length;
+      if(objective.role==='swaps')return eligible*2.8+st.pokerHand.length*.3;
+      if(objective.role==='chips')return st.chips*2.2+st.pokerHand.length*.15;
+      if(objective.role==='aces'||objective.role==='faces')return st.pokerHand.length*1.7+st.chips*.22;
+      return st.chips*1.5+st.pokerHand.length*.4;
+     };
      const selection=p.difficulty==='beginner'?ids[random(ids.length)]:ids.sort((a,b)=>score(b)-score(a))[0];
      fx.choose(selection);
     }else if(modal.type==='assisted-choice'){
@@ -248,14 +258,16 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     val+=best>0?Math.min(3,best*.85):best===-100?-4:-2;
    }
    if(c==='020'||c==='021')val+=plan.role==='swaps'&&handPotential(pid,hand,plan)<9?1.2:-2;
-   if(c==='030')val+=plan.role==='relics'&&!active('030')?4.2:active('030')?-5:.7;
+   if(c==='030')val+=plan.role==='relics'&&!active('030')?(plan.suitCount>=3?6.5:plan.pokerSize>=5?3.8:1):active('030')?-6:.7;
    if(c==='029')val+=plan.role==='relics'?2:1;
    if(c==='035')val+=plan.role==='relics'&&hand.length>=4?1.3:0;
    if(c==='007'){
     const search=s.drawPile.filter(cid=>cardType(getCard(cid))==='HYPER').map(code);
     const favored=plan.role==='relics'?['030','029','035','027']:plan.role==='aces'?['046']:plan.role==='faces'?['062']:['030','046','062'];
-    val+=search.some(x=>favored.includes(x))?3.9:search.length?1:-4;
-    if(s.pokerHand.length<=3)val-=.9;
+    val+=search.some(x=>favored.includes(x))?3.9:search.length?1:-5;
+    if(s.pokerHand.length<=4)val-=1.2;
+    if(plan.role==='relics'&&search.includes('030')&&!active('030'))val+=4.1;
+    if(plan.role==='aces'&&plan.aces>=2||plan.role==='faces'&&plan.faces>=3)val-=2.3;
    }
    if(plan.role==='relics'){
     if(['053','011','016','032','039','031'].includes(c))val+=hand.length<6?2.4:.3;
@@ -263,18 +275,19 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     if(c==='007'&&hand.length<5)val-=4;
     if(c==='035'&&hand.length<6)val-=3.2;
     if(c==='029'&&hand.length<4)val-=2;
+    if(c==='030'&&plan.suitCount>=4)val+=3.4;
    }
    if(plan.role==='aces'){
     if(['053','011','016','032','039','026','031','047'].includes(c))val+=plan.aces===0?2.1:1.2;
     if(c==='046')val+=plan.aces||s.hand.some(x=>code(x)==='040')?3.7:-.7;
     if(c==='040')val+=plan.aces<2?3.2:plan.aces>=4?-4:1;
-    if(c==='045')val+=plan.aces>=2?plan.aces*2.7:plan.aces===1&&active('046')?2:-8;
+    if(c==='045')val+=plan.aces>=3?plan.aces*3.1:plan.aces===2?4.6:plan.aces===1&&active('046')?1:-9;
     if(c==='041')val+=hand.length>=4?1.4:0;
    }
    if(plan.role==='faces'){
     if(['053','011','016','032','039','026','063','031'].includes(c))val+=plan.faces<3?2.3:1;
-    if(c==='062')val+=plan.faces>=1?3.2:-2;
-    if(c==='061')val+=plan.faces>=3?plan.faces*2.25:plan.faces>=2&&active('062')?5:-8;
+    if(c==='062')val+=plan.faces>=3?4.5:plan.faces===2&&s.drawPile.length>5?2.2:plan.faces===1?-.8:-4.5;
+    if(c==='061')val+=plan.faces>=4?plan.faces*2.8:plan.faces===3?7:plan.faces===2&&active('062')?3.5:-9;
     if(c==='023')val+=plan.faces>=1?2:3;
     if(c==='057'&&active('062'))val+=2;
     if(c==='063'&&active('062'))val+=1.5;
@@ -282,6 +295,10 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    if(plan.role==='artifacts'&&['042','043','044','058','059','060','005'].includes(c))val+=2;
    if(plan.role==='swaps'&&['013','010','038','012','026','016'].includes(c))val+=2;
    if(plan.role==='swaps'&&c==='013'&&hand.length>=3)val+=1.8;
+   if(plan.role==='swaps'&&c==='013'&&handPotential(pid,hand,plan)>15)val-=2.3;
+   if(c==='053'&&plan.role==='aces'&&plan.aces<=1)val+=1.25;
+   if(c==='053'&&plan.role==='faces'&&plan.faces<=2)val+=1.25;
+   if(c==='016'&&['aces','faces','relics'].includes(plan.role))val+=1.15;
    // Keep scarce combo enablers and avoid clearing the entire Power Hand.
    if(s.hand.length-s.activeHyper.length<=2&&['007','029','030','045','061','013'].includes(c))val+=.4;
    return val;
@@ -301,18 +318,18 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     if(s.activeHyper.includes(i))continue;
     const id=s.hand[i],kind=cardType(getCard(id)),c=code(id),plan=planFor(p);
     if(c==='003')continue; // Reactive dice modifier, not a standalone proactive play.
-    if(plan.role==='relics'&&((c==='030'&&s.pokerHand.length<5)||(c==='007'&&s.pokerHand.length<5)||(c==='029'&&s.pokerHand.length<4)||(c==='035'&&s.pokerHand.length<6)))continue;
+    if(plan.role==='relics'&&((c==='030'&&(s.pokerHand.length<5||plan.suitCount<3))||(c==='007'&&s.pokerHand.length<5)||(c==='029'&&s.pokerHand.length<4)||(c==='035'&&s.pokerHand.length<6)))continue;
     if(plan.role==='faces'&&c==='061'&&!s.activeHyper.some(j=>code(s.hand[j])==='062')&&s.pokerHand.length<8)continue;
     if(c==='040'&&plan.role==='aces'&&plan.aces>=4)continue;
     if(c==='045'&&plan.aces<2&&!(plan.aces>=1&&s.activeHyper.some(j=>code(s.hand[j])==='046')))continue;
     if(c==='061'&&plan.faces<3&&!(plan.faces>=2&&s.activeHyper.some(j=>code(s.hand[j])==='062')))continue;
-    if(c==='062'&&plan.faces===0&&s.hand.some(x=>code(x)==='061'))continue;
+    if(c==='062'&&plan.faces<2&&s.hand.some(x=>code(x)==='061'))continue;
     if(kind==='HYPER'&&fx.supported(id)&&legalHyper(p.id,i))available.push({i,id,kind,score:scoreCard(p.id,id)});
     else if(kind==='SUPER'&&fx.supported(id)&&fx.canPlay(id,p.id))available.push({i,id,kind,score:scoreCard(p.id,id)});
    }
    if(!available.length)return null;
    available.sort((a,b)=>b.score-a.score);
-   const threshold={beginner:2.25,intermediate:2.8,expert:3.35}[p.difficulty]||2.8;
+   const threshold={beginner:2.45,intermediate:3,expert:3.6}[p.difficulty]||3;
    // Passing is always available: carrying a valuable combo tool into the
    // next turn often outperforms firing a weak Power Card right now.
    if(available[0].score<threshold)return null;
