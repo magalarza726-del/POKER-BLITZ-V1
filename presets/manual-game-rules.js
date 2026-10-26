@@ -53,9 +53,9 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     if(!(from==='MAIN'&&to==='CHARGE'||from==='CHARGE'&&to==='END'))return ctx.toast('Secuencia obligatoria: Main → Charge → End → Finalizar turno.');
     ctx.pushUndo(d.id,'Fase '+to);s.currentPhase=to;sim.chargeSelection=[];
     if(to==='END'){
-      const qty=s.chargeReplacement||0;s.chargeReplacement=0;let drawn=0;
+      const qty=get()?.mode==='MANUAL_SIMPLE'?0:Math.max(0,7-s.pokerHand.length);s.chargeReplacement=0;let drawn=0;
       for(let i=0;i<qty&&sim.pokerDrawPile.length;i++){if(ctx.drawPoker(d.id,s,'Reposición de Charge'))drawn++}
-      ctx.log(d.id,'Inicio End Phase','Se repusieron '+drawn+'/'+qty+' Poker Cards por combinaciones cobradas. Resuelve efectos de End Phase y ajusta la mano.');
+      ctx.log(d.id,'Inicio End Phase','Reposición aleatoria hasta 7 Poker Cards: '+drawn+'/'+qty+'. Resuelve los efectos de End Phase.');
     }
     ctx.log(d.id,'Cambiar fase',ctx.phaseLabel(from)+' → '+ctx.phaseLabel(to)+'.');
     if(sim.mode==='ASSISTED')ctx.assistedPhase?.(to,d.id);
@@ -119,8 +119,8 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     const p=sim.decks[chain.chooser],c=ctx.card(sim.states[p.id].hand[i]);
     if(ctx.type(c)!=='COUNTER'||(sim.mode==='ASSISTED'&&((ctx.canAssist&&!ctx.canAssist(c?.id))||(ctx.canPlayAssisted&&!ctx.canPlayAssisted(c?.id,p.id)))))return;
     if(sim.mode==='ASSISTED')ctx.assistedCardUsed?.(c.id,p.id);
-    chain.stack.push(take(p.id,i));chain.passes=0;chain.chooser=(chain.chooser+1)%sim.decks.length;
-    ctx.log(p.id,'CounterCard anunciada','Añadida a la cadena de respuestas.',c);ctx.render();
+    if(chain.stack.length>1)return;chain.stack.push(take(p.id,i));chain.passes=0;chain.chooser=(chain.chooser+1)%sim.decks.length;
+    ctx.log(p.id,'CounterCard anunciada','Respuesta única; no se permiten cadenas de CounterCards.',c);resolveChain();
   }
   function counterPass(){
     const sim=get(),chain=sim?.chain;if(!chain)return;
