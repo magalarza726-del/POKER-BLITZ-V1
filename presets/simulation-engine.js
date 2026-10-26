@@ -357,7 +357,10 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    const p=players.find(x=>x.id===pid),s=get(pid),odds={beginner:0.15,intermediate:0.4,expert:0.72};
    if(rng.next()>(odds[p.difficulty]||0.4))return null;
    const list=s.hand.map((id,i)=>({id,i})).filter(x=>{if(s.activeHyper.includes(x.i)||cardType(getCard(x.id))!=='COUNTER'||!fx.canPlay(x.id,pid))return false;
-    const c=code(x.id),victim=get(trigger);if(c==='004'&&cardType(getCard(originalId))!=='SUPER')return false;
+    const c=code(x.id),victim=get(trigger),kind=cardType(getCard(originalId));
+     if(kind==='HYPER'&&!['052','006'].includes(c))return false;
+     if(kind==='SUPER'&&c==='052')return false;
+     if(c==='004'&&kind!=='SUPER')return false;
     if(c==='048'&&victim.chips<1)return false;
     if(c==='052'&&cardType(getCard(originalId))!=='HYPER')return false;
     if(c==='010'&&cardType(getCard(originalId))!=='SUPER')return false;
@@ -527,15 +530,22 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     for(let j=0;j<8;j++){
      const choice=selectAction(p);if(!choice)break;
      if(choice.kind==='HYPER'||choice.kind==='HYPER_RESERVE'){
-       const opponent=players.find(x=>x.id!==p.id&&chooseCounter(x.id,p.id,choice.id)?.id==='catalog_v3_052');
-       if(opponent){
-         const ci=get(opponent.id).hand.findIndex((x,i)=>x==='catalog_v3_052'&&!get(opponent.id).activeHyper.includes(i));
-         if(ci>=0){
-           const blocked=manual.take(opponent.id,ci);manual.giveBack(blocked.cardId,blocked.ownerId);
-           log(opponent.id,'CounterCard','Agujero Negro: anuló '+getCard(choice.id)?.name+'. Puede activarse otra HyperCard distinta.',getCard('catalog_v3_052'));
-           log(p.id,'HyperCard bloqueada','No se consumió la activación: '+getCard(choice.id)?.name);
-           s.hyperDeniedThisTurn??=[];s.hyperDeniedThisTurn.push(choice.id);
-           continue;
+       const reactors=players.filter(x=>x.id!==p.id).map(x=>({player:x,choice:chooseCounter(x.id,p.id,choice.id)})).filter(x=>x.choice);
+       if(reactors.length){
+         const {player:counterPlayer,choice:counter}=reactors[0];
+         const response=manual.take(counterPlayer.id,counter.i);
+         if(response){
+           manual.giveBack(response.cardId,response.ownerId);
+           log(counterPlayer.id,'CounterCard',getCard(response.cardId)?.name||response.cardId,getCard(response.cardId));
+           if(s.activeHyper.some(i=>s.hand[i]==='catalog_v3_025')&&!s.shieldCardsTriggered){
+             drawPoker(p.id,s,'Escudo de Cartas: primera CounterCard rival');s.shieldCardsTriggered=true;
+           }
+           if(code(response.cardId)==='052'){
+             log(p.id,'HyperCard bloqueada','Agujero Negro anuló '+getCard(choice.id)?.name+'. Activación no consumida.');
+             s.hyperDeniedThisTurn??=[];s.hyperDeniedThisTurn.push(choice.id);continue;
+           }
+           fx.enqueue({cardId:response.cardId,playerId:counterPlayer.id,triggerPlayerId:p.id,triggerCardId:choice.id});
+           fx.finishChain();autoModal();
          }
        }
        if(choice.kind==='HYPER_RESERVE'){
