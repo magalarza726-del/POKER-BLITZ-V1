@@ -2,7 +2,7 @@
 window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   const sim=()=>ctx.sim(), card=id=>ctx.card(id), links=()=>ctx.links?.(), draw=(pid,n=1)=>{const st=sim().states[pid];let moved=0;for(let i=0;i<n;i++){if(!sim().pokerDrawPile.length)break;const c=ctx.drawPoker(pid,st,'Efecto asistido: robar Poker Card');if(c)moved++}return moved};
   const pile=(pid)=>sim().states[pid], opponents=pid=>sim().decks.filter(p=>p.id!==pid);
-  const random=n=>n<=1?0:ctx.random(n), popPoker=(pid,n=1,attacker=null)=>{const st=pile(pid),out=[];for(let i=0;i<n&&st.pokerHand.length;i++){const permitted=st.pokerHand.map((c,j)=>({c,j})).filter(x=>attacker==null||attacker===pid||!links()?.protectedCard(pid,x.c));if(!permitted.length)break;const choice=(attacker==null||attacker===pid)&&ctx.choosePokerPayment?[...permitted].sort((a,b)=>ctx.choosePokerPayment(pid,a.c)-ctx.choosePokerPayment(pid,b.c))[0]:permitted[random(permitted.length)];out.push(st.pokerHand.splice(choice.j,1)[0]);}if(links())links().onPokerOut(pid,out);else sim().pokerDrawPile=ctx.shuffle([...sim().pokerDrawPile,...out]);return out};
+  const random=n=>n<=1?0:ctx.random(n), popPoker=(pid,n=1,attacker=null)=>{const st=pile(pid),out=[];for(let i=0;i<n&&st.pokerHand.length;i++){const permitted=st.pokerHand.map((c,j)=>({c,j})).filter(x=>!links()?.protectedCard(pid,x.c));if(!permitted.length)break;const choice=(attacker==null||attacker===pid)&&ctx.choosePokerPayment?[...permitted].sort((a,b)=>ctx.choosePokerPayment(pid,a.c)-ctx.choosePokerPayment(pid,b.c))[0]:permitted[random(permitted.length)];out.push(st.pokerHand.splice(choice.j,1)[0]);}if(links())links().onPokerOut(pid,out);else sim().pokerDrawPile=ctx.shuffle([...sim().pokerDrawPile,...out]);return out};
   const pushPower=(pid,n=1,ignoreLimit=false)=>{const s=pile(pid);ctx.manual().own(pid);let count=0;for(let k=0;k<n&&s.drawPile.length;k++){if(!ignoreLimit&&s.hand.length-s.activeHyper.length>=s.powerHandLimit)break;const index=random(s.drawPile.length),cid=s.drawPile.splice(index,1)[0],owner=s.drawOwners.splice(index,1)[0]||pid;s.hand.push(cid);s.handOwners.push(owner);count++}return count};
   const popPower=(pid,n=1)=>{const s=pile(pid),moved=[];for(let k=0;k<n;k++){const allowed=s.hand.map((c,i)=>({c,i})).filter(x=>!s.activeHyper.includes(x.i));if(!allowed.length)break;const pick=ctx.choosePowerPayment?[...allowed].sort((a,b)=>ctx.choosePowerPayment(pid,a.c)-ctx.choosePowerPayment(pid,b.c))[0]:allowed[random(allowed.length)],it=ctx.manual().take(pid,pick.i);ctx.manual().giveBack(it.cardId,it.ownerId);moved.push(it.cardId)}return moved};
   const movePoker=(from,to,n=1)=>{const st=pile(from),dst=pile(to),out=[];for(let k=0;k<n&&st.pokerHand.length;k++){const allowed=st.pokerHand.map((c,i)=>({c,i})).filter(x=>!links()?.protectedCard(from,x.c));if(!allowed.length)break;const x=st.pokerHand.splice(allowed[random(allowed.length)].i,1)[0];dst.pokerHand.push(x);out.push(x)}links()?.cleanup();return out};
@@ -19,9 +19,9 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   let queue=[],pending=null,deferred=[],rollingEffect=null;
   function supported(id){const match=String(id||'').match(/catalog_v3_(\d{3})/);const code=match?.[1];return !!code&&(usable.has(code)||hypers.has(code));}
   function copyCandidates(pid){const s=pile(pid);if(!s)return [];return (s.assistedPlayedSupers||[]).filter(x=>x.turn===s.turnsTaken&&x.round===sim().round&&x.cardId!=='catalog_v3_017'&&x.cardId!=='catalog_v3_040'&&supported(x.cardId)&&canPlay(x.cardId,pid)).map(x=>x.cardId);}
-  function canPlay(id,pid){if(!supported(id))return false;const s=pile(pid);if(!s)return false;const num=String(id).slice(-3);const freePower=s.hand.filter(x=>x===id).length?Math.max(0,s.hand.length-s.activeHyper.length-1):s.hand.length-s.activeHyper.length;
+  function canPlay(id,pid){if(!supported(id))return false;const s=pile(pid);if(!s)return false;const num=String(id).slice(-3),freePoker=s.pokerHand.filter(c=>!links()?.protectedCard(pid,c)).length;const freePower=s.hand.filter(x=>x===id).length?Math.max(0,s.hand.length-s.activeHyper.length-1):s.hand.length-s.activeHyper.length;
     const costPoker={ '007':1 }; const costPower={'007':1,'032':1};
-    if((costPoker[num]||0)>s.pokerHand.length)return false;
+    if((costPoker[num]||0)>freePoker)return false;
     if((costPower[num]||0)>freePower)return false;
     // Sobrecarga de mejoras no busca HyperCards en el Power Deck.
     if(num==='031'&&(s.chips||0)<1)return false;
@@ -32,24 +32,24 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     if(num==='010'&&(!s.pokerHand.length||!opponents(pid).some(p=>pile(p.id).pokerHand.length)))return false;
     if(num==='012'&&(!s.pokerHand.length&&!s.hand.length||!opponents(pid).some(p=>pile(p.id).pokerHand.length||pile(p.id).hand.length)))return false;
     if(num==='013'&&(!s.pokerHand.some(c=>!links()?.protectedCard(pid,c))||!opponents(pid).some(p=>pile(p.id).pokerHand.some(c=>!links()?.protectedCard(p.id,c)))))return false;
-    if(num==='023'&&!active(pid,'062')&&s.pokerHand.length<3)return false;
+    if(num==='023'&&!active(pid,'062')&&freePoker<3)return false;
      if(num==='023'&&!s.pokerHand.some(c=>!links()?.protectedCard(pid,c)))return false;
     if(num==='026'&&!opponents(pid).length)return false;
-    if(num==='047'&&!active(pid,'046')&&s.pokerHand.length<5)return false;
+    if(num==='047'&&!active(pid,'046')&&freePoker<5)return false;
     if(num==='051'&&!sim().decks.some(p=>pile(p.id).activeHyper.length))return false;
     // Agujero Negro también puede reaccionar a un efecto de dados todavía sin resolver.
     if(num==='055'&&(s.pokerHand.filter(c=>!links()?.protectedCard(pid,c)).length<2||!opponents(pid).some(p=>pile(p.id).chips>=1)))return false;
-    if((num==='057'||num==='063')&&!active(pid,'062')&&s.pokerHand.length<2)return false;
+    if((num==='057'||num==='063')&&!active(pid,'062')&&freePoker<2)return false;
     if(num==='017'&&!copyCandidates(pid).length)return false;
-    if(num==='040'&&s.pokerHand.length<(!active(pid,'046')?2:1))return false;
+    if(num==='040'&&freePoker<(!active(pid,'046')?2:1))return false;
     if(num==='005'&&new Set(s.activeHyper.map(i=>String(s.hand[i]).slice(-3)).filter(x=>links()?.artifacts.has(x))).size<3)return false;
     if(num==='004'&&!sim().chain?.stack?.[0])return false;
      if(['010','033','034'].includes(num)&&ctx.type?.(card(sim().chain?.stack?.[0]?.cardId))!=='SUPER')return false;
      if(num==='052'&&ctx.type?.(card(sim().chain?.stack?.[0]?.cardId))!=='HYPER')return false;
     if(num==='041'&&s.pokerHand.length<2)return false;
-     if(num==='045'&&!active(pid,'046')&&s.pokerHand.length<2)return false;
+     if(num==='045'&&!active(pid,'046')&&freePoker<2)return false;
     if(num==='045'&&!active(pid,'046')&&(s.pokerHand.length<1||freePower<1))return false;
-    if(num==='061'&&!active(pid,'062')&&s.pokerHand.length<5)return false;
+    if(num==='061'&&!active(pid,'062')&&freePoker<5)return false;
     const description=String(card(id)?.description||'');let cap=Infinity,period='TURN';
     let m=description.match(/hasta\s+(\d+)\s+veces\s+por\s+turno/i);
     if(m)cap=Number(m[1]);else if(/una\s+vez\s+por\s+turno/i.test(description))cap=1;
@@ -245,8 +245,16 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     const redirect=sim().redirectNextTarget;sim().redirectNextTarget=null;
     if(redirect&&redirect.defender===id&&redirect.attacker===sourcePid){
       const others=sim().decks.filter(p=>p.id!==redirect.attacker&&p.id!==redirect.defender);
-      if(others.length){log(id,'004','Escudo Resplandeciente: efecto redirigido a J'+others[0].playerNumber+'.');f(others[0].id);}
-      else{const stolen=movePoker(sourcePid,id,1);log(id,'004','Sin objetivo alternativo: robó '+stolen.length+' Poker Card del atacante.');}
+      if(others.length){
+        log(id,'004','Escudo Resplandeciente: elige un nuevo objetivo distinto del atacante y del defensor.');
+        target(redirect.defender,'Escudo Resplandeciente · Elegir nuevo objetivo',chosen=>{
+          const who=sim().decks.find(p=>p.id===chosen);
+          log(id,'004','Efecto redirigido a J'+(who?.playerNumber||'?')+'.');f(chosen);links()?.cleanup();drain();
+        },targetId=>targetId!==redirect.attacker&&targetId!==redirect.defender);
+        return;
+      }
+      const stolen=movePoker(sourcePid,id,1);
+      log(id,'004','Sin objetivo alternativo: robó '+stolen.length+' Poker Card del atacante.');
     }else f(id);
     links()?.cleanup();drain();
   }
