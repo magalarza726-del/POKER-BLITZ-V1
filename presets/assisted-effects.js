@@ -228,7 +228,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   function apply(item){
     const id=String(item.cardId||'').replace('catalog_v3_',''),pid=item.playerId;
     const s=pile(pid);rollingEffect=id;
-    const doTarget=(title,fn,eligible=null)=>{const forced=item.triggerPlayerId;if(forced&&['006','048','052','064'].includes(id)){if(!pile(forced)||!(eligible?eligible(forced,pile(forced)):true)){log(pid,id,'Counter sin objetivo elegible: efecto no aplicado.');return true;}fn(forced,pile(forced));return true;}return target(pid,title,(enemy)=>{const st=pile(enemy);fn(enemy,st);},eligible);};
+    const doTarget=(title,fn,eligible=null)=>{const forced=item.triggerPlayerId;if(forced&&['006','010','048','052','064'].includes(id)){if(!pile(forced)||!(eligible?eligible(forced,pile(forced)):true)){log(pid,id,'Counter sin objetivo elegible: efecto no aplicado.');return true;}fn(forced,pile(forced));return true;}return target(pid,title,(enemy)=>{const st=pile(enemy);fn(enemy,st);},eligible);};
     switch(id){
       case '004':{
         const origin=item.copyOrigin;
