@@ -1,7 +1,7 @@
 /* Poker Blitz: assisted effects with real state changes and explicit supported-card registry. */
 window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   const sim=()=>ctx.sim(), card=id=>ctx.card(id), links=()=>ctx.links?.(), draw=(pid,n=1)=>{const st=sim().states[pid];let moved=0;for(let i=0;i<n;i++){if(!sim().pokerDrawPile.length)break;const c=ctx.drawPoker(pid,st,'Efecto asistido: robar Poker Card');if(c)moved++}return moved};
-  const pile=(pid)=>sim().states[pid], opponents=pid=>sim().decks.filter(p=>p.id!==pid);
+  const pile=(pid)=>sim().states[pid], opponents=pid=>sim().decks.filter(p=>p.id!==pid&&(!sim().eligiblePlayers||sim().eligiblePlayers.includes(p.id)));
   const random=n=>n<=1?0:ctx.random(n), popPoker=(pid,n=1,attacker=null)=>{const st=pile(pid),out=[];for(let i=0;i<n&&st.pokerHand.length;i++){const permitted=st.pokerHand.map((c,j)=>({c,j})).filter(x=>!links()?.protectedCard(pid,x.c));if(!permitted.length)break;const choice=(attacker==null||attacker===pid)&&ctx.choosePokerPayment?[...permitted].sort((a,b)=>ctx.choosePokerPayment(pid,a.c)-ctx.choosePokerPayment(pid,b.c))[0]:permitted[random(permitted.length)];out.push(st.pokerHand.splice(choice.j,1)[0]);}if(links())links().onPokerOut(pid,out);else sim().pokerDrawPile=ctx.shuffle([...sim().pokerDrawPile,...out]);return out};
   const pushPower=(pid,n=1,ignoreLimit=false)=>{const s=pile(pid);ctx.manual().own(pid);let count=0;for(let k=0;k<n&&s.drawPile.length;k++){if(!ignoreLimit&&s.hand.length-s.activeHyper.length>=s.powerHandLimit)break;const index=random(s.drawPile.length),cid=s.drawPile.splice(index,1)[0],owner=s.drawOwners.splice(index,1)[0]||pid;s.hand.push(cid);s.handOwners.push(owner);count++}return count};
   const popPower=(pid,n=1)=>{const s=pile(pid),moved=[];for(let k=0;k<n;k++){const allowed=s.hand.map((c,i)=>({c,i})).filter(x=>!s.activeHyper.includes(x.i));if(!allowed.length)break;const pick=ctx.choosePowerPayment?[...allowed].sort((a,b)=>ctx.choosePowerPayment(pid,a.c)-ctx.choosePowerPayment(pid,b.c))[0]:allowed[random(allowed.length)],it=ctx.manual().take(pid,pick.i);ctx.manual().giveBack(it.cardId,it.ownerId);moved.push(it.cardId)}return moved};
@@ -62,7 +62,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   }
   function markUsed(id,pid){const s=pile(pid);const desc=String(card(id)?.description||'');const type=/por\s+jugador\s+por\s+ronda/i.test(desc)?'ROUND':'TURN',ref=type==='ROUND'?String(sim().round):String(s.turnsTaken||0),key=type+':'+ref+':'+id;s.assistedUses??={};s.assistedUses[key]=(s.assistedUses[key]||0)+1;}
   function target(pid,title,callback,eligible=null){
-    const options=title==='El gran tifón'?[...sim().decks]:opponents(pid);
+    const options=title==='El gran tifón'?sim().decks.filter(p=>!sim().eligiblePlayers||sim().eligiblePlayers.includes(p.id)):opponents(pid);
     const players=eligible?options.filter(p=>eligible(p.id,pile(p.id))):options;
     if(!players.length){log(pid,'','Este efecto necesita otro jugador. No hay objetivo válido.');return true}
     pending={kind:'target',players,title,callback,sourcePid:pid};
