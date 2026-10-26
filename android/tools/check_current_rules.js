@@ -102,6 +102,49 @@ function target(h,n){cast(h,n);assert.equal(h.modal?.type,'assisted-target');h.f
  assert.equal(s.assistedBindings[0].targets.length,1,'Cambio de Color enchants exactly one Poker Card');
  assert.equal(h.linked.score('p1','Color',s.pokerHand,[]),5);
 }
+{
+ const h=harness(),a=any(h),b=other(h);
+ a.pokerHand=[C('3','H','spya')];b.pokerHand=[C('K','D','spyb')];
+ a.hand=[id('053')];a.handOwners=['p1'];b.hand=[id('054')];b.handOwners=['p2'];
+ target(h,'012');assert.equal(h.modal?.type,'assisted-choice');
+ assert(h.fx.choiceOptions().some(x=>x.value==='power:0'),'Espía must see rival Power Cards');
+ h.fx.chooseOption('poker:spyb');assert.equal(b.pokerHand.length,0);
+ assert(h.fx.choiceOptions().some(x=>x.value==='poker:spya'),'Victim must choose a card in actor full hand');
+ h.fx.chooseOption('poker:spya');assert.equal(a.pokerHand.length,0);
+}
+{
+ const h=harness(),before=h.game.pokerDrawPile.length;
+ cast(h,'016');assert.equal(h.modal?.type,'assisted-choice');
+ assert.equal(h.fx.choiceOptions().length,3,'Ojo del Más Allá must inspect exactly three cards');
+ h.fx.chooseOption('peek:2');assert.equal(any(h).pokerHand[0].id,'draw2');
+ h.fx.chooseOption('peek:1');assert.equal(h.game.pokerDrawPile[0].id,'draw1');
+ assert.equal(h.game.pokerDrawPile.length+any(h).pokerHand.length,before,'Peek must conserve Poker Cards');
+}
+{
+ const h=harness();cast(h,'022');assert.equal(h.modal?.type,'assisted-choice');
+ assert.equal(h.fx.choiceOptions().length,4,'Must let player declare one of four symbols');
+ h.fx.chooseOption('suit:S');assert.equal(any(h).pokerHand.length,2,'Matching suit must reward an extra Poker Card');
+}
+{
+ const h=harness(),s=any(h);s.hand=[id('043')];s.handOwners=['p1'];
+ s.pokerHand=[C('A','D','earth')];h.linked.open(0);h.linked.option('earth');
+ h.linked.onCharge('p1',[s.pokerHand[0]]);h.linked.phase('END','p1');
+ assert.equal(s.chips,1,'Sincronía de la Tierra must grant one chip at End Phase');
+}
+{
+ const h=harness(),s=any(h);s.hand=[id('044')];s.handOwners=['p1'];
+ s.pokerHand=[C('7','S','ray')];h.linked.open(0);h.linked.option('ray');
+ h.linked.onCharge('p1',[s.pokerHand[0]]);
+ s.turnsTaken=1;h.linked.phase('DRAW_END','p1');
+ assert(s.hand.includes('DRAW-POWER'),'Sincronía del Rayo grants extra Power Card next Draw Phase');
+}
+{
+ const h=harness(),s=any(h),o=other(h);s.hand=[id('042')];s.handOwners=['p1'];
+ s.pokerHand=[C('8','C','fire')];o.pokerHand=[C('K','H','target')];
+ h.linked.open(0);h.linked.option('fire');h.linked.onCharge('p1',[s.pokerHand[0]]);
+ s.turnsTaken=1;h.linked.phase('MAIN_START','p1');assert.equal(h.modal?.type,'linked-picker');
+ h.linked.option('p2');assert(s.pokerHand.some(c=>c.id==='target'),'Fuego steals a Poker Card during next Main Phase');
+}
 async function simulations(){
   const eng=window.POKER_BLITZ_AUTOMATION({getCard:x=>lookup[x],cardType:type,version:'1.20.2'});
   let total=0,count=0,coverage=new Set();
