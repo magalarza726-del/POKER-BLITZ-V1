@@ -617,10 +617,12 @@ window.STARTER_CARDS = [
     tintEnabled:false, tintColor:'#38E2E5', tintStrength:0, imageScale:1, imageOffsetX:0, imageOffsetY:0, imageInsetFraction:.03, userCreated:true
   });
   const officialCardIds = new Set((window.STARTER_CARDS||[]).map(c=>c.id));
+  const officialHyperIds=new Set((window.STARTER_CARDS||[]).filter(c=>c.accentColor==='#FFC31A').map(c=>c.id));
+  const officialPowerIds=new Set([...officialCardIds].filter(id=>!officialHyperIds.has(id)));
   const starterCards = (window.STARTER_CARDS||[]).map(c => ({...c, cardBackgroundColor:'#F1F1F1', mediaMode:'IMAGE', image:c.asset, tintEnabled:false,tintColor:c.accentColor,tintStrength:0,imageScale:1,imageOffsetX:0,imageOffsetY:0,imageInsetFraction:.03,userCreated:false}));
   const PRESET_PORTRAITS = window.POKER_BLITZ_DEFAULT_PORTRAITS || {};
   const defaultDecks = () => (window.POKER_BLITZ_DEFAULT_DECKS || []).map(d => ({
-    ...d, cardIds:[...d.cardIds].filter(id=>officialCardIds.has(id)), characterImage:PRESET_PORTRAITS[d.id] || null
+    ...normalizeDeck(d), characterImage:PRESET_PORTRAITS[d.id] || null
   }));
   const defaultState = () => ({
     cards: starterCards, decks: defaultDecks(), handSize:3, defaultPresetVersion:1,
@@ -630,9 +632,11 @@ window.STARTER_CARDS = [
   let state = loadState();
 
   function normalizeDeck(d){
-    const ids=Array.isArray(d?.cardIds)?d.cardIds.filter(id=>officialCardIds.has(id)):[];
+    const counts={},ids=(Array.isArray(d?.cardIds)?d.cardIds:[]).filter(id=>officialPowerIds.has(id)&&((counts[id]=(counts[id]||0)+1)<=3));
+    const extras=(Array.isArray(d?.hyperCardIds)?d.hyperCardIds:[]).concat((Array.isArray(d?.cardIds)?d.cardIds:[]).filter(id=>officialHyperIds.has(id)));
+    const hyperCardIds=[...new Set(extras.filter(id=>officialHyperIds.has(id)))].slice(0,3);
     const portrait=d?.characterImage==='@preset-portrait' ? (PRESET_PORTRAITS[d.id]||null) : d?.characterImage;
-    return {...d,cardIds:ids,iconCardId:null,characterImage:typeof portrait==='string'&&portrait?portrait:null,characterScale:Math.max(1,Math.min(3,Number(d?.characterScale)||1)),characterFocusX:Math.max(0,Math.min(100,Number.isFinite(Number(d?.characterFocusX))?Number(d.characterFocusX):50)),characterFocusY:Math.max(0,Math.min(100,Number.isFinite(Number(d?.characterFocusY))?Number(d.characterFocusY):50)),description:String(d?.description||'').slice(0,180)};
+    return {...d,cardIds:ids,hyperCardIds,iconCardId:null,characterImage:typeof portrait==='string'&&portrait?portrait:null,characterScale:Math.max(1,Math.min(3,Number(d?.characterScale)||1)),characterFocusX:Math.max(0,Math.min(100,Number.isFinite(Number(d?.characterFocusX))?Number(d.characterFocusX):50)),characterFocusY:Math.max(0,Math.min(100,Number.isFinite(Number(d?.characterFocusY))?Number(d.characterFocusY):50)),description:String(d?.description||'').slice(0,180)};
   }
 
   function loadState(){
@@ -813,11 +817,34 @@ window.STARTER_CARDS = [
   }
   function renderDeckEditor(){
     const d=getDeck(editingDeckId);if(!d){screen='home';return renderHome();}
-    const counts=countIds(d.cardIds); const unique=Object.keys(counts).map(getCard).filter(Boolean).filter(c=>c.name.toLowerCase().includes(deckQuery.toLowerCase())&&typeMatches(c,deckTypeFilter));
-    return `<main class="app-shell">${appBar('Deck: '+d.name,{back:true})}<section class="deck-editor-layout"><aside class="panel deck-side"><div class="field"><label>Nombre del deck</label><input id="deckName" value="${esc(d.name)}" maxlength="50"></div><div class="deck-stats" style="margin-top:12px"><div class="stat-box"><strong>${d.cardIds.length}</strong><span>cartas totales</span></div><div class="stat-box"><strong>${Object.keys(counts).length}</strong><span>diseños distintos</span></div></div><div class="deck-profile"><div class="deck-character-column"><div class="deck-character-preview ${d.characterImage?'':'empty'}">${d.characterImage?deckCharacterPhoto(d):'<span>Sin imagen de personaje</span>'}</div><div class="character-controls"><button class="btn primary" data-action="open-character-picker">${icon('upload')} ${d.characterImage?'Cambiar imagen':'Añadir imagen'}</button>${d.characterImage?`<button class="btn" data-action="edit-character-image">${icon('edit')} Editar encuadre</button><button class="btn danger" data-action="remove-character-image">${icon('trash')} Quitar</button>`:''}</div></div><div class="deck-profile-fields"><div><label class="small" style="font-weight:900;display:block;margin-bottom:4px">Personaje del deck</label><div class="small muted">Sube una imagen y encuádrala arrastrando, como en un editor de perfil.</div></div><div><label class="small" style="font-weight:900;display:block;margin-bottom:4px">Descripción breve</label><textarea id="deckDescription" maxlength="180" placeholder="Describe la idea o estilo del deck...">${esc(d.description||'')}</textarea><div class="field-help">${(d.description||'').length}/180</div></div></div></div><div style="flex:1"></div><button class="btn primary" data-action="test-deck" ${d.cardIds.length?'':'disabled'}>${icon('play')} Probar deck</button><div class="small muted" style="margin-top:10px">Controla las copias con - / +. La imagen de personaje aparecerá junto a tu mano en el modo de prueba.</div></aside><section class="deck-right"><div class="deck-list-head"><h2>Cartas del deck (${d.cardIds.length})</h2><div class="search">${icon('search')}<input id="deckSearch" value="${esc(deckQuery)}" placeholder="Buscar cartas..."></div><select id="deckTypeFilter" class="type-filter">${typeFilterOptions(deckTypeFilter)}</select><button class="btn primary" data-action="add-card-modal">${icon('plus')} Añadir carta</button></div><div class="deck-card-list">${unique.length?unique.map(c=>deckCardRow(c,counts[c.id])).join(''):`<div class="empty" style="grid-column:1/-1">${d.cardIds.length?'No hay coincidencias.':'Añade cartas al deck.'}</div>`}</div></section></section></main>`;
+    const counts=countIds([...d.cardIds,...(d.hyperCardIds||[])]); const unique=Object.keys(counts).map(getCard).filter(Boolean).filter(c=>c.name.toLowerCase().includes(deckQuery.toLowerCase())&&typeMatches(c,deckTypeFilter));
+    return `<main class="app-shell">${appBar('Deck: '+d.name,{back:true})}<section class="deck-editor-layout"><aside class="panel deck-side"><div class="field"><label>Nombre del deck</label><input id="deckName" value="${esc(d.name)}" maxlength="50"></div><div class="deck-stats" style="margin-top:12px"><div class="stat-box"><strong>${d.cardIds.length}</strong><span>Super/Counter</span></div><div class="stat-box"><strong>${(d.hyperCardIds||[]).length}/3</strong><span>HyperZone: únicas</span></div></div><p class="small muted">Power Deck permitido: ${20+2*(d.hyperCardIds||[]).length}–${30+2*(d.hyperCardIds||[]).length} cartas. Máximo 3 copias de cada SuperCard o CounterCard y 1 de cada HyperCard. Sin sustituciones de cartas retiradas.</p><div class="deck-profile"><div class="deck-character-column"><div class="deck-character-preview ${d.characterImage?'':'empty'}">${d.characterImage?deckCharacterPhoto(d):'<span>Sin imagen de personaje</span>'}</div><div class="character-controls"><button class="btn primary" data-action="open-character-picker">${icon('upload')} ${d.characterImage?'Cambiar imagen':'Añadir imagen'}</button>${d.characterImage?`<button class="btn" data-action="edit-character-image">${icon('edit')} Editar encuadre</button><button class="btn danger" data-action="remove-character-image">${icon('trash')} Quitar</button>`:''}</div></div><div class="deck-profile-fields"><div><label class="small" style="font-weight:900;display:block;margin-bottom:4px">Personaje del deck</label><div class="small muted">Sube una imagen y encuádrala arrastrando, como en un editor de perfil.</div></div><div><label class="small" style="font-weight:900;display:block;margin-bottom:4px">Descripción breve</label><textarea id="deckDescription" maxlength="180" placeholder="Describe la idea o estilo del deck...">${esc(d.description||'')}</textarea><div class="field-help">${(d.description||'').length}/180</div></div></div></div><div style="flex:1"></div><button class="btn primary" data-action="test-deck" ${d.cardIds.length?'':'disabled'}>${icon('play')} Probar deck</button><div class="small muted" style="margin-top:10px">Controla las copias con - / +. La imagen de personaje aparecerá junto a tu mano en el modo de prueba.</div></aside><section class="deck-right"><div class="deck-list-head"><h2>Power Deck (${d.cardIds.length}) · HyperZone (${(d.hyperCardIds||[]).length})</h2><div class="search">${icon('search')}<input id="deckSearch" value="${esc(deckQuery)}" placeholder="Buscar cartas..."></div><select id="deckTypeFilter" class="type-filter">${typeFilterOptions(deckTypeFilter)}</select><button class="btn primary" data-action="add-card-modal">${icon('plus')} Añadir carta</button></div><div class="deck-card-list">${unique.length?unique.map(c=>deckCardRow(c,counts[c.id])).join(''):`<div class="empty" style="grid-column:1/-1">${d.cardIds.length?'No hay coincidencias.':'Añade cartas al deck.'}</div>`}</div></section></section></main>`;
   }
   function deckCardRow(c,count){return `<div class="deck-card-item"><div class="deck-card-thumb" data-action="zoom-card" data-id="${c.id}">${cardHTML(c)}</div><div class="deck-card-name">${esc(c.name)}</div><button class="icon-btn" data-action="zoom-card" data-id="${c.id}">${icon('zoom')}</button><div class="stepper"><button data-action="deck-minus" data-id="${c.id}">${icon('minus')}</button><strong>${count}</strong><button data-action="deck-plus" data-id="${c.id}">${icon('plus')}</button></div></div>`}
   function availableTestDecks(){return state.decks.filter(d=>Array.isArray(d.cardIds)&&d.cardIds.length>0)}
+  function deckIsLegal(d){const h=(d.hyperCardIds||[]).length,n=d.cardIds.length;
+    if(h>3||new Set(d.hyperCardIds||[]).size!==h)return false;
+    const c=countIds(d.cardIds);return n>=20+2*h&&n<=30+2*h&&Object.values(c).every(v=>v<=3)&&d.cardIds.every(id=>officialPowerIds.has(id))&&(d.hyperCardIds||[]).every(id=>officialHyperIds.has(id));
+  }
+  function addOfficialDeckCard(d,id){
+    if(!d||!officialCardIds.has(id)){toast('Carta retirada: no puede añadirse.');return false;}
+    if(officialHyperIds.has(id)){
+      d.hyperCardIds??=[];
+      if(d.hyperCardIds.includes(id)){toast('Solo una copia de cada HyperCard.');return false;}
+      if(d.hyperCardIds.length>=3){toast('Máximo 3 HyperCards distintas en HyperZone.');return false;}
+      d.hyperCardIds.push(id);
+    }else{
+      if(d.cardIds.filter(x=>x===id).length>=3){toast('Máximo 3 copias por SuperCard o CounterCard.');return false;}
+      if(d.cardIds.length>=30+2*(d.hyperCardIds||[]).length){toast('Tamaño máximo del Power Deck alcanzado.');return false;}
+      d.cardIds.push(id);
+    }
+    saveState();return true;
+  }
+  function removeOfficialDeckCard(d,id){
+    if(!d)return;
+    const a=officialHyperIds.has(id)?(d.hyperCardIds||[]):d.cardIds,ix=a.indexOf(id);
+    if(ix>=0){a.splice(ix,1);saveState();}
+  }
   function syncTestSetup(preferredDeckId=null){
     const valid=availableTestDecks();testSetup.playerCount=Math.max(1,Math.min(6,Number(testSetup.playerCount)||2));
     testSetup.pokerDeckCount=[1,2].includes(Number(testSetup.pokerDeckCount))?Number(testSetup.pokerDeckCount):1;
@@ -1113,7 +1140,7 @@ function syncAutoSetup(){
       return `<div class="modal-backdrop"><div class="modal character-editor-modal"><div class="modal-head"><h2>Editar imagen de personaje</h2><button class="icon-btn" data-action="close-modal">${icon('close')}</button></div><div class="character-editor-body"><div><div class="character-crop-frame" id="characterCrop"><div class="character-photo" style="--char-scale:${characterDraft.scale};--fx:${characterDraft.focusX}%;--fy:${characterDraft.focusY}%"><img id="characterCropImage" src="${esc(characterDraft.image)}" alt="Vista previa del personaje"></div><div class="character-crop-guide"></div></div><div class="modal-note">Arrastra la imagen para encuadrarla. El recorte vertical será el que se vea en el deck.</div></div><div class="character-editor-controls"><h3>Encuadre</h3><div class="range-wrap"><label>Zoom <span id="characterZoomValue">${Math.round(characterDraft.scale*100)}%</span></label><input id="characterZoom" type="range" min="1" max="3" step="0.01" value="${characterDraft.scale}"></div><button class="btn" data-action="character-reset">Centrar imagen</button><button class="btn" data-action="open-character-picker">${icon('upload')} Elegir otra imagen</button><div class="character-editor-actions"><button class="btn primary" data-action="save-character-image">Guardar</button><button class="btn" data-action="close-modal">Cancelar</button></div></div></div></div></div>`;
     }
     if(modal.type==='add'){
-      const deck=getDeck(editingDeckId); const counts=countIds(deck?.cardIds||[]),f=state.cards.filter(c=>c.name.toLowerCase().includes(addQuery.toLowerCase())&&typeMatches(c,addTypeFilter)); const total=deck?.cardIds?.length||0;
+      const deck=getDeck(editingDeckId); const counts=countIds([...(deck?.cardIds||[]),...(deck?.hyperCardIds||[])]),f=state.cards.filter(c=>c.name.toLowerCase().includes(addQuery.toLowerCase())&&typeMatches(c,addTypeFilter)); const total=(deck?.cardIds?.length||0)+(deck?.hyperCardIds?.length||0);
       return `<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>Añadir carta</h2><button class="icon-btn" data-action="close-modal">${icon('close')}</button></div><div class="modal-content"><div class="filter-row"><div class="search" style="height:58px">${icon('search')}<input id="addSearch" value="${esc(addQuery)}" placeholder="Buscar carta"></div><select id="addTypeFilter" class="type-filter">${typeFilterOptions(addTypeFilter)}</select></div><div class="add-summary"><span>Total actual del deck</span><span>${total} cartas</span></div><div class="add-list" style="margin-top:10px">${f.map(c=>`<div class="add-row"><div class="thumb" data-action="zoom-card" data-id="${c.id}">${cardHTML(c)}</div><div class="info"><b>${esc(c.name)}</b><span class="small muted">Cantidad en el deck</span></div><button class="icon-btn" data-action="zoom-card" data-id="${c.id}" title="Ampliar">${icon('zoom')}</button><div class="mini-stepper"><button data-action="deck-minus-modal" data-id="${c.id}" ${(counts[c.id]||0)<=0?'disabled':''}>${icon('minus')}</button><strong>${counts[c.id]||0}</strong><button data-action="add-card-to-deck" data-id="${c.id}">${icon('plus')}</button></div></div>`).join('')}</div><div class="modal-note">Consejo: al ampliar una carta y cerrarla, volverás a este mismo panel sin perder la búsqueda ni el contexto.</div></div></div></div>`;
     }
     return'';
@@ -1603,7 +1630,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='select-card'){selectedCardId=id;render()}
     else if(a==='zoom-card'){const ret=modal?structuredClone(modal):null;if(ret?.type==='add')ret.scrollTop=$('.add-list')?.scrollTop||0;modal={type:'zoom',id,returnTo:ret};render()}
     else if(a==='close-modal'||a==='modal-backdrop'){closeModal()}
-    else if(a==='delete-card'){if(confirm('¿Eliminar esta carta? También se quitará de los decks.')){state.cards=state.cards.filter(c=>c.id!==id);state.decks=state.decks.map(d=>({...d,cardIds:d.cardIds.filter(x=>x!==id),iconCardId:d.iconCardId===id?null:d.iconCardId}));saveState();render()}}
+    else if(a==='delete-card'){if(confirm('¿Eliminar esta carta? También se quitará de los decks.')){state.cards=state.cards.filter(c=>c.id!==id);state.decks=state.decks.map(d=>({...d,cardIds:d.cardIds.filter(x=>x!==id),hyperCardIds:(d.hyperCardIds||[]).filter(x=>x!==id),iconCardId:d.iconCardId===id?null:d.iconCardId}));saveState();render()}}
     else if(a==='set-color'){editingCard.accentColor=el.dataset.color;editingCard.tintColor=el.dataset.color;render()}
     else if(a==='recenter'){Object.assign(editingCard,{imageScale:1,imageOffsetX:0,imageOffsetY:0,imageInsetFraction:.03});render()}
     else if(a==='save-card'){const i=state.cards.findIndex(c=>c.id===editingCard.id);if(i>=0)state.cards[i]=structuredClone(editingCard);else state.cards.push(structuredClone(editingCard));saveState();toast('Carta guardada');go('home')}
@@ -1613,14 +1640,14 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='character-reset'){if(characterDraft){characterDraft.scale=1;characterDraft.focusX=50;characterDraft.focusY=50;updateCharacterDraftPreview()}}
     else if(a==='save-character-image'){const d=getDeck(editingDeckId);if(d&&characterDraft){const prev={image:d.characterImage,scale:d.characterScale,focusX:d.characterFocusX,focusY:d.characterFocusY};d.characterImage=characterDraft.image;d.characterScale=characterDraft.scale;d.characterFocusX=characterDraft.focusX;d.characterFocusY=characterDraft.focusY;d.iconCardId=null;if(saveState()){characterDraft=null;modal=null;render();toast('Imagen de personaje guardada')}else{d.characterImage=prev.image;d.characterScale=prev.scale;d.characterFocusX=prev.focusX;d.characterFocusY=prev.focusY;render();}}}
     else if(a==='remove-character-image'){const d=getDeck(editingDeckId);if(d&&confirm('¿Quitar la imagen de personaje de este deck?')){d.characterImage=null;d.characterScale=1;d.characterFocusX=50;d.characterFocusY=50;d.iconCardId=null;saveState();render()}}
-    else if(a==='new-deck'){const d={id:crypto.randomUUID(),name:'Nuevo deck',cardIds:[],iconCardId:null,characterImage:null,characterScale:1,characterFocusX:50,characterFocusY:50,description:''};state.decks.push(d);saveState();editingDeckId=d.id;go('deckEditor')}
+    else if(a==='new-deck'){const d={id:crypto.randomUUID(),name:'Nuevo deck',cardIds:[],hyperCardIds:[],iconCardId:null,characterImage:null,characterScale:1,characterFocusX:50,characterFocusY:50,description:''};state.decks.push(d);saveState();editingDeckId=d.id;go('deckEditor')}
     else if(a==='open-deck'){editingDeckId=id;deckQuery='';deckTypeFilter='ALL';go('deckEditor')}
     else if(a==='delete-deck'){e.stopPropagation();if(confirm('¿Eliminar este deck?')){state.decks=state.decks.filter(d=>d.id!==id);saveState();render()}}
-    else if(a==='deck-plus'){getDeck(editingDeckId).cardIds.push(id);saveState();render()}
-    else if(a==='deck-minus'){const d=getDeck(editingDeckId),i=d.cardIds.indexOf(id);if(i>=0)d.cardIds.splice(i,1);saveState();render()}
-    else if(a==='deck-minus-modal'){const top=$('.add-list')?.scrollTop||0,d=getDeck(editingDeckId),i=d.cardIds.indexOf(id);if(i>=0)d.cardIds.splice(i,1);saveState();renderAddPreservingScroll(top)}
+    else if(a==='deck-plus'){addOfficialDeckCard(getDeck(editingDeckId),id);render()}
+    else if(a==='deck-minus'){removeOfficialDeckCard(getDeck(editingDeckId),id);render()}
+    else if(a==='deck-minus-modal'){const top=$('.add-list')?.scrollTop||0;removeOfficialDeckCard(getDeck(editingDeckId),id);renderAddPreservingScroll(top)}
     else if(a==='add-card-modal'){addQuery='';addTypeFilter='ALL';modal={type:'add'};render()}
-    else if(a==='add-card-to-deck'){const top=$('.add-list')?.scrollTop||0;getDeck(editingDeckId).cardIds.push(id);saveState();renderAddPreservingScroll(top)}
+    else if(a==='add-card-to-deck'){const top=$('.add-list')?.scrollTop||0;addOfficialDeckCard(getDeck(editingDeckId),id);renderAddPreservingScroll(top)}
     else if(a==='test-deck'){sim=null;testMode='MANUAL_FULL';syncTestSetup(editingDeckId);go('simSetup')}
     else if(a==='set-test-players'){testSetup.playerCount=Math.max(1,Math.min(6,Number(el.dataset.value)||2));syncTestSetup();render()}
     else if(a==='set-poker-decks'){testSetup.pokerDeckCount=[1,2].includes(Number(el.dataset.value))?Number(el.dataset.value):1;syncTestSetup();render()}
