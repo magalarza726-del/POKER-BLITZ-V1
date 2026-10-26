@@ -70,7 +70,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
      for(const i of [...(s.activeHyper||[])].sort((a,b)=>b-a)){
        const it=take(d.id,i);if(it)giveBack(it.cardId,it.ownerId);
      }
-     s.hyperActivationsThisTurn=0;s.hyperActivationLimit=1;s.hyperDeniedThisTurn=[];s.shieldCardsTriggered=false;s.destinyDieUsed=false;
+     s.hyperActivationsThisTurn=0;s.hyperActivationLimit=1;s.hyperDeniedThisTurn=[];s.shieldCardsTriggered=false;s.destinyDieUsed=false;s.usedSuperThisTurn=false;
     s.turnsTaken=(s.turnsTaken||0)+1;ctx.log(d.id,'Fin de turno','Turno '+s.turnsTaken+' completado. Fichas: '+s.chips+'.');
     sim.chargeSelection=[];
     const active=()=>sim.decks.filter(p=>!sim.tieContenders||sim.tieContenders.includes(p.id));
@@ -114,9 +114,11 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     if(!card||type==='HYPER')return;
     if(type==='SUPER'&&s.currentPhase!=='MAIN')return ctx.toast('La SuperCard debe jugarse en Main Phase.');
     if(type==='COUNTER')return ctx.toast('Reglamento oficial: una CounterCard solo puede jugarse como respuesta durante la Main Phase rival, desde la ventana de reacción.');
+    if(type==='SUPER'&&/\bencanta\b/i.test(String(card.description||''))&&s.usedSuperThisTurn)
+      return ctx.toast('Reglamento oficial: debes Encantar antes de haber jugado cualquier SuperCard en ese turno.');
     if(sim.mode==='MANUAL_SIMPLE'){
       ctx.pushUndo(playerId,'Power Card física: uso manual');const item=take(playerId,index);
-      if(!item)return;giveBack(item.cardId,item.ownerId);
+      if(!item)return;giveBack(item.cardId,item.ownerId);s.usedSuperThisTurn=true;
       ctx.log(playerId,'Usar '+ctx.type(card),'Uso manual sin ventana de CounterCards. Aplica el efecto sobre las cartas físicas si corresponde.',card);
       sim.result='Power Card usada: '+card.name;ctx.render();return;
     }
@@ -127,6 +129,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     const states=Object.fromEntries(sim.decks.map(p=>[p.id,structuredClone(sim.states[p.id])]));
     const lens=Object.fromEntries(sim.decks.map(p=>[p.id,(sim.histories[p.id]||[]).length]));
     const poker=structuredClone(sim.pokerDrawPile),item=take(playerId,index);
+    if(!item)return;s.usedSuperThisTurn=true;
     if(sim.mode==='ASSISTED')ctx.assistedCardUsed?.(item.cardId,playerId);
     sim.undoStacks[playerId].push({label:'Cadena',tradeStates:states,tradeHistoryLengths:lens,tradePokerDrawPile:poker,result:sim.result});
     sim.chain={stack:[item],chooser:(sim.turnIndex+1)%sim.decks.length,passes:0};
