@@ -213,9 +213,14 @@ async function check(){
  // Existing action buttons must not be stolen by the inspection overlay.
  const discard=doc.querySelector('.sim-hand .hand-actions button[data-action="discard-card"]');
  if(!discard||discard.disabled)throw Error('Discard action unavailable');
- next('draw-view');
- verifyZoom('.draw-deck-modal .card-preview','deck selection');
- next('close-modal');
+ // The first turn starts in Main Phase with the Draw Phase already completed.
+ // Do not force a disabled Draw control just to inspect the deck.
+ const drawButton=doc.querySelector('[data-action="draw-view"]');
+ if(drawButton&&!drawButton.disabled){
+  drawButton.click();
+  verifyZoom('.draw-deck-modal .card-preview','deck selection');
+  next('close-modal');
+ }
  for(let i=0;i<3;i++){
   const title=doc.querySelector('.sim-hand-title')?.textContent;
   if(title==='Poker Hand')verifyZoom('.sim-hand .poker-card','poker hand');
