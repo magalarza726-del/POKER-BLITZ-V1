@@ -146,7 +146,7 @@ function target(h,n){cast(h,n);assert.equal(h.modal?.type,'assisted-target');h.f
  h.linked.option('p2');assert(s.pokerHand.some(c=>c.id==='target'),'Fuego steals a Poker Card during next Main Phase');
 }
 async function simulations(){
-  const eng=window.POKER_BLITZ_AUTOMATION({getCard:x=>lookup[x],cardType:type,version:'1.20.2'});
+  const eng=window.POKER_BLITZ_AUTOMATION({getCard:x=>lookup[x],cardType:type,version:'1.20.4'});
   let total=0,count=0,coverage=new Set();
   for(const n of [2,4])for(const diff of ['beginner','intermediate','expert'])for(const seed of [101,102,103,104,105]){
     const picked=Array.from({length:n},(_,i)=>({id:'D'+i,name:['Astra','Vórtice','Midas','Regulus'][i],difficulty:diff,
@@ -159,6 +159,41 @@ async function simulations(){
     for(const k of Object.keys(out.effectCounts))coverage.add(k);
   }
   assert(coverage.size>=30,'Effect coverage too small: '+coverage.size);
+  // Validación oficial estricta: un deck incompleto jamás recibe cartas sustitutas.
+  const bad=defaultDecks.find(d=>d.cardIds.length<20+2*d.hyperCardIds.length);
+  let rejected=false;
+  try{await eng.play({players:[{...bad,difficulty:'expert'}],seed:9,pokerDeckCount:1,maxRounds:1,battleMode:'BLITZ'});}
+  catch(err){rejected=/Power Deck no cumple el reglamento oficial/.test(String(err));}
+  assert(rejected,'Simulator must refuse an incomplete official Power Deck');
+
+  // Cartas y decisiones donde los lotes de 200 partidas mostraron errores.
+  const focus=[
+    {name:'Fortuna',hyper:['003','001'],base:['014','015','018','019','020','036','053','011','016','032']},
+    {name:'Némesis',hyper:[],base:['052','006','033','034','004','010','011','053','031','039']},
+    {name:'Midas',hyper:['049'],base:['041','009','055','053','011','026','039','016','032','034']}
+  ].map((d,i)=>({id:'TARGET'+i,name:d.name,difficulty:'expert',
+    cardIds:d.base.flatMap(c=>[id(c),id(c),id(c)]),hyperCardIds:d.hyper.map(id)}));
+  const stats={dice:0,blocked:0,counters:0,bonuses:0,investors:0,shields:0};
+  for(let seed=101;seed<=125;seed++){
+    const out=await eng.play({players:focus,seed,pokerDeckCount:2,maxRounds:14,battleMode:'BLITZ'});
+    assert.deepEqual(out.incidents,[],'Targeted official rules simulation incident');
+    for(const p of out.players)for(const ev of p.events){
+      const detail=ev.detail||'';
+      if(detail.includes('Manipulador del Destino ajustó'))stats.dice++;
+      if(ev.action==='HyperCard bloqueada')stats.blocked++;
+      if(ev.action==='CounterCard')stats.counters++;
+      if(detail.includes('Gran Inversor: +1 ficha'))stats.bonuses++;
+      if(ev.action==='HyperCard activada'&&detail.includes('GRAN INVERSOR'))stats.investors++;
+      if(detail.includes('Escudo Resplandeciente jugado como respuesta'))stats.shields++;
+    }
+  }
+  assert(stats.dice>30,'Fortuna expert never leverages destiny die');
+  assert(stats.blocked>0,'Agujero Negro must block actual HyperCards');
+  assert(stats.counters>20,'Expert counter play not occurring');
+  assert(stats.bonuses>0,'Gran Inversor must actually receive bonuses when profitable');
+  assert(stats.shields>0,'Escudo Resplandeciente must react to real targeting');
+  console.log('Expert AI targeted checks passed: '+JSON.stringify(stats));
+
   console.log('PASS updated rules: 50 cards, deck caps, directed effects, 30 seeded games, '+total+' events and '+coverage.size+' activated effects.');
 }
 simulations().catch(e=>{console.error(e);process.exitCode=1;});
