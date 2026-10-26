@@ -186,6 +186,36 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
       else if(value==='power')resolveBorrowedPower(p.pid,p.enemy);
       links()?.cleanup();drain();return;
     }
+    if(p.kind==='color'){
+      const suit=value.slice(5),n=draw(p.pid,1),c=n?pile(p.pid).pokerHand.at(-1):null;
+      if(c&&c.suit===suit){draw(p.pid,1);log(p.pid,'022','Acertó el símbolo '+suit+' y robó una Poker Card adicional.');}
+      else if(c){pile(p.pid).pokerHand.pop();sim().pokerDrawPile=ctx.shuffle([...sim().pokerDrawPile,c]);popPoker(p.pid,1);log(p.pid,'022','Falló símbolo '+suit+', devolvió la carta y descartó otra Poker Card.');}
+      finishChoice();return;
+    }
+    if(p.kind==='peek'){
+      const i=Number(value.slice(5)),c=p.cards.splice(i,1)[0];if(!c)return;
+      if(p.phase==='take'){
+        pile(p.pid).pokerHand.push(c);p.phase='order';log(p.pid,'016','Ojo del Más Allá: eligió '+c.rank+' de '+c.suit+'.');
+        if(!p.cards.length){finishChoice();return;}ctx.render();return;
+      }
+      sim().pokerDrawPile.unshift(c,...p.cards);log(p.pid,'016','Devolvió las restantes Poker Cards en el orden elegido.');
+      finishChoice();return;
+    }
+    if(p.kind==='spy'){
+      const victim=p.phase==='attack'?p.enemy:p.owner,st=pile(victim);
+      if(value.startsWith('poker:')){
+        const i=st.pokerHand.findIndex(c=>c.id===value.slice(6));
+        if(i>=0){const c=st.pokerHand.splice(i,1)[0];links()?.onPokerOut(victim,[c]);log(p.owner,'012','Espía vs Espía: descartó '+c.rank+'/'+c.suit+' de '+victim+'.');}
+      }else{
+        const i=Number(value.slice(6)),it=ctx.manual().take(victim,i);
+        if(it){ctx.manual().giveBack(it.cardId,it.ownerId);log(p.owner,'012','Espía vs Espía: descartó '+(card(it.cardId)?.name||it.cardId)+' de '+victim+'.');}
+      }
+      if(p.phase==='attack'){
+        p.phase='retaliation';p.pid=p.enemy;p.enemy=p.owner;
+        if(choiceOptions().length){ctx.render();return;}
+      }
+      finishChoice();return;
+    }
     if(p.kind==='forced-swap'){
       if(value==='finish'){log(p.pid,'013','Intercambio Forzado terminó con '+p.done+' pares de Poker Cards seleccionadas.');finishChoice();return;}
       const id=value.slice(value.indexOf(':')+1);
@@ -368,6 +398,6 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     }
   }
   function choiceState(){if(!pending)return null;return {kind:pending.kind,pid:pending.pid,enemy:pending.enemy,phase:pending.phase,ownId:pending.ownId,done:pending.done,usedOwn:[...(pending.usedOwn||[])],usedEnemy:[...(pending.usedEnemy||[])]};}
-  function cancelChoice(){if(!pending)return;const p=pending;log(p.pid||sim().decks[0]?.id,'','La elección del efecto se canceló por falta de opciones legales: '+p.kind+'.');pending=null;ctx.setModal(null);drain();}
+  function cancelChoice(){if(!pending)return;const p=pending;log(p.pid||sim().decks[0]?.id,'','La elección del efecto se canceló por falta de opciones legales: '+p.kind+'.');if(p.kind==='peek')sim().pokerDrawPile.unshift(...p.cards);pending=null;ctx.setModal(null);drain();}
   return {supported,canPlay,markUsed,usable,hypers,enqueue,finishChain,afterSelection,afterReaction,modalMarkup,choose,chooseOption,choiceOptions,choiceState,cancelChoice,activate,phase,round,recalc,beginTurn};
 };
