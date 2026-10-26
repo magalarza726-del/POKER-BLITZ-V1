@@ -60,7 +60,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     const options=title==='El gran tifón'?[...sim().decks]:opponents(pid);
     const players=eligible?options.filter(p=>eligible(p.id,pile(p.id))):options;
     if(!players.length){log(pid,'','Este efecto necesita otro jugador. No hay objetivo válido.');return true}
-    pending={kind:'target',players,title,callback};
+    pending={kind:'target',players,title,callback,sourcePid:pid};
     ctx.setModal({type:'assisted-target'});ctx.render();return false;
   }
   function openChoice(p){pending=p;ctx.setModal({type:'assisted-choice'});ctx.render();return false;}
@@ -189,13 +189,19 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   }
   function choose(id){
     if(!pending||pending.kind!=='target'||!pending.players.some(p=>p.id===id))return;
-    const f=pending.callback;pending=null;ctx.setModal(null);
-    if(active(id,'025')){draw(id,1);log(id,'025','Escudo de cartas: robó una Poker Card al ser seleccionado.')}
+    const f=pending.callback,sourcePid=pending.sourcePid;pending=null;ctx.setModal(null);
+    // Escudo de Cartas triggers when a CounterCard is played, not on target selection.
     if(active(id,'050')){
       const st=pile(id);st.assistedDefenses??={};const stamp=String(sim().round);
       if(!st.assistedDefenses[stamp]){st.assistedDefenses[stamp]=true;log(id,'050','Casco anti-efectos: negó la primera selección recibida en esta ronda.');drain();return;}
     }
-    f(id);links()?.cleanup();drain();
+    const redirect=sim().redirectNextTarget;sim().redirectNextTarget=null;
+    if(redirect&&redirect.defender===id&&redirect.attacker===sourcePid){
+      const others=sim().decks.filter(p=>p.id!==redirect.attacker&&p.id!==redirect.defender);
+      if(others.length){log(id,'004','Escudo Resplandeciente: efecto redirigido a J'+others[0].playerNumber+'.');f(others[0].id);}
+      else{const stolen=movePoker(sourcePid,id,1);log(id,'004','Sin objetivo alternativo: robó '+stolen.length+' Poker Card del atacante.');}
+    }else f(id);
+    links()?.cleanup();drain();
   }
   function enqueue(item){queue.push(item);const c=card(item.cardId),st=pile(item.playerId);if(c&&ctx.type?.(c)==='SUPER'&&c.id!=='catalog_v3_017'&&!item.copied){st.assistedLastSuper=c.id;st.assistedLastSuperTurn=st.turnsTaken;st.assistedPlayedSupers??=[];st.assistedPlayedSupers.push({cardId:c.id,turn:st.turnsTaken,round:sim().round});}}
   function finishChain(){drain()}
@@ -225,10 +231,12 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   function die(pid){const st=pile(pid),base=1+random(6);let final=base;
     const pending=st.pendingDieCounter;if(pending?.source===rollingEffect){const shift=dieShift(final,rollingEffect,false);final=Math.max(1,Math.min(6,final+shift));log(pending.by||pid,'052','Agujero Negro modificó el dado rival de '+base+' a '+final+'.');}st.pendingDieCounter=null;
     if(st.pendingDieShift){final=Math.max(1,Math.min(6,final+st.pendingDieShift));st.pendingDieShift=0;}
-    if(sim().autoMode){const index=st.hand.findIndex((id,i)=>id==='catalog_v3_003'&&!st.activeHyper.includes(i)&&canPlay(id,pid));const delta=dieShift(final,rollingEffect,true);
-      if(index>=0&&delta){const item=ctx.manual().take(pid,index);if(item){markUsed(item.cardId,pid);ctx.manual().giveBack(item.cardId,item.ownerId);const before=final;final=Math.max(1,Math.min(6,final+delta));log(pid,'003','Manipulador del Destino ajustó el dado propio de '+before+' a '+final+'.');ctx.log(pid,'Usar Power Card','MANIPULADOR DEL DESTINO',card('catalog_v3_003'));}}
-    }
-    st.dieBase=base;st.dieModifier=final-base;log(pid,'','Dado físico simulado: '+base+(final!==base?' → '+final:'')+'.');return final;
+    if(active(pid,'003')&&!st.destinyDieUsed){
+       const delta=dieShift(final,rollingEffect,true),adjust=delta||(final<6?1:-1),before=final;
+       final=Math.max(1,Math.min(6,final+adjust));
+       st.destinyDieUsed=true;log(pid,'003','Manipulador del Destino ajustó la primera tirada de '+before+' a '+final+'.');
+     }
+     st.dieBase=base;st.dieModifier=final-base;log(pid,'','Dado físico simulado: '+base+(final!==base?' → '+final:'')+'.');return final;
   }
   function apply(item){
     const id=String(item.cardId||'').replace('catalog_v3_',''),pid=item.playerId;
@@ -236,19 +244,19 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     const doTarget=(title,fn,eligible=null)=>{const forced=item.triggerPlayerId;if(forced&&['006','010','048','052','064'].includes(id)){if(!pile(forced)||!(eligible?eligible(forced,pile(forced)):true)){log(pid,id,'Counter sin objetivo elegible: efecto no aplicado.');return true;}fn(forced,pile(forced));return true;}return target(pid,title,(enemy)=>{const st=pile(enemy);fn(enemy,st);},eligible);};
     switch(id){
       case '004':{
-        const origin=item.copyOrigin;
-        if(origin&&item.originAllowed&&ctx.type?.(card(origin.cardId))==='SUPER'){
-          deferred.push({cardId:origin.cardId,playerId:pid,copied:true,copyDepth:1});
-          log(pid,id,'Escudo Resplandeciente copia '+(card(origin.cardId)?.name||origin.cardId)+' después de resolver la SuperCard.');
-        }else log(pid,id,'No había SuperCard válida para copiar.');
-        break;
-      }
-      case '040':{
+         const source=item.copyOrigin;
+         if(source?.playerId&&source.playerId!==pid){
+           sim().redirectNextTarget={defender:pid,attacker:source.playerId};
+           log(pid,id,'Escudo Resplandeciente: redirección disponible cuando se seleccione al defensor.');
+         }else log(pid,id,'No existe un efecto dirigido para redirigir.');
+         break;
+       }
+       case '040':{
         if(!item.ownerId){log(pid,id,'Sabueso de Ases no puede materializarse desde una copia sin carta física original.');if(sim().autoMode)ctx.toast('Intento de copia física ilegal de Sabueso de Ases.');break;}
         if(!active(pid,'046')){const cost=popPoker(pid,1);log(pid,id,'Pagó '+cost.length+' Poker Card por Sabueso de Ases.');}
         links()?.sabueso(item);return false;
       }
-      case '003':{s.pendingDieShift=1;log(pid,id,'Preparó un ajuste +1 para la próxima tirada; se aplicará al resolver el dado.');break}
+      case '003':{log(pid,id,'Manipulador del Destino solo se activa desde HyperZone.');break}
       case '005':{const artifacts=s.activeHyper.filter(i=>['042','043','044','058','059','060'].includes(String(s.hand[i]).slice(-3)));const different=[...new Set(artifacts.map(i=>String(s.hand[i]).slice(-3)))];if(different.length>=3){addChips(pid,5);const taken=ctx.manual().take(pid,artifacts[0]);ctx.manual().giveBack(taken.cardId,taken.ownerId);recalc(pid);log(pid,id,'Tres artilugios diferentes: +5 fichas, devolvió un artilugio.')}else log(pid,id,'Se requieren tres artilugios distintos activos para cobrar.');break}
       case '007':{const a=popPoker(pid,1),b=popPower(pid,1);if(a.length!==1||b.length!==1){log(pid,id,'No se pudo pagar 1 Poker Card y 1 Power Card.');break;}s.hyperActivationLimit=(s.hyperActivationLimit||1)+1;log(pid,id,'Sobrecarga de mejoras: permite activar una HyperCard adicional este turno.');break;}
       case '011':for(const player of sim().decks){pushPower(player.id,1);draw(player.id,1)}log(pid,id,'Todos los jugadores robaron hasta 1 Power Card y 1 Poker Card.');break;
@@ -284,8 +292,8 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
       case '006':return doTarget('Tiro por la culata',enemy=>log(pid,id,'J'+sim().decks.find(p=>p.id===enemy).playerNumber+' descartó '+popPoker(enemy,1,pid).length+' Poker Card.'));
       case '034':log(pid,id,'Robó '+draw(pid,1)+' Poker Card como respuesta al uso de Power Card.');break;
       case '048':return doTarget('Me llaman Robin Hood',enemy=>{const n=Math.min(1,pile(enemy).chips||0);addChips(enemy,-n);addChips(pid,n);log(pid,id,'Robó '+n+' ficha a J'+sim().decks.find(p=>p.id===enemy).playerNumber+'.')},enemy=>pile(enemy).chips>=1);
-      case '052':return doTarget('Agujero negro',enemy=>{const st=pile(enemy),src=String(item.triggerCardId||'').slice(-3);if(st.activeHyper.length){let i=st.activeHyper.at(-1),it=ctx.manual().take(enemy,i);ctx.manual().giveBack(it.cardId,it.ownerId);recalc(enemy);log(pid,id,'Devolvió HyperCard de J'+sim().decks.find(p=>p.id===enemy).playerNumber+' al Deck original.')}else if(['008','014','015','018','019','020','036'].includes(src)){st.pendingDieCounter={source:src,by:pid};log(pid,id,'Alteración del próximo dado del efecto '+(card(item.triggerCardId)?.name||src)+' preparada contra J'+sim().decks.find(p=>p.id===enemy).playerNumber+'.')}else log(pid,id,'Sin HyperCard ni dado de efecto elegible.')},enemy=>pile(enemy).activeHyper.length>0||['008','014','015','018','019','020','036'].includes(String(item.triggerCardId||'').slice(-3)));
-      case '064':{const r=die(pid);return doTarget('¿Tú también juegas dados?',enemy=>log(pid,id,r%2===0?'Rival robó '+draw(enemy,1)+' Poker Card.' :'Rival descartó '+popPoker(enemy,2,pid).length+' Poker Cards.'))}
+      case '052':{log(pid,id,'Agujero Negro bloquea una activación de HyperCard y no modifica dados.');break}
+       case '064':{const r=die(pid);return doTarget('¿Tú también juegas dados?',enemy=>log(pid,id,r%2===0?'Rival robó '+draw(enemy,1)+' Poker Card.' :'Rival descartó '+popPoker(enemy,2,pid).length+' Poker Cards.'))}
       case '037':{const others=opponents(pid);for(const p of others){draw(p.id,2);sim().assistedPending??=[];sim().assistedPending.push({round:sim().round,type:'GHOST',actor:pid,target:p.id});}log(pid,id,'Cada rival robó dos Poker Cards; descartarán dos después de su siguiente ajuste de End Phase.');break}
       case '039':{log(pid,id,'Robó '+draw(pid,3)+' Poker Cards.');sim().assistedPending??=[];sim().assistedPending.push({round:sim().round,type:'END_DISCARD',actor:pid,n:5});break}
       case '041':{const values={J:11,Q:12,K:13,A:14};let match=null;for(let i=0;i<s.pokerHand.length;i++){for(let j=i+1;j<s.pokerHand.length;j++){const a=s.pokerHand[i],b=s.pokerHand[j];if(a.rank!==b.rank&&(values[a.rank]||Number(a.rank))+(values[b.rank]||Number(b.rank))===21){match=[j,i];break}}if(match)break}if(match){const cards=match.map(i=>s.pokerHand.splice(i,1)[0]);if(links())links().onPokerOut(pid,cards);else sim().pokerDrawPile=ctx.shuffle([...sim().pokerDrawPile,...cards]);addChips(pid,2);s.chargeReplacement=(s.chargeReplacement||0)+2;log(pid,id,'Neo Blackjack: cobró 2 fichas; devolvió dos Poker Cards y programó reposición.')}else log(pid,id,'No se encontró par de valores diferentes que sumen 21.');break}
@@ -318,14 +326,16 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     s.hand.push(entry.cardId);s.handOwners.push(entry.ownerId);s.activeHyper.push(s.hand.length-1);
     recalc(pid);
     log(pid,id,'HyperCard activada realmente. Coste: '+removed.length+' Power Cards y '+discarded.length+' Poker Cards. Se actualizan efectos persistentes.');
-    if(key==='003')s.pendingDieShift=null;
+    if(key==='003')s.destinyDieUsed=false;
     ctx.render();
   }
   function phase(phase,pid){
     links()?.phase(phase,pid);
     if(phase!=='END')return;
     const all=sim().assistedPending||[];
-    const hits=all.filter(e=>e.actor===pid&&e.type==='END_DISCARD'&&e.round===sim().round);
+    const ghosts=all.filter(e=>e.type==='GHOST'&&e.target===pid);
+     for(const e of ghosts){log(e.actor,'037','Carta Fantasma: rival descartó '+popPoker(pid,2,e.actor).length+' Poker Cards después de End Phase.');all.splice(all.indexOf(e),1);}
+     const hits=all.filter(e=>e.actor===pid&&e.type==='END_DISCARD'&&e.round===sim().round);
     for(const h of hits){log(pid,'039','End Phase: descartó '+popPoker(pid,h.n).length+' Poker Cards.');all.splice(all.indexOf(h),1)}
   }
   function round(){
