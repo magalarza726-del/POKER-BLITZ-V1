@@ -2,31 +2,32 @@
 window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   const game=()=>ctx.sim(),state=id=>game().states[id], code=id=>String(id||'').slice(-3);
   const artifacts=new Set(['042','043','044','058','059','060']);
-  const supported=new Set(['001','004','005','029','030','035','040',...artifacts]);
+  const supported=new Set(['001','029','030','035','040',...artifacts]);
   let pending=null,offenseQueue=[];
   const bonds=id=>state(id).assistedBindings??=([]);
   const log=(pid,id,msg)=>ctx.log(pid,'Efecto vinculado',msg,ctx.card('catalog_v3_'+id)||null);
   const serial=()=>game().assistedSerial=(game().assistedSerial||0)+1;
   const virtual=c=>!!c?.virtualPower;
   const refs=(pid,c)=>bonds(pid).filter(b=>b.targets?.includes(c.id)||b.virtualId===c.id);
-  const protectedCard=(pid,c)=>refs(pid,c).some(b=>['042','043','044'].includes(b.type));
+  const protectedCard=(pid,c)=>refs(pid,c).some(b=>['029','030','035','040','042','043','044'].includes(b.type));
   function prices(t){return { '001':[0,0],'029':[1,0],'030':[1,0],'035':[0,3]}[t]||[0,0]}
   function eligible(pid,index){
     const s=state(pid);if(!s||s.currentPhase!=='MAIN'||s.activeHyper.includes(index)||s.activeHyper.length>=3)return false;
     const t=code(s.hand[index]);if(!supported.has(t)||['004','005','040'].includes(t))return false;
     const count=bonds(pid).filter(b=>b.type===t).length;
-    if(count>=(['001','035',...artifacts].includes(t)?2:1))return false;
+    if(count>=1)return false;
     const [pow,pok]=prices(t),free=s.hand.filter((_,i)=>i!==index&&!s.activeHyper.includes(i)).length;
     if(free<pow||s.pokerHand.length<pok)return false;
     if(t==='029'&&!s.pokerHand.length)return false;
-    if(t==='030'&&s.pokerHand.length<3)return false;
+    if(t==='030'&&!s.pokerHand.length)return false;
+   if(t==='035'&&s.pokerHand.length<4)return false;
     if(artifacts.has(t)&&!s.pokerHand.some(c=>!virtual(c)))return false;
     return true;
   }
   function open(index){
     const pid=game().decks[game().activeIndex].id,s=state(pid),t=code(s.hand[index]);
     if(!eligible(pid,index)){ctx.toast('No se cumplen costes, límite de HyperCards o requisitos del vínculo.');return}
-    const needed=t==='030'?2: t==='001'||t==='035'?0:1;
+    const needed=t==='001'?0:1;
     if(!needed)return activate(pid,index,[]);
     pending={kind:'hyper',pid,index,type:t,needed,selected:[]};ctx.setModal({type:'linked-picker'});ctx.render();
   }
@@ -88,15 +89,12 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     s.activeHyper.push(index);
     const b={token:serial(),pid,type:t,cardId:id,index,targets:[...selected],turn:-1};
     bonds(pid).push(b);
-    if(t==='035'){
-      const joker={id:'BLITZ-JOKER-'+serial(),rank:'JOKER',suit:'JOKER',symbol:'★',color:'black',copy:0,virtualPower:{type:'JOKER',token:b.token}};
-      b.virtualId=joker.id;s.pokerHand.push(joker);
-    }
+    // Joker enchants an existing Poker Card; no virtual Poker Card created.
     ctx.recalc(pid);log(pid,t,'HyperCard activada con vínculo '+(selected.join(', ')||'autónomo')+'. Costes reales descontados.');
     ctx.render();
   }
-  function wildRank(pid,c){return c?.virtualPower?.type==='JOKER'||refs(pid,c).some(b=>b.type==='029')}
-  function wildSuit(pid,c){return c?.virtualPower?.type==='JOKER'||refs(pid,c).some(b=>b.type==='030')}
+  function wildRank(pid,c){return c?.virtualPower?.type==='JOKER'||refs(pid,c).some(b=>['029','035'].includes(b.type))}
+  function wildSuit(pid,c){return c?.virtualPower?.type==='JOKER'||refs(pid,c).some(b=>['030','035'].includes(b.type))}
   function score(pid,kind,cards,actives){
     const point={Par:1,'Trío':3,Escalera:5,Color:5,'Póker':7}[kind],required={Par:2,'Trío':3,Escalera:5,Color:5,'Póker':4}[kind];
     if(!point||cards.length!==required||cards.some(x=>!x))return 0;
@@ -122,18 +120,10 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     const st=state(pid),hit=new Set(spent.map(c=>c.id));
     for(const b of [...bonds(pid)]){
       if(!b.targets.some(id=>hit.has(id)))continue;
-      if(b.type==='042')schedule({pid,step:'DRAW_END',due:st.turnsTaken+2,type:'DRAW_POWER',owner:pid,card:b.type});
-      if(b.type==='043')schedule({pid,step:'END',due:st.turnsTaken+1,type:'DRAW_POKER',owner:pid,card:b.type});
-      if(b.type==='044'){st.chips+=2;log(pid,b.type,'Artilugio Verde: +2 fichas por la combinación.')}
-      if(['058','059','060'].includes(b.type)){
-        const rivals=game().decks.filter(x=>x.id!==pid);if(!rivals.length)continue;
-        const mode={'058':['DRAW_END','POWER_DISCARD'],'059':['MAIN_START','POKER_DISCARD'],'060':['MAIN_START','CHIP_MINUS']}[b.type];
-        const effect={step:mode[0],type:mode[1],owner:pid,card:b.type};
-        if(rivals.length===1){const other=rivals[0];schedule({...effect,pid:other.id,due:state(other.id).turnsTaken+1});log(pid,b.type,'Penalización programada contra J'+other.playerNumber+'.')}
-        else offenseQueue.push(effect);
-      }
+      if(b.type==='042')schedule({pid,step:'MAIN_START',due:st.turnsTaken+2,type:'POKER_STEAL',owner:pid,card:b.type});
+      if(b.type==='043')schedule({pid,step:'END',due:st.turnsTaken+1,type:'CHIP_PLUS',owner:pid,card:b.type});
+      if(b.type==='044')schedule({pid,step:'DRAW_END',due:st.turnsTaken+2,type:'DRAW_POWER',owner:pid,card:b.type});
     }
-    if(!pending&&offenseQueue.length)startOffense();
   }
   function startOffense(){
     const effect=offenseQueue.shift();if(!effect)return;
@@ -200,7 +190,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     const p=pending,options=p.kind==='sabueso'?['S','H','D','C'].map(x=>({id:x,name:({S:'♠ Picas',H:'♥ Corazones',D:'♦ Diamantes',C:'♣ Tréboles'})[x]})):
       (p.kind==='offense'?game().decks.filter(x=>x.id!==p.pid).map(x=>({id:x.id,name:'Jugador '+x.playerNumber+' · '+x.name})):state(p.pid).pokerHand.filter(x=>!virtual(x)).map(x=>({id:x.id,name:x.rank+' de '+x.suit})));
     return '<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>'+
-      (p.kind==='sabueso'?'Sabueso de Ases · Elegir palo':p.kind==='ability'?'Reglas Antiguas · Intercambiar':p.kind==='offense'?'Artilugio · Elegir rival':'Vincular Poker Cards')+
+      (p.kind==='sabueso'?'Sabueso de Ases · Encantar una Poker Card':p.kind==='ability'?'Reglas Antiguas · Intercambiar':p.kind==='offense'?'Artilugio · Elegir rival':'Vincular Poker Cards')+
       '</h2></div><div class="modal-content"><p>Selecciona '+(p.needed||1)+' opción(es).</p><div style="display:flex;flex-wrap:wrap;gap:10px">'+options.map(x=>
       '<button class="btn '+(p.selected.includes(x.id)?'primary':'')+'" data-action="linked-option" data-id="'+ctx.esc(x.id)+'">'+ctx.esc(x.name)+'</button>').join('')+'</div></div></div></div>';
   }
