@@ -140,6 +140,8 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     const sim=get(),chain=sim?.chain;if(!chain)return;
     const p=sim.decks[chain.chooser],c=ctx.card(sim.states[p.id].hand[i]);
     if(ctx.type(c)!=='COUNTER'||(sim.mode==='ASSISTED'&&((ctx.canAssist&&!ctx.canAssist(c?.id))||(ctx.canPlayAssisted&&!ctx.canPlayAssisted(c?.id,p.id)))))return;
+    if(sim.mode==='ASSISTED'&&c?.id==='catalog_v3_004')
+      return ctx.toast('Escudo Resplandeciente se ofrece solamente cuando alguien te selecciona realmente como objetivo.');
     if(sim.mode==='ASSISTED')ctx.assistedCardUsed?.(c.id,p.id);
     if(chain.stack.length>1)return;chain.stack.push(take(p.id,i));chain.passes=0;chain.chooser=(chain.chooser+1)%sim.decks.length;
     ctx.log(p.id,'CounterCard anunciada','Respuesta única; no se permiten cadenas de CounterCards.',c);if(sim.mode==='ASSISTED')ctx.assistedCounterPlayed?.(chain.stack[0].playerId,p.id,c?.id);resolveChain();
