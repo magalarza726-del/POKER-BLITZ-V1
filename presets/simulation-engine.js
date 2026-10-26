@@ -541,10 +541,12 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     if(lost.length)issue('Integridad de Power Deck J'+p.playerNumber+': diferencias '+lost.slice(0,4).join(', '));
    }
   }
-  const maxRounds=Math.min(80,Math.max(1,config.maxRounds||40));let rounds=0,outcome='Límite de rondas',ties=0;
-  for(let round=1;round<=maxRounds;round++){
-   rounds=round;game.round=round;
+  const maxRounds=Math.min(80,Math.max(1,config.maxRounds||40));
+  let rounds=0,outcome='Límite de rondas',tieContenders=null,tieRounds=0,finalWinners=[];
+  for(let round=1;round<=maxRounds||(tieContenders&&tieRounds<3);round++){
+   rounds=round;game.round=round;game.eligiblePlayers=tieContenders?tieContenders.slice():null;
    for(let i=0;i<players.length;i++){
+    if(tieContenders&&!tieContenders.includes(players[i].id))continue;
     if(config.cancel?.cancelled){outcome='Cancelada';break}
     game.turnIndex=game.activeIndex=i;
     const p=players[i],s=get(p.id);s.currentPhase='DRAW';
@@ -606,9 +608,26 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    }
    if(config.cancel?.cancelled)break;
    fx.round();links.cleanup();
-   const top=Math.max(...players.map(p=>get(p.id).chips)),leaders=players.filter(p=>get(p.id).chips===top);
-   if(top>=target){if(leaders.length===1){game.finished=true;outcome='Victoria al finalizar ronda';break}
-    ties++;if(ties>=3){game.finished=true;outcome='Empate tras rondas adicionales';break}}
+   const contenders=tieContenders?players.filter(p=>tieContenders.includes(p.id)):players;
+   const qualified=contenders.filter(p=>get(p.id).chips>=target);
+   if(tieContenders)tieRounds++;
+   if(qualified.length){
+     const top=Math.max(...qualified.map(p=>get(p.id).chips));
+     const leaders=qualified.filter(p=>get(p.id).chips===top);
+     if(leaders.length===1){
+       finalWinners=[leaders[0].id];game.finished=true;
+       outcome=tieContenders?'Victoria en desempate':'Victoria al finalizar ronda';break;
+     }
+     if(!tieContenders){
+       tieContenders=leaders.map(p=>p.id);
+       for(const p of players)log(p.id,'Desempate','Solo los '+leaders.length+' jugadores empatados continúan hasta 3 rondas adicionales.');
+     }
+   }
+   if(tieContenders&&tieRounds>=3){
+     const top=Math.max(...tieContenders.map(id=>get(id).chips));
+     finalWinners=tieContenders.filter(id=>get(id).chips===top);
+     game.finished=true;outcome='Empate total tras 3 rondas adicionales';break;
+   }
    onProgress?.({round,maxRounds,events:Object.values(game.histories).reduce((n,x)=>n+x.length,0)});
    if(round%2===0)await new Promise(resolve=>setTimeout(resolve,0));
   }
@@ -617,7 +636,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
   const totals=Object.values(game.histories).reduce((n,x)=>n+x.length,0),endedAt=Date.now();
   const result={seed:config.seed,version:context.version||'1.19.8',mode:'AUTO_SIM',battleMode:rush?'RUSH':'BLITZ',goal:target,
    rounds,startedAt,endedAt,durationMs:endedAt-startedAt,pokerDeckCount:config.pokerDeckCount||1,finished:game.finished,
-   outcome,cancelled:!!config.cancel?.cancelled,winnerIds:ranking.filter(p=>get(p.id).chips===top).map(x=>x.id),
+   outcome,cancelled:!!config.cancel?.cancelled,winnerIds:finalWinners.length?finalWinners:ranking.filter(p=>get(p.id).chips===top).map(x=>x.id),
    incidents,effectCounts:counts,eventsCount:totals,
    players:ranking.map(p=>({id:p.id,participantId:p.participantId,seat:p.seat,name:p.name,deckId:p.sourceDeckId,difficulty:p.difficulty,style:p.style,chips:get(p.id).chips,
     events:game.histories[p.id],pokerHand:get(p.id).pokerHand.length,powerHand:get(p.id).hand.length-get(p.id).activeHyper.length,
