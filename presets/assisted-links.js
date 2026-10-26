@@ -147,7 +147,10 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
       }else if(e.type==='CHIP_MINUS')s.chips=Math.max(0,s.chips-1);
       ev.splice(ev.indexOf(e),1);log(pid,e.card,'Efecto diferido '+e.type+' aplicado en '+step+'.');
     }
-    if(step==='END')for(const b of [...bonds(pid)])if(b.type==='040')detach(pid,b,'Sabueso de Ases: encanto finalizado.',false);
+    if(step==='END')for(const b of [...bonds(pid)])if(b.type==='040'){
+       for(const c of s.pokerHand.filter(x=>b.targets.includes(x.id)))if(c.originalRank!==undefined){c.rank=c.originalRank;delete c.originalRank;}
+       detach(pid,b,'Sabueso de Ases: encanto finalizado.',false);
+     }
     cleanup();
   }
   function ability(index){
@@ -206,7 +209,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   }
   function modalMarkup(){
     if(!pending)return'';
-    const p=pending,options=p.kind==='sabueso'?['S','H','D','C'].map(x=>({id:x,name:({S:'♠ Picas',H:'♥ Corazones',D:'♦ Diamantes',C:'♣ Tréboles'})[x]})):
+    const p=pending,options=
       (p.kind==='offense'?game().decks.filter(x=>x.id!==p.pid).map(x=>({id:x.id,name:'Jugador '+x.playerNumber+' · '+x.name})):
        state(p.pid).pokerHand.filter(x=>!virtual(x)&&!protectedCard(p.pid,x)).map(x=>({id:x.id,name:x.rank+' de '+x.suit})).concat(p.kind==='ability'?[{id:'__ALL__',name:'Intercambiar toda mi mano'}]:[]));
     return '<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>'+
