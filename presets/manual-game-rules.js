@@ -73,16 +73,35 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
      s.hyperActivationsThisTurn=0;s.hyperActivationLimit=1;s.hyperDeniedThisTurn=[];s.shieldCardsTriggered=false;s.destinyDieUsed=false;
     s.turnsTaken=(s.turnsTaken||0)+1;ctx.log(d.id,'Fin de turno','Turno '+s.turnsTaken+' completado. Fichas: '+s.chips+'.');
     sim.chargeSelection=[];
-    if(sim.turnIndex===sim.decks.length-1){
+    const active=()=>sim.decks.filter(p=>!sim.tieContenders||sim.tieContenders.includes(p.id));
+    if(active().at(-1)?.id===d.id){
       if(sim.mode==='ASSISTED')ctx.assistedRound?.();
-      const goal=sim.goal||30,players=sim.decks;if(players.some(p=>sim.states[p.id].chips>=goal)){
-        const best=Math.max(...players.map(p=>sim.states[p.id].chips)),winners=players.filter(p=>sim.states[p.id].chips===best);
-        sim.finished=true;sim.result='Fin de ronda. '+(winners.length===1?'Ganó J'+winners[0].playerNumber:'Empate: '+winners.map(p=>'J'+p.playerNumber).join(', '));
-        for(const p of players)ctx.log(p.id,'Resultado',sim.result);ctx.render();return;
+      const goal=sim.goal||30,participants=active(),qualified=participants.filter(p=>sim.states[p.id].chips>=goal);
+      if(sim.tieContenders)sim.tieRounds=(sim.tieRounds||0)+1;
+      if(qualified.length){
+        const top=Math.max(...qualified.map(p=>sim.states[p.id].chips));
+        const leaders=qualified.filter(p=>sim.states[p.id].chips===top);
+        if(leaders.length===1){
+          sim.finished=true;sim.winnerIds=[leaders[0].id];
+          sim.result='Fin de ronda. Ganó J'+leaders[0].playerNumber;
+          for(const p of sim.decks)ctx.log(p.id,'Resultado',sim.result);ctx.render();return;
+        }
+        if(!sim.tieContenders){
+          sim.tieContenders=leaders.map(p=>p.id);sim.tieRounds=0;
+          ctx.log(d.id,'Desempate','Solo los jugadores '+leaders.map(p=>'J'+p.playerNumber).join(', ')+
+            ' continúan hasta tres rondas adicionales.');
+        }
+      }
+      if(sim.tieContenders&&(sim.tieRounds||0)>=3){
+        sim.finished=true;sim.winnerIds=[...sim.tieContenders];
+        sim.result='Empate total tras tres rondas adicionales entre '+active().map(p=>'J'+p.playerNumber).join(', ');
+        for(const p of sim.decks)ctx.log(p.id,'Resultado',sim.result);ctx.render();return;
       }
       sim.round=(sim.round||1)+1;
     }
-    sim.turnIndex=(sim.turnIndex+1)%sim.decks.length;sim.activeIndex=sim.turnIndex;
+    const eligible=active(),current=eligible.findIndex(p=>p.id===d.id);
+    const following=eligible[(current+1+eligible.length)%eligible.length];
+    sim.turnIndex=sim.decks.findIndex(p=>p.id===following.id);sim.activeIndex=sim.turnIndex;
     const p=sim.decks[sim.turnIndex],next=sim.states[p.id];
     if((next.turnsTaken||0)>0)ctx.drawPhase(p,next);
     else{next.currentPhase='MAIN';ctx.log(p.id,'Primer turno','Se omite la Draw Phase del primer turno.');}
@@ -94,7 +113,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     const sim=get(),s=sim.states[playerId],card=ctx.card(s.hand[index]),type=ctx.type(card);
     if(!card||type==='HYPER')return;
     if(type==='SUPER'&&s.currentPhase!=='MAIN')return ctx.toast('La SuperCard debe jugarse en Main Phase.');
-    if(type==='COUNTER'&&s.currentPhase!=='END'&&sim.mode!=='MANUAL_SIMPLE')return ctx.toast('Responde con CounterCards desde la ventana de respuesta, o durante tu End Phase.');
+    if(type==='COUNTER')return ctx.toast('Reglamento oficial: una CounterCard solo puede jugarse como respuesta durante la Main Phase rival, desde la ventana de reacción.');
     if(sim.mode==='MANUAL_SIMPLE'){
       ctx.pushUndo(playerId,'Power Card física: uso manual');const item=take(playerId,index);
       if(!item)return;giveBack(item.cardId,item.ownerId);
