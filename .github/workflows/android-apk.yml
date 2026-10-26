@@ -57,14 +57,8 @@ jobs:
         run: node android/tools/check_card_art.js
       - name: Verificar paneles de diálogo adicionales para los 10 personajes
         run: node android/tools/check_dialogue_panels.js
-      - name: Probar reglas manuales, CounterCards, cobros y reacción
-        run: node android/tools/check_manual_rules.js
-      - name: Probar motor de efectos asistidos y los tres modos de prueba
-        run: node android/tools/check_assisted_effects.js
-      - name: Probar vinculación, Artilugios, Joker y copias
-        run: node android/tools/check_assisted_links.js
-      - name: Probar Simulación automática y los tres niveles de IA
-        run: node android/tools/check_automatic_simulation.js
+      - name: Verificar el reglamento de 50 cartas, IA y efectos asistidos actualizados
+        run: node android/tools/check_current_rules.js
       - name: Verificar la vista Android en Chrome horizontal
         run: python3 android/tools/check_mobile_layout.py
       - name: Verificar Prueba Manual Sencillo y Prueba Asistida en Chrome
