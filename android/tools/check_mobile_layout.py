@@ -143,7 +143,7 @@ async function check(){
    throw Error('Player B visibility incorrectly tied to A');
  const hideB=dialog().querySelector('[data-action="trade-visibility"][data-side="to"][data-visibility="HIDDEN"]');
  hideB.click();
- if(dialog().querySelectorAll('.trade-list[data-trade-list="to"] .trade-back').length!==5)
+ if(dialog().querySelectorAll('.trade-list[data-trade-list="to"] .trade-back').length!==7)
    throw Error('Player B concealment missing');
  dialog().querySelector('[data-action="trade-visibility"][data-side="from"][data-visibility="VISIBLE"]').click();
  if(!dialog().querySelector('.trade-list[data-trade-list="from"] .poker-card')||
@@ -176,12 +176,12 @@ async function check(){
    {bubbles:true,pointerId,pointerType:'touch',clientX:X,clientY:Y,cancelable:true}));
  }
  pointerDrop(getTile('from',0),recv,45);
- if(count('from')!==4||count('to')!==6||identity(getTile('to',5))!==origin)
+ if(count('from')!==6||count('to')!==8||identity(getTile('to',7))!==origin)
    throw Error('Drag-to-steal did not transfer card');
  await new Promise(r=>setTimeout(r,210));
  next('close-modal');next('undo-action');
  next('open-trade');
- if(count('from')!==5||count('to')!==5||identity(getTile('from',0))!==origin)
+ if(count('from')!==7||count('to')!==7||identity(getTile('from',0))!==origin)
    throw Error('Steal undo failed');
  // DISCARD: drop the card into the trash icon. Poker Card must disappear
  // from hand, then be restored with one undo.
@@ -189,12 +189,12 @@ async function check(){
  const trash=dialog().querySelector('.trade-trash');
  if(!trash)throw Error('Trash drop zone missing');
  pointerDrop(getTile('from',0),trash,46);
- if(count('from')!==4||count('to')!==5)
+ if(count('from')!==6||count('to')!==7)
    throw Error('Drag-to-trash did not discard from source hand');
  await new Promise(r=>setTimeout(r,210));
  next('close-modal');next('undo-action');
  next('open-trade');
- if(count('from')!==5||identity(getTile('from',0))!==origin)
+ if(count('from')!==7||identity(getTile('from',0))!==origin)
    throw Error('Discard undo failed');
  // Tapping (without dragging) also works on a phone.
  dialog().querySelector('[data-action="trade-operation"][data-operation="STEAL"]').click();
