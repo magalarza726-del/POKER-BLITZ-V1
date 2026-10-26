@@ -10,26 +10,26 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   const addChips=(pid,n)=>{const st=pile(pid),before=st.chips||0;st.chips=Math.max(0,before+n);return st.chips-before};
   const log=(pid,id,description)=>ctx.log(pid,'Efecto asistido',description,card(id)||card('catalog_v3_'+id)||null);
   const ids=(s)=>new Set(s);
-  const usable=ids(['003','004','005','006','007','008','009','010','011','012','013','014','015','016','017','018','019','020','021','022','023','024','026','031','032','033','034','036','037','038','039','040','041','045','047','048','051','052','053','054','055','056','057','061','063','064']);
-  const hypers=ids(['001','002','025','027','028','029','030','035','042','043','044','046','049','050','058','059','060','062']);
+  const usable=ids(['006','007','009','010','011','012','013','014','015','016','017','018','019','020','021','022','026','031','032','033','034','036','037','039','040','041','045','047','053','054','055','056','057','061','063']);
+  const hypers=ids(['029','030','035','046','062']); // Otros efectos Hyper nuevos necesitan adaptación.
   let queue=[],pending=null,deferred=[],rollingEffect=null;
   function supported(id){const match=String(id||'').match(/catalog_v3_(\d{3})/);const code=match?.[1];return !!code&&(usable.has(code)||hypers.has(code));}
   function copyCandidates(pid){const s=pile(pid);if(!s)return [];return (s.assistedPlayedSupers||[]).filter(x=>x.turn===s.turnsTaken&&x.round===sim().round&&x.cardId!=='catalog_v3_017'&&x.cardId!=='catalog_v3_040'&&supported(x.cardId)&&canPlay(x.cardId,pid)).map(x=>x.cardId);}
   function canPlay(id,pid){if(!supported(id))return false;const s=pile(pid);if(!s)return false;const num=String(id).slice(-3);const freePower=s.hand.filter(x=>x===id).length?Math.max(0,s.hand.length-s.activeHyper.length-1):s.hand.length-s.activeHyper.length;
-    const costPoker={ '007':2 }; const costPower={'007':1,'032':1};
+    const costPoker={ '007':1 }; const costPower={'007':1,'032':1};
     if((costPoker[num]||0)>s.pokerHand.length)return false;
     if((costPower[num]||0)>freePower)return false;
-    if(num==='007'&&!s.drawPile.some(cid=>ctx.type?.(card(cid))==='HYPER'))return false;
+    // Sobrecarga de mejoras no busca HyperCards en el Power Deck.
     if(num==='031'&&(s.chips||0)<1)return false;
     // Manipulador se valida en el momento de tirar el dado; en Prueba Asistida puede preparar la próxima tirada.
     if(['006','009','010','012','013','026','038','048','052','055','056','064'].includes(num)&&!opponents(pid).length)return false;
     if(num==='008'&&!s.activeHyper.length)return false;
-    if(num==='009'&&!opponents(pid).some(p=>pile(p.id).chips>=5&&(pile(p.id).chips>=10||pile(p.id).pokerHand.filter(c=>!links()?.protectedCard(p.id,c)).length>=2||pile(p.id).hand.some((_,i)=>!pile(p.id).activeHyper.includes(i)))))return false;
-    if(num==='010'&&!opponents(pid).some(p=>pile(p.id).pokerHand.length>=7))return false;
+    if(num==='009'&&!opponents(pid).some(p=>pile(p.id).chips>=5))return false;
+    if(num==='010'&&(!s.pokerHand.length||!opponents(pid).some(p=>pile(p.id).pokerHand.length)))return false;
     if(num==='012'&&(!s.pokerHand.length||!opponents(pid).some(p=>pile(p.id).pokerHand.length)))return false;
     if(num==='013'&&(!s.pokerHand.some(c=>!links()?.protectedCard(pid,c))||!opponents(pid).some(p=>pile(p.id).pokerHand.some(c=>!links()?.protectedCard(p.id,c)))))return false;
     if(num==='023'&&(s.pokerHand.length<2||!s.pokerHand.some(c=>/^([2-9]|10)$/.test(c.rank))))return false;
-    if(num==='026'&&!(opponents(pid).length&&(sim().pokerDrawPile.length>=2||(s.pokerHand.filter(c=>!links()?.protectedCard(pid,c)).length>=3&&opponents(pid).some(p=>pile(p.id).pokerHand.filter(c=>!links()?.protectedCard(p.id,c)).length>=3)))))return false;
+    if(num==='026'&&!opponents(pid).length)return false;
     if(num==='047'&&!active(pid,'046')&&s.pokerHand.length<5)return false;
     if(num==='051'&&!sim().decks.some(p=>pile(p.id).activeHyper.length))return false;
     // Agujero Negro también puede reaccionar a un efecto de dados todavía sin resolver.
@@ -69,10 +69,10 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     if(p.kind==='hyper-search')return actor.drawPile.map((id,i)=>({value:'hyper:'+i,label:card(id)?.name||id,score:ctx.cardScore?.(p.pid,id)||1}))
       .filter(x=>ctx.type?.(card(actor.drawPile[Number(x.value.slice(6))]))==='HYPER');
     if(p.kind==='maestro'){
-      const victim=pile(p.enemy),slots=victim.hand.filter((_,i)=>!victim.activeHyper.includes(i)),count=victim.pokerHand.filter(c=>!links()?.protectedCard(p.enemy,c)).length;
+      const victim=pile(p.enemy),slots=victim.hand.filter((_,i)=>!victim.activeHyper.includes(i));
       const options=[];
-      if(victim.chips>=10)options.push({value:'chips',label:'Robar '+Math.floor(victim.chips/10)+' ficha(s) por cada 10 fichas',score:Math.floor(victim.chips/10)*1.8});
-      if(count>=2)options.push({value:'poker',label:'Robar 2 Poker Cards al azar',score:2.9});
+      if(victim.chips>=5)options.push({value:'chips',label:'Robarle 1 ficha',score:1.8});
+      // Ya no existe opción de robar dos Poker Cards.
       if(slots.length)options.push({value:'power',label:'Activar una Power Card aleatoria del rival; devolverla si no es aplicable',score:1.6});
       return options;
     }
@@ -158,9 +158,9 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     if(p.kind==='maestro'){
       const victim=pile(p.enemy);
       pending=null;ctx.setModal(null);
-      if(value==='chips'){const n=Math.floor(victim.chips/10),taken=Math.min(n,victim.chips);addChips(p.enemy,-taken);addChips(p.pid,taken);
-        log(p.pid,'009','Maestro de Fichas: robó '+taken+' fichas (1 por cada 10) de J'+sim().decks.find(q=>q.id===p.enemy).playerNumber+'.');
-      }else if(value==='poker'){const moved=movePoker(p.enemy,p.pid,2);log(p.pid,'009','Maestro de Fichas: robó '+moved.length+' Poker Cards aleatorias de J'+sim().decks.find(q=>q.id===p.enemy).playerNumber+'.');}
+      if(value==='chips'){const taken=Math.min(1,victim.chips);addChips(p.enemy,-taken);addChips(p.pid,taken);
+        log(p.pid,'009','Maestro de Fichas: robó '+taken+' ficha(s) de J'+sim().decks.find(q=>q.id===p.enemy).playerNumber+'.');
+      }
       else if(value==='power')resolveBorrowedPower(p.pid,p.enemy);
       links()?.cleanup();drain();return;
     }
@@ -245,13 +245,13 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
       }
       case '003':{s.pendingDieShift=1;log(pid,id,'Preparó un ajuste +1 para la próxima tirada; se aplicará al resolver el dado.');break}
       case '005':{const artifacts=s.activeHyper.filter(i=>['042','043','044','058','059','060'].includes(String(s.hand[i]).slice(-3)));const different=[...new Set(artifacts.map(i=>String(s.hand[i]).slice(-3)))];if(different.length>=3){addChips(pid,5);const taken=ctx.manual().take(pid,artifacts[0]);ctx.manual().giveBack(taken.cardId,taken.ownerId);recalc(pid);log(pid,id,'Tres artilugios diferentes: +5 fichas, devolvió un artilugio.')}else log(pid,id,'Se requieren tres artilugios distintos activos para cobrar.');break}
-      case '007':{if(s.pokerHand.length<2||s.hand.length-s.activeHyper.length<1||!s.drawPile.some(cid=>ctx.type?.(card(cid))==='HYPER')){log(pid,id,'Costes o HyperCard del deck no disponibles.');break}const pokerCost=popPoker(pid,2),powerCost=popPower(pid,1);if(pokerCost.length!==2||powerCost.length!==1){log(pid,id,'No se pudo completar el descarte de 2 Poker Cards y 1 Power Card.');break}log(pid,id,'Anzuelo de Mejoras: descartó 2 Poker Cards y 1 Power Card; ahora elige una HyperCard del Deck.');return openHyperSearch(pid)}
+      case '007':{const a=popPoker(pid,1),b=popPower(pid,1);if(a.length!==1||b.length!==1){log(pid,id,'No se pudo pagar 1 Poker Card y 1 Power Card.');break;}s.hyperActivationLimit=(s.hyperActivationLimit||1)+1;log(pid,id,'Sobrecarga de mejoras: permite activar una HyperCard adicional este turno.');break;}
       case '011':for(const player of sim().decks){pushPower(player.id,1);draw(player.id,1)}log(pid,id,'Todos los jugadores robaron hasta 1 Power Card y 1 Poker Card.');break;
       case '053':log(pid,id,'Robó '+draw(pid,1)+' Poker Card.');break;
       case '032':{const x=popPower(pid,1).length;if(!x){log(pid,id,'Coste no pagado: requiere descartar 1 Power Card.');break;}log(pid,id,'Descartó 1 Power Card y robó '+draw(pid,2)+' Poker Cards.');break}
       case '031':if(s.chips<1){log(pid,id,'No hay fichas para pagar el coste.');break}addChips(pid,-1);log(pid,id,'Pagó 1 ficha, robó '+draw(pid,1)+' Poker Card y '+pushPower(pid,1)+' Power Card.');break;
       case '054':{const available=s.drawPile.map((cid,i)=>i).filter(i=>s.drawPile[i]!==item.cardId);if(!available.length||s.hand.length-s.activeHyper.length>=s.powerHandLimit){log(pid,id,'No había otra Power Card distinta disponible o se alcanzó el límite de mano.');break;}const k=available[random(available.length)],cid=s.drawPile.splice(k,1)[0],owner=s.drawOwners.splice(k,1)[0]||pid;s.hand.push(cid);s.handOwners.push(owner);log(pid,id,'Ciclo Rápido: obtuvo otra Power Card distinta ('+(card(cid)?.name||cid)+').');break}
-      case '057':{const spent=active(pid,'062')?0:popPoker(pid,2).length;log(pid,id,'Pagó '+spent+' Poker Cards y robó '+pushPower(pid,1)+' Power Card.');break}
+      case '057':{const spent=active(pid,'062')?0:popPoker(pid,2).length;log(pid,id,'Pagó '+spent+' Poker Cards y robó '+pushPower(pid,1)+' Power Card y '+draw(pid,1)+' Poker Card.');break}
       case '063':{const spent=active(pid,'062')?0:popPoker(pid,2).length;log(pid,id,'Reino Amable: pagó '+spent+' Poker Cards ('+(active(pid,'062')?'Vínculo Noble activo':'coste normal')+') y robó '+draw(pid,2)+' Poker Cards sin límite de fichas.');break}
       case '036':{const r=die(pid);log(pid,id,'Dado '+r+'. Robó '+([1,6].includes(r)?draw(pid,2):0)+' Poker Cards.');break}
       case '016':{const peek=sim().pokerDrawPile.splice(0,Math.min(3,sim().pokerDrawPile.length));if(peek.length){const order={A:14,K:13,Q:12,J:11};peek.sort((a,b)=>(order[b.rank]||Number(b.rank))-(order[a.rank]||Number(a.rank)));s.pokerHand.push(peek.shift());sim().pokerDrawPile.unshift(...peek);const d=popPoker(pid,1).length;log(pid,id,'Miró las 3 superiores, eligió una, devolvió el resto arriba y descartó '+d+' Poker Card.')}else log(pid,id,'El mazo de Poker estaba vacío.');break}
@@ -267,7 +267,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
       case '024':break; // Physical reaction window is provided by the shared rules engine.
       case '026':{const canSwap=s.pokerHand.filter(c=>!links()?.protectedCard(pid,c)).length>=3&&opponents(pid).some(p=>pile(p.id).pokerHand.filter(c=>!links()?.protectedCard(p.id,c)).length>=3),swap=canSwap&&(sim().pokerDrawPile.length<2||(sim().autoMode&&sim().decks.find(p=>p.id===pid)?.difficulty==='beginner'&&random(3)===0));if(swap)return doTarget('Compartir es ganar: intercambiar 3',enemy=>{const n=swapPoker(pid,enemy,3);log(pid,id,'Intercambió '+n+' de 3 Poker Cards con J'+sim().decks.find(p=>p.id===enemy).playerNumber+'.')},enemy=>pile(enemy).pokerHand.filter(c=>!links()?.protectedCard(enemy,c)).length>=3);const start=s.pokerHand.length,drawn=draw(pid,2),fresh=s.pokerHand.slice(start);log(pid,id,'Robó '+drawn+' Poker Cards nuevas; comparte una de las recién robadas.');if(!fresh.length)break;return doTarget('Compartir es ganar: regalar carta nueva',enemy=>{const shared=fresh[fresh.length-1],index=s.pokerHand.findIndex(c=>c.id===shared.id);if(index>=0){pile(enemy).pokerHand.push(s.pokerHand.splice(index,1)[0]);links()?.cleanup();log(pid,id,'Entregó Poker Card recién robada ('+shared.rank+'/'+shared.suit+') a J'+sim().decks.find(p=>p.id===enemy).playerNumber+'.')}},enemy=>!!pile(enemy));}
       case '008':{const r=die(pid);if(r%2===0){const i=s.activeHyper.at(-1);if(i!==undefined){const removed=ctx.manual().take(pid,i);ctx.manual().giveBack(removed.cardId,removed.ownerId);log(pid,id,'Dado par: devolvió una HyperCard propia.')}else log(pid,id,'No había HyperCard propia para devolver.')}else return doTarget('Destello relámpago',enemy=>{const st=pile(enemy);let n=0;for(let k=0;k<2&&st.activeHyper.length;k++){const i=st.activeHyper.at(-1),removed=ctx.manual().take(enemy,i);ctx.manual().giveBack(removed.cardId,removed.ownerId);n++}log(pid,id,'Dado impar: devolvió '+n+' HyperCards del rival.')});break}
-      case '009':return doTarget('Maestro de fichas',enemy=>openMaestroChoice(pid,enemy),enemy=>{const st=pile(enemy);return st.chips>=5&&(st.chips>=10||st.pokerHand.filter(c=>!links()?.protectedCard(enemy,c)).length>=2||st.hand.some((_,i)=>!st.activeHyper.includes(i)));});
+      case '009':return doTarget('Maestro de fichas',enemy=>openMaestroChoice(pid,enemy),enemy=>pile(enemy).chips>=5);
       case '010':return doTarget('Operación táctica',(enemy,other)=>{const ai=sim().decks.find(p=>p.id===pid),chooseSwap=sim().autoMode&&s.pokerHand.length>=3&&ai?.difficulty==='beginner'&&random(2)===0;if(chooseSwap){const n=swapPoker(pid,enemy,3);log(pid,id,'Eligió intercambiar '+n+' Poker Cards al azar con J'+sim().decks.find(p=>p.id===enemy).playerNumber+'.')}else{const n=other.pokerHand.length>=7?movePoker(enemy,pid,1).length:0;log(pid,id,'Robó '+n+' Poker Cards al rival con mínimo 7.')}},enemy=>pile(enemy).pokerHand.length>=7);
       case '012':return doTarget('Espía vs Espía',enemy=>{let a=popPoker(enemy,1,pid).length,b=popPoker(pid,1).length;log(pid,id,'Descartó '+a+' Poker Card rival y '+b+' propia.')});
       case '013':return doTarget('Intercambio forzado',enemy=>openForcedSwap(pid,enemy),enemy=>pile(enemy).pokerHand.some(c=>!links()?.protectedCard(enemy,c)));
@@ -283,18 +283,18 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
       case '064':{const r=die(pid);return doTarget('¿Tú también juegas dados?',enemy=>log(pid,id,r%2===0?'Rival robó '+draw(enemy,1)+' Poker Card.' :'Rival descartó '+popPoker(enemy,2,pid).length+' Poker Cards.'))}
       case '037':{const others=opponents(pid);for(const p of others)draw(p.id,2);sim().assistedPending??=[];sim().assistedPending.push({round:sim().round+1,type:'GHOST',actor:pid});log(pid,id,'Cada rival robó dos Poker Cards. Penalización programada para próxima ronda.');break}
       case '039':{log(pid,id,'Robó '+draw(pid,3)+' Poker Cards.');sim().assistedPending??=[];sim().assistedPending.push({round:sim().round,type:'END_DISCARD',actor:pid,n:5});break}
-      case '041':{const values={J:11,Q:12,K:13,A:11};let match=null;for(let i=0;i<s.pokerHand.length;i++){for(let j=i+1;j<s.pokerHand.length;j++){const a=s.pokerHand[i],b=s.pokerHand[j];if(a.rank!==b.rank&&(values[a.rank]||Number(a.rank))+(values[b.rank]||Number(b.rank))===21){match=[j,i];break}}if(match)break}if(match){const cards=match.map(i=>s.pokerHand.splice(i,1)[0]);if(links())links().onPokerOut(pid,cards);else sim().pokerDrawPile=ctx.shuffle([...sim().pokerDrawPile,...cards]);addChips(pid,1);s.chargeReplacement=(s.chargeReplacement||0)+2;log(pid,id,'Blackjack: cobró 1 ficha; devolvió dos Poker Cards y programó reposición.')}else log(pid,id,'No se encontró par de valores diferentes que sumen 21.');break}
+      case '041':{const values={J:11,Q:12,K:13,A:14};let match=null;for(let i=0;i<s.pokerHand.length;i++){for(let j=i+1;j<s.pokerHand.length;j++){const a=s.pokerHand[i],b=s.pokerHand[j];if(a.rank!==b.rank&&(values[a.rank]||Number(a.rank))+(values[b.rank]||Number(b.rank))===21){match=[j,i];break}}if(match)break}if(match){const cards=match.map(i=>s.pokerHand.splice(i,1)[0]);if(links())links().onPokerOut(pid,cards);else sim().pokerDrawPile=ctx.shuffle([...sim().pokerDrawPile,...cards]);addChips(pid,2);s.chargeReplacement=(s.chargeReplacement||0)+2;log(pid,id,'Neo Blackjack: cobró 2 fichas; devolvió dos Poker Cards y programó reposición.')}else log(pid,id,'No se encontró par de valores diferentes que sumen 21.');break}
       case '045':
-      case '061':{if(id==='045'&&!active(pid,'046')){popPoker(pid,1);popPower(pid,1);log(pid,id,'Pagó un Poker Card y una Power Card al no tener Maldición activa.');}if(id==='061'&&!active(pid,'062')){popPoker(pid,5);log(pid,id,'Pagó cinco Poker Cards al no tener Vínculo noble activo.');}const wanted=id==='045'?['A']:['J','Q','K'],indexes=s.pokerHand.map((c,i)=>wanted.includes(c.rank)?i:-1).filter(i=>i>=0),cards=indexes.map(i=>s.pokerHand[i]);for(let j=indexes.length-1;j>=0;j--)s.pokerHand.splice(indexes[j],1);if(links())links().onPokerOut(pid,cards);else sim().pokerDrawPile=ctx.shuffle([...sim().pokerDrawPile,...cards]);addChips(pid,cards.length*2);s.chargeReplacement=(s.chargeReplacement||0)+cards.length;log(pid,id,'Cobró '+cards.length*2+' fichas con '+cards.length+' cartas '+wanted.join('/')+'.');break}
+      case '061':{if(id==='045'&&!active(pid,'046')){popPoker(pid,1);popPower(pid,1);log(pid,id,'Pagó un Poker Card y una Power Card al no tener Maldición activa.');}if(id==='061'&&!active(pid,'062')){popPoker(pid,5);log(pid,id,'Pagó cinco Poker Cards al no tener Vínculo noble activo.');}const wanted=id==='045'?['A']:['J','Q','K'],indexes=s.pokerHand.map((c,i)=>wanted.includes(c.rank)?i:-1).filter(i=>i>=0),cards=indexes.map(i=>s.pokerHand[i]);for(let j=indexes.length-1;j>=0;j--)s.pokerHand.splice(indexes[j],1);if(links())links().onPokerOut(pid,cards);else sim().pokerDrawPile=ctx.shuffle([...sim().pokerDrawPile,...cards]);addChips(pid,cards.length*(id==='045'?2:1));s.chargeReplacement=(s.chargeReplacement||0)+cards.length;log(pid,id,'Cobró '+cards.length*(id==='045'?2:1)+' fichas con '+cards.length+' cartas '+wanted.join('/')+'.');break}
       default:log(pid,id,'El efecto requiere un módulo adicional; no se ha aplicado ningún cambio.');
     }
     return true;
   }
   function recalc(pid){
     const st=pile(pid),count=id=>st.activeHyper.filter(i=>st.hand[i]==='catalog_v3_'+id).length;
-    st.powerHandLimit=4+count('027');
-    st.pokerLimit=7+count('028')+3*count('046')-3*count('062');
-    st.powerDrawBonus=count('002');
+    st.powerHandLimit=3;
+    st.pokerLimit=7;
+    st.powerDrawBonus=0;
   }
   function activate(index){
     const simState=sim(),player=simState.decks[simState.activeIndex],pid=player.id,s=pile(pid),id=s.hand[index],key=String(id||'').replace('catalog_v3_','');
