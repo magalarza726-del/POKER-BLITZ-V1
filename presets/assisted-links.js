@@ -91,6 +91,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     bonds(pid).push(b);
     // Joker enchants an existing Poker Card; no virtual Poker Card created.
     ctx.recalc(pid);log(pid,t,'HyperCard activada con vínculo '+(selected.join(', ')||'autónomo')+'. Costes reales descontados.');
+    if(t==='001'){ability(index);return;}
     ctx.render();
   }
   function wildRank(pid,c){return c?.virtualPower?.type==='JOKER'||refs(pid,c).some(b=>['029','035'].includes(b.type))}
