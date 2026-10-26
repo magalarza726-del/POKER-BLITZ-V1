@@ -400,7 +400,8 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     const c=code(x.id),victim=get(trigger),kind=cardType(getCard(originalId));
      if(kind==='HYPER'&&!['052','006'].includes(c))return false;
      if(kind==='SUPER'&&c==='052')return false;
-     if(c==='004'&&(kind!=='SUPER'||!['009','010','012','013','026','038','047','055','056'].includes(code(originalId))))return false;
+     // Escudo Resplandeciente reacciona SOLO después de que el efecto seleccione realmente al defensor.
+     if(c==='004')return false;
     if(c==='048'&&victim.chips<1)return false;
     if(c==='052'&&kind!=='HYPER')return false;
     if(c==='010'&&cardType(getCard(originalId))!=='SUPER')return false;
