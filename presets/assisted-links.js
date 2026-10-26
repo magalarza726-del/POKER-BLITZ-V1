@@ -135,6 +135,11 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     for(const e of [...ev]){
       if(e.pid!==pid||e.step!==step||e.due!==turn)continue;
       if(e.type==='DRAW_POWER')ctx.drawPower(pid,1,true);
+       else if(e.type==='CHIP_PLUS')s.chips=(s.chips||0)+1;
+       else if(e.type==='POKER_STEAL'){
+         pending={kind:'offense',pid,effect:{type:'POKER_STEAL',owner:pid,card:e.card},selected:[]};
+         ctx.setModal({type:'linked-picker'});ctx.render();
+       }
       else if(e.type==='DRAW_POKER'){for(let i=0;i<2&&s.pokerHand.length<s.pokerLimit;i++)ctx.drawPoker(pid,s,'Artilugio Azul')}
       else if(e.type==='POWER_DISCARD')ctx.discardPower(pid,1);
       else if(e.type==='POKER_DISCARD'){
@@ -142,6 +147,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
       }else if(e.type==='CHIP_MINUS')s.chips=Math.max(0,s.chips-1);
       ev.splice(ev.indexOf(e),1);log(pid,e.card,'Efecto diferido '+e.type+' aplicado en '+step+'.');
     }
+    if(step==='END')for(const b of [...bonds(pid)])if(b.type==='040')detach(pid,b,'Sabueso de Ases: encanto finalizado.',false);
     cleanup();
   }
   function ability(index){
@@ -159,26 +165,39 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     const p=pending,s=state(p.pid);
     if(p.kind==='offense'){
       const rival=game().decks.find(x=>x.id===id&&x.id!==p.pid);if(!rival)return;
-      schedule({...p.effect,pid:id,due:state(id).turnsTaken+1});
+      if(p.effect.type==='POKER_STEAL'){
+       const enemy=state(id),allowed=enemy.pokerHand.filter(c=>!protectedCard(id,c));
+       if(allowed.length){
+         const pick=allowed[ctx.random(allowed.length)],j=enemy.pokerHand.indexOf(pick);
+         enemy.pokerHand.splice(j,1);s.pokerHand.push(pick);
+         log(p.pid,p.effect.card,'Sincronía del Fuego: robó una Poker Card a J'+rival.playerNumber+'.');
+       }else log(p.pid,p.effect.card,'El rival no tiene Poker Cards intercambiables.');
+       cleanup();
+     }else{
+     schedule({...p.effect,pid:id,due:state(id).turnsTaken+1});
       log(p.pid,p.effect.card,'Rival J'+rival.playerNumber+' elegido para '+p.effect.type+'.');
-      pending=null;ctx.setModal(null);if(offenseQueue.length)startOffense();else ctx.render();return;
+      }
+     pending=null;ctx.setModal(null);if(offenseQueue.length)startOffense();else ctx.render();return;
     }
     if(p.kind==='sabueso'){
-      if(!['S','H','D','C'].includes(id))return;
-      const proxy={id:'BLITZ-ACE-'+serial(),rank:'A',suit:id,symbol:{S:'♠',H:'♥',D:'♦',C:'♣'}[id],color:['D','H'].includes(id)?'red':'black',copy:0,
-        virtualPower:{type:'SABUESO',owner:p.item.ownerId,cardId:p.item.cardId}};
-      s.pokerHand.push(proxy);log(p.pid,'040','Sabueso de Ases incorporado como As de '+id+' a Poker Hand.');
-      pending=null;ctx.setModal(null);ctx.afterSelection?.();ctx.render();return;
-    }
-    const chosen=s.pokerHand.find(c=>c.id===id&&!virtual(c));if(!chosen)return;
+     const chosen=s.pokerHand.find(c=>c.id===id&&!protectedCard(p.pid,c));if(!chosen)return;
+     chosen.originalRank??=chosen.rank;chosen.rank='A';
+     bonds(p.pid).push({token:serial(),pid:p.pid,type:'040',cardId:p.item.cardId,index:-1,targets:[chosen.id],turn:s.turnsTaken});
+     ctx.manual().giveBack(p.item.cardId,p.item.ownerId);
+     log(p.pid,'040','Sabueso de Ases: encantó una Poker Card como As conservando su símbolo.');
+     pending=null;ctx.setModal(null);ctx.afterSelection?.();ctx.render();return;
+   }
+   const chosen=s.pokerHand.find(c=>c.id===id&&!virtual(c));if(!chosen&&!(p.kind==='ability'&&id==='__ALL__'))return;
     if(p.kind==='ability'){
-      const b=bonds(p.pid).find(b=>b.index===p.index&&b.type==='001');
-      if(b)b.turn=s.turnsTaken;
-      s.pokerHand.splice(s.pokerHand.indexOf(chosen),1);recyclePoker(p.pid,[chosen]);ctx.drawPoker(p.pid,s,'Reglas Antiguas: intercambiar');
-      log(p.pid,'001','Intercambio de Poker Card con el mazo realizado.');
-      pending=null;ctx.setModal(null);ctx.render();return;
-    }
-    if(!p.selected.includes(id))p.selected.push(id);
+     const b=bonds(p.pid).find(b=>b.index===p.index&&b.type==='001');if(b)b.turn=s.turnsTaken;
+     const cards=id==='__ALL__'?[...s.pokerHand]:[chosen],n=cards.length;
+     for(const c of cards){const j=s.pokerHand.indexOf(c);if(j>=0)s.pokerHand.splice(j,1);}
+     recyclePoker(p.pid,cards);
+     for(let i=0;i<n;i++)ctx.drawPoker(p.pid,s,'Reglas Antiguas: intercambiar');
+     log(p.pid,'001','Intercambió '+n+' Poker Card(s) con el mazo.');
+     pending=null;ctx.setModal(null);ctx.render();return;
+   }
+   if(!p.selected.includes(id))p.selected.push(id);
     else p.selected=p.selected.filter(x=>x!==id);
     if(p.selected.length===p.needed){
       pending=null;ctx.setModal(null);activate(p.pid,p.index,p.selected);return;
@@ -188,7 +207,8 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   function modalMarkup(){
     if(!pending)return'';
     const p=pending,options=p.kind==='sabueso'?['S','H','D','C'].map(x=>({id:x,name:({S:'♠ Picas',H:'♥ Corazones',D:'♦ Diamantes',C:'♣ Tréboles'})[x]})):
-      (p.kind==='offense'?game().decks.filter(x=>x.id!==p.pid).map(x=>({id:x.id,name:'Jugador '+x.playerNumber+' · '+x.name})):state(p.pid).pokerHand.filter(x=>!virtual(x)).map(x=>({id:x.id,name:x.rank+' de '+x.suit})));
+      (p.kind==='offense'?game().decks.filter(x=>x.id!==p.pid).map(x=>({id:x.id,name:'Jugador '+x.playerNumber+' · '+x.name})):
+       state(p.pid).pokerHand.filter(x=>!virtual(x)&&!protectedCard(p.pid,x)).map(x=>({id:x.id,name:x.rank+' de '+x.suit})).concat(p.kind==='ability'?[{id:'__ALL__',name:'Intercambiar toda mi mano'}]:[]));
     return '<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>'+
       (p.kind==='sabueso'?'Sabueso de Ases · Encantar una Poker Card':p.kind==='ability'?'Reglas Antiguas · Intercambiar':p.kind==='offense'?'Artilugio · Elegir rival':'Vincular Poker Cards')+
       '</h2></div><div class="modal-content"><p>Selecciona '+(p.needed||1)+' opción(es).</p><div style="display:flex;flex-wrap:wrap;gap:10px">'+options.map(x=>
