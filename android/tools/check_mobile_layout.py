@@ -200,7 +200,7 @@ async function check(){
  dialog().querySelector('[data-action="trade-operation"][data-operation="STEAL"]').click();
  getTile('from',0).click();
  dialog().querySelector('.trade-panel[data-trade-panel="to"] .trade-receive').click();
- if(count('from')!==4||count('to')!==6)throw Error('Tap-to-steal failed');
+ if(count('from')!==6||count('to')!==8)throw Error('Tap-to-steal failed');
  next('close-modal');next('undo-action');
  next('open-trade');
  // POWER Hands still available; active HyperCards must remain protected.
