@@ -22,7 +22,15 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
  async function play(config,onProgress){
   if(!Array.isArray(config?.players)||config.players.length<1||config.players.length>6)throw Error('La simulación requiere entre 1 y 6 jugadores.');
   if(![1,2].includes(Number(config.pokerDeckCount||1)))throw Error('Selecciona una o dos barajas de Poker.');
-  if(config.players.some(p=>!Array.isArray(p.cardIds)||!p.cardIds.length))throw Error('Cada jugador debe tener un Power Deck no vacío.');
+  const wrong=config.players.find(p=>{
+    if(!Array.isArray(p.cardIds)||!Array.isArray(p.hyperCardIds||[]))return true;
+    const h=(p.hyperCardIds||[]).length,n=p.cardIds.length,counts={};
+    for(const id of p.cardIds)counts[id]=(counts[id]||0)+1;
+    return h>3||new Set(p.hyperCardIds||[]).size!==h||n<20+2*h||n>30+2*h||
+      Object.values(counts).some(x=>x>3)||p.cardIds.some(id=>cardType(getCard(id))!=='SUPER'&&cardType(getCard(id))!=='COUNTER')||
+      (p.hyperCardIds||[]).some(id=>cardType(getCard(id))!=='HYPER');
+   });
+   if(wrong)throw Error('Power Deck no cumple el reglamento oficial (20+2H a 30+2H; H≤3; máximo 3 copias): '+(wrong.name||'sin nombre')+'. Las cartas faltantes no se sustituyen automáticamente.');
   const rng=randomFactory(config.seed),players=config.players.map((p,i)=>({...p,id:'AUTO-'+(i+1),participantId:p.participantId||'P'+(i+1),seat:i+1,sourceDeckId:p.id,playerNumber:i+1,
    difficulty:p.difficulty||'intermediate',style:Object.entries(styleKeys).sort((a,b)=>{
     const n=lst=>p.cardIds.filter(x=>lst.includes(code(x))).length;return n(b[1])-n(a[1]);
@@ -118,6 +126,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    if(roleName==='faces')goal=faces>=2&&available('061')?'cash-royals':faces<2?'find-royals':'hold-and-build-royals';
    if(roleName==='artifacts')goal='assemble-artifacts';
    if(roleName==='chips')goal='economic-pressure';
+   if(roleName==='dice')goal='optimize-die-outcomes';
    const ranked=Object.entries(r.suits).sort((a,b)=>b[1]-a[1]),suitCount=ranked[0]?.[1]||0;
    const active=id=>s.activeHyper.some(i=>code(s.hand[i])===id);
    return {role:roleName,goal,aces,faces,hyperCount:s.activeHyper.length,suit:r.suits,suitCount,
@@ -242,11 +251,23 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
   function scoreCard(pid,id){
    const p=players.find(x=>x.id===pid),s=get(pid),c=code(id),plan=planFor(p),hand=s.pokerHand;
    const active=c=>s.activeHyper.some(i=>code(s.hand[i])===c);
-   let val=({'053':3.5,'011':3.2,'009':3.1,'029':3.4,'030':3.6,'035':3.2,'005':4.2,'042':3.1,'043':3.2,'044':3.5,'049':3.6,'040':3.2,'045':1.6,'061':1.6,'033':4,'007':3.1,'013':2.8,'063':2.8,'032':3.3,'016':3.5,'031':2.7})[c]||2;
+   let val=({'003':3.6,'014':4.8,'015':4.5,'018':4.4,'019':4.5,'020':4.4,'036':4.6,'053':3.5,'011':3.2,'009':3.1,'029':3.4,'030':3.6,'035':3.2,'005':4.2,'042':3.1,'043':3.2,'044':3.5,'049':3.6,'040':3.2,'045':1.6,'061':1.6,'033':4,'007':3.1,'013':2.8,'063':2.8,'032':3.3,'016':3.5,'031':2.7})[c]||2;
    if(styleKeys[p.style].includes(c))val+=.35;
    if(s.pokerHand.length>=s.pokerLimit&&['011','016','031','032','053','063','039','018'].includes(c))val-=1;
    if(s.pokerHand.length<=3&&['011','016','032','053','063','039'].includes(c))val+=.8;
-   if(c==='049'&&game.round<9)val+=1.1;
+   if(c==='049'){
+     // Gran Inversor solo bonifica fichas GENERADAS por Power Cards durante Main Phase.
+     // Robar fichas a un rival no es una ganancia bonificable.
+     const opportunities=s.hand.some((other,i)=>!s.activeHyper.includes(i)&&
+       ['041','045','061','005'].includes(code(other))&&fx.canPlay(other,pid));
+     val+=opportunities?5:-12;
+   }
+   if(c==='003'){
+     const usableDice=s.hand.some((other,i)=>!s.activeHyper.includes(i)&&
+       ['014','015','018','019','020','036'].includes(code(other))&&fx.canPlay(other,pid));
+     val+=usableDice?5:-7;
+   }
+   if(plan.role==='dice'&&['014','015','018','019','020','036'].includes(c))val+=1.15;
    if(c==='009'){const rivals=players.filter(x=>x.id!==pid),chips=Math.max(0,...rivals.map(x=>get(x.id).chips));val+=chips>=10?2.6:chips>=5?1.1:-3;}
    if(c==='013'||c==='010'||c==='038'){
     const candidates=players.filter(x=>x.id!==pid);
@@ -318,7 +339,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    for(let i=0;i<s.hand.length;i++){
     if(s.activeHyper.includes(i))continue;
     const id=s.hand[i],kind=cardType(getCard(id)),c=code(id),plan=planFor(p);
-    if(c==='003')continue; // Manipulador belongs to HyperZone.
+    if(c==='003'&&kind!=='HYPER')continue; // Manipulador belongs to HyperZone.
     if(plan.role==='relics'&&((c==='030'&&(s.pokerHand.length<5||plan.suitCount<3))||(c==='007'&&s.pokerHand.length<5)||(c==='029'&&s.pokerHand.length<4)||(c==='035'&&s.pokerHand.length<6)))continue;
     if(plan.role==='faces'&&c==='061'&&!s.activeHyper.some(j=>code(s.hand[j])==='062')&&s.pokerHand.length<8)continue;
     if(c==='040'&&plan.role==='aces'&&plan.aces>=4)continue;
@@ -332,7 +353,14 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
       for(let ri=0;ri<(s.hyperReserve||[]).length;ri++){
        const id=s.hyperReserve[ri];if(!fx.supported(id))continue;const i=s.hand.length;s.hand.push(id);s.handOwners.push(p.id);
        const allowed=legalHyper(p.id,i);s.hand.pop();s.handOwners.pop();
-       if(allowed&&!s.hyperDeniedThisTurn?.includes(id))available.push({i:ri,id,kind:'HYPER_RESERVE',score:scoreCard(p.id,id)+0.7});
+       if(allowed&&!s.hyperDeniedThisTurn?.includes(id)){
+         const n=code(id),diceAvailable=s.hand.some((other,j)=>!s.activeHyper.includes(j)&&
+           ['014','015','018','019','020','036'].includes(code(other))&&fx.canPlay(other,p.id));
+         const payoutAvailable=s.hand.some((other,j)=>!s.activeHyper.includes(j)&&
+           ['041','045','061','005'].includes(code(other))&&fx.canPlay(other,p.id));
+         if((n!=='003'||diceAvailable)&&(n!=='049'||payoutAvailable))
+           available.push({i:ri,id,kind:'HYPER_RESERVE',score:scoreCard(p.id,id)+0.7});
+       }
       }
     }
     if(!available.length)return null;
@@ -354,15 +382,15 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    return available[0];
   }
   function chooseCounter(pid,trigger,originalId){
-   const p=players.find(x=>x.id===pid),s=get(pid),odds={beginner:0.15,intermediate:0.4,expert:0.72};
-   if(rng.next()>(odds[p.difficulty]||0.4))return null;
+   const p=players.find(x=>x.id===pid),s=get(pid),odds={beginner:0.18,intermediate:0.65,expert:1};
+   if(rng.next()>(odds[p.difficulty]||0.65))return null;
    const list=s.hand.map((id,i)=>({id,i})).filter(x=>{if(s.activeHyper.includes(x.i)||cardType(getCard(x.id))!=='COUNTER'||!fx.canPlay(x.id,pid))return false;
     const c=code(x.id),victim=get(trigger),kind=cardType(getCard(originalId));
      if(kind==='HYPER'&&!['052','006'].includes(c))return false;
      if(kind==='SUPER'&&c==='052')return false;
-     if(c==='004'&&kind!=='SUPER')return false;
+     if(c==='004'&&(kind!=='SUPER'||!['009','010','012','013','026','038','047','055','056'].includes(code(originalId))))return false;
     if(c==='048'&&victim.chips<1)return false;
-    if(c==='052'&&cardType(getCard(originalId))!=='HYPER')return false;
+    if(c==='052'&&kind!=='HYPER')return false;
     if(c==='010'&&cardType(getCard(originalId))!=='SUPER')return false;
     if(c==='006'&&victim.pokerHand.length===0)return false;
     return true;});
@@ -527,10 +555,12 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
      }
     s.currentPhase='MAIN';fx.beginTurn(p.id);links.phase('MAIN_START',p.id);autoModal();
     const currentPlan=planFor(p);s.aiPlan=currentPlan.goal;log(p.id,'Plan IA',currentPlan.role+': '+currentPlan.goal+' (ases '+currentPlan.aces+', figuras '+currentPlan.faces+').');
-    for(let j=0;j<8;j++){
+    for(let j=0;j<64;j++){
      const choice=selectAction(p);if(!choice)break;
      if(choice.kind==='HYPER'||choice.kind==='HYPER_RESERVE'){
+       game.pendingHyperActivationCardId=choice.id;
        const reactors=players.filter(x=>x.id!==p.id).map(x=>({player:x,choice:chooseCounter(x.id,p.id,choice.id)})).filter(x=>x.choice);
+       delete game.pendingHyperActivationCardId;
        if(reactors.length){
          const {player:counterPlayer,choice:counter}=reactors[0];
          const response=manual.take(counterPlayer.id,counter.i);
