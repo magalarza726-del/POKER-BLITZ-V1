@@ -10,7 +10,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   const virtual=c=>!!c?.virtualPower;
   const refs=(pid,c)=>bonds(pid).filter(b=>b.targets?.includes(c.id)||b.virtualId===c.id);
   const protectedCard=(pid,c)=>refs(pid,c).some(b=>['042','043','044'].includes(b.type));
-  function prices(t){return { '001':[1,1],'029':[1,0],'030':[1,1],'035':[0,3]}[t]||[0,0]}
+  function prices(t){return { '001':[0,0],'029':[1,0],'030':[1,0],'035':[0,3]}[t]||[0,0]}
   function eligible(pid,index){
     const s=state(pid);if(!s||s.currentPhase!=='MAIN'||s.activeHyper.includes(index)||s.activeHyper.length>=3)return false;
     const t=code(s.hand[index]);if(!supported.has(t)||['004','005','040'].includes(t))return false;
