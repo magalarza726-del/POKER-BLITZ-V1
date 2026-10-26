@@ -127,7 +127,7 @@ async function check(){
  const identity=tile=>tile?.querySelector('.poker-corner')?.textContent.trim()||'';
  const getTile=(side,i)=>doc.querySelector('.trade-list[data-trade-list="'+side+'"] .trade-tile[data-index="'+i+'"]');
  const clickTab=(name,value)=>doc.querySelector('[data-action="'+name+'"][data-'+(name==='trade-visibility'?'visibility':name==='trade-operation'?'operation':'kind')+'="'+value+'"]').click();
- if(count('from')!==5||count('to')!==5)throw Error('Poker hands incomplete');
+ if(count('from')!==7||count('to')!==7)throw Error('Official initial Poker hands must have 7 cards each');
  const originalA=identity(getTile('from',0));
  const otherB=tiles('to').find(t=>identity(t)!==originalA);
  if(!otherB)throw Error('Need distinct Poker Cards');
@@ -135,7 +135,7 @@ async function check(){
  // Hide only A. B must remain face-up.
  const hideA=dialog().querySelector('[data-action="trade-visibility"][data-side="from"][data-visibility="HIDDEN"]');
  hideA.click();
- if(dialog().querySelectorAll('.trade-list[data-trade-list="from"] .trade-back').length!==5)
+ if(dialog().querySelectorAll('.trade-list[data-trade-list="from"] .trade-back').length!==7)
    throw Error('Player A concealment missing');
  if(dialog().querySelector('.trade-list[data-trade-list="from"] .poker-card,.trade-list[data-trade-list="from"] .card-preview'))
    throw Error('Player A revealed while concealed');
