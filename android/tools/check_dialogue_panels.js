@@ -20,7 +20,8 @@ assert(html.includes('row:Math.floor(i/2)'),'Expected top-to-bottom dialogue map
 assert(html.includes('col:i%2'),'Expected left-to-right dialogue mapping');
 assert(html.includes("i===5?'pink'"),'Némesis must be magenta');
 assert(html.includes("i===7||i===8"),'Aceron and Regulus must be gold');
-assert(html.includes("characterDialogueHTML(d,sim.result||'')"),'Dialogue strip missing in gameplay');
+assert(html.includes("simCharacterHTML(d,sim.result||'')"),'Dialogue strip missing in gameplay');
+assert(html.includes("characterDialogueHTML(deck,message,'battle')"),'Game character renderer must include dialogue image');
 assert(html.includes("PRESET_DIALOGUE_PANELS[d.id]?"),'Dialogue preview missing in deck editor');
 assert(html.includes("characterDialogueHTML(d,'','deck-row-dialogue')"),'Dialogue missing in deck list');
 assert(html.includes("const picture=deck?.characterImage"),'Portrait must remain independent of dialogue');
