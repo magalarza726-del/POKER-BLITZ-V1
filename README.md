@@ -1,5 +1,17 @@
 # POKER BLITZ V1 — GitHub Pages
 
+## Catálogo oficial sin imágenes y reglas de construcción — 26/10/2026
+
+- Catálogo vigente: **50 cartas** (32 SuperCards, 12 HyperCards y 6 CounterCards). Todas muestran la zona gráfica vacía, sin ilustraciones.
+- **Power Deck:** exclusivamente SuperCards y CounterCards, entre `20+2H` y `30+2H` cartas. Máximo **3 copias de cada SuperCard o CounterCard**.
+- **HyperZone:** de **0 a 3 HyperCards distintas**, máximo **1 copia de cada una**. Se preparan boca abajo, separadas del Power Deck. No se roban durante la Draw Phase.
+- Los 10 decks predeterminados se limpiaron: se quitaron cartas eliminadas, se separaron las HyperCards, y **no se añadió ningún sustituto**. Algunos quedaron bajo el mínimo legal y deberán completarse manualmente. Los decks incompletos permanecen en el editor, pero no se seleccionan para partida.
+- El editor, la carga de partidas guardadas y la importación JSON aplican los límites de copias y eliminan referencias a cartas oficiales retiradas.
+- El modo de prueba y la simulación usan **3 Power Cards y 7 Poker Cards** de inicio. La End Phase repone Poker Cards hasta siete y las HyperCards utilizadas regresan a la HyperZone al cerrar el turno.
+- **Correcciones de efectos asistidos incluidas:** Sobrecarga de Mejoras (007), Maestro de Fichas (009), Neo-Blackjack (041), Caballería de Refuerzo (057), Compartir es Ganar (026), Operación Táctica (010), Ojo del Más Allá (016) y otras adaptaciones. La distinción entre **Maestro de Fichas (009)** y **Secuaz de las Fichas (055)** se conserva.
+- **Limitación conocida:** algunos efectos del nuevo catálogo aún no se han reprogramado fielmente y quedan deshabilitados en Prueba Asistida. Las suites antiguas fueron diseñadas para 64 cartas y precisan actualización antes de certificar el nuevo catálogo por CI; la presencia de código no debe confundirse con validación exhaustiva.
+
+
 Versión web estática basada en `DeckCreator_AndroidStudio_v0_13_NEW_CATALOG` y ajustada para escritorio.
 
 ## IA estratégica y táctica por deck — 24/10/2026
