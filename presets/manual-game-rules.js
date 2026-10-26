@@ -13,6 +13,10 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     return {cardId,ownerId,playerId:id};
   };
   const giveBack=(cardId,ownerId)=>{const sim=get(),id=sim.states[ownerId]?ownerId:sim.decks[0].id,s=sim.states[id];own(id);
+    if(ctx.type?.(ctx.card?.(cardId))==='HYPER'&&Array.isArray(s.hyperReserve)){
+      if(!s.hyperReserve.includes(cardId))s.hyperReserve.push(cardId);
+      return;
+    }
     const combined=s.drawPile.map((cid,i)=>({cid,owner:s.drawOwners[i]||id}));combined.push({cid:cardId,owner:id});
     const shuffled=ctx.shuffle(combined);s.drawPile=shuffled.map(x=>x.cid);s.drawOwners=shuffled.map(x=>x.owner);
   };
@@ -62,6 +66,11 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     const sim=get(),{d,s}=ctx.current();
     if(s.currentPhase!=='END')return ctx.toast('Todavía no estás en End Phase.');
     if(s.pokerHand.length>s.pokerLimit)return ctx.toast('Descarta '+(s.pokerHand.length-s.pokerLimit)+' Poker Cards antes de continuar.');
+     // HyperCards activas vuelven a su HyperZone, boca abajo, al final de End Phase.
+     for(const i of [...(s.activeHyper||[])].sort((a,b)=>b-a)){
+       const it=take(d.id,i);if(it)giveBack(it.cardId,it.ownerId);
+     }
+     s.hyperActivationsThisTurn=0;
     s.turnsTaken=(s.turnsTaken||0)+1;ctx.log(d.id,'Fin de turno','Turno '+s.turnsTaken+' completado. Fichas: '+s.chips+'.');
     sim.chargeSelection=[];
     if(sim.turnIndex===sim.decks.length-1){
