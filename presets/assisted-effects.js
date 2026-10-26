@@ -244,6 +244,33 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
       const st=pile(id);st.assistedDefenses??={};const stamp=String(sim().round);
       if(!st.assistedDefenses[stamp]){st.assistedDefenses[stamp]=true;log(id,'050','Casco anti-efectos: negó la primera selección recibida en esta ronda.');drain();return;}
     }
+    // Reglamento oficial: Escudo Resplandeciente se juega SOLO cuando el defensor
+    // ha sido seleccionado para un efecto. En simulación, el objetivo ya se conoce.
+    if(sim().autoMode&&sourcePid&&sourcePid!==id&&sim().chain?.stack?.[0]){
+      const st=pile(id),i=st.hand.findIndex((cid,j)=>cid==='catalog_v3_004'&&!st.activeHyper.includes(j));
+      if(i>=0&&canPlay('catalog_v3_004',id)){
+        const shield=ctx.manual().take(id,i);
+        if(shield){
+          ctx.manual().giveBack(shield.cardId,shield.ownerId);
+          log(id,'004','Escudo Resplandeciente jugado como respuesta a la selección real del jugador.');
+          const attacker=pile(sourcePid);
+          if(attacker&&!attacker.shieldCardsTriggered&&active(sourcePid,'025')){
+            attacker.shieldCardsTriggered=true;draw(sourcePid,1);
+            log(sourcePid,'025','Escudo de Cartas: +1 Poker Card por CounterCard rival.');
+          }
+          const remaining=sim().decks.filter(p=>p.id!==sourcePid&&p.id!==id&&
+            (!sim().eligiblePlayers||sim().eligiblePlayers.includes(p.id)));
+          if(remaining.length){
+            remaining.sort((a,b)=>pile(b.id).chips-pile(a.id).chips);
+            log(id,'004','Redirigió el efecto a J'+remaining[0].playerNumber+'.');
+            f(remaining[0].id);links()?.cleanup();drain();return;
+          }
+          const n=movePoker(sourcePid,id,1).length;
+          log(id,'004','Sin otro objetivo elegible, robó '+n+' Poker Card al atacante.');
+          links()?.cleanup();drain();return;
+        }
+      }
+    }
     const redirect=sim().redirectNextTarget;sim().redirectNextTarget=null;
     if(redirect&&redirect.defender===id&&redirect.attacker===sourcePid){
       const others=sim().decks.filter(p=>p.id!==redirect.attacker&&p.id!==redirect.defender);
