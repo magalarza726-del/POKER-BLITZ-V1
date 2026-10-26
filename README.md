@@ -1,8 +1,18 @@
 # POKER BLITZ V1 — GitHub Pages
 
-## Catálogo oficial sin imágenes y reglas de construcción — 26/10/2026
+## Ilustraciones integradas — Web 1.19.9 (26/10/2026)
 
-- Catálogo vigente: **50 cartas** (32 SuperCards, 12 HyperCards y 6 CounterCards). Todas muestran la zona gráfica vacía, sin ilustraciones.
+- Las **50 cartas oficiales** muestran ahora el arte pixelado del usuario, organizado en **7 atlas WebP**, con las imágenes recortadas sin duplicar títulos o descripciones.
+- Los **10 personajes predeterminados** incorporan sus retratos ilustrados: Sibaris, Midas, Vórtice, Fortuna, Astra, Némesis, Arkan, Aceron, Regulus y Maverick, en archivos WebP individuales. La restauración de sesiones migra los retratos predeterminados anteriores al nuevo arte.
+- Las ilustraciones aparecen automáticamente en catálogo, decks, vista ampliada, manos y reportes que representen visualmente las cartas. No se han modificado nombres ni descripciones durante la **integración gráfica**.
+- La imagen de fichas de la primera lámina corresponde a **Secuaz de las Fichas (055)** y la de la tercera a **Maestro de Fichas (009)**, sin intercambiar los efectos.
+- El compilador Android copia `assets/` en el APK offline; `android/tools/check_card_art.js` comprueba los 50 vínculos, los 7 atlas y los 10 retratos. Las suites de lógica anteriores todavía necesitan sincronizarse con el nuevo catálogo y pueden fallar independientemente de estas ilustraciones.
+
+> **Nota de vigencia:** Las secciones históricas del registro relativas a imágenes sin ilustración, 64 cartas y efectos sustituidos describen versiones anteriores. El catálogo y el reglamento de 50 cartas de octubre de 2026 tienen precedencia.
+
+## Catálogo oficial y reglas de construcción — 26/10/2026
+
+- Catálogo vigente: **50 cartas** (32 SuperCards, 12 HyperCards y 6 CounterCards). Todas incluyen sus ilustraciones oficiales en estilo pixel art.
 - **Power Deck:** exclusivamente SuperCards y CounterCards, entre `20+2H` y `30+2H` cartas. Máximo **3 copias de cada SuperCard o CounterCard**.
 - **HyperZone:** de **0 a 3 HyperCards distintas**, máximo **1 copia de cada una**. Se preparan boca abajo, separadas del Power Deck. No se roban durante la Draw Phase.
 - Los 10 decks predeterminados se limpiaron: se quitaron cartas eliminadas, se separaron las HyperCards, y **no se añadió ningún sustituto**. Algunos quedaron bajo el mínimo legal y deberán completarse manualmente. Los decks incompletos permanecen en el editor, pero no se seleccionan para partida.
