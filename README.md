@@ -1,5 +1,14 @@
 # POKER BLITZ V1 — GitHub Pages
 
+## Paneles de diálogo adicionales — Web 1.20.0 (26/10/2026)
+
+- Se integró **el atlas original de 10 paneles de diálogo** en `assets/poker_character_dialogues.webp`; no sustituye los retratos de personaje.
+- Los 10 paneles se asocian por **ID de deck** en orden: Sibaris, Midas, Vórtice, Fortuna, Astra, Némesis, Arkan, Aceron, Regulus y Maverick. Colores originales: cian, rosa en Némesis, dorado en Aceron y Regulus.
+- El panel está visible como elemento separado **debajo de la foto en partida**, junto al retrato en el **editor del deck** y en la **lista de decks**. En partida utiliza el estado reciente como texto de diálogo; el nombre se muestra siempre.
+- Los decks personalizados sin personaje predeterminado mantienen sus retratos sin asignación errónea de paneles.
+- El APK offline empaqueta el atlas automáticamente junto con los demás recursos de `assets/`. La CI revisa el asset, las asociaciones, la conservación de retratos y las pantallas que lo utilizan mediante `android/tools/check_dialogue_panels.js`.
+- Los efectos de las cartas, reglas y cantidades de los decks **no cambian** por esta actualización visual.
+
 ## Ilustraciones integradas — Web 1.19.9 (26/10/2026)
 
 - Las **50 cartas oficiales** muestran ahora el arte pixelado del usuario, organizado en **7 atlas WebP**, con las imágenes recortadas sin duplicar títulos o descripciones.
