@@ -120,7 +120,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     if(ctx.type(c)!=='COUNTER'||(sim.mode==='ASSISTED'&&((ctx.canAssist&&!ctx.canAssist(c?.id))||(ctx.canPlayAssisted&&!ctx.canPlayAssisted(c?.id,p.id)))))return;
     if(sim.mode==='ASSISTED')ctx.assistedCardUsed?.(c.id,p.id);
     if(chain.stack.length>1)return;chain.stack.push(take(p.id,i));chain.passes=0;chain.chooser=(chain.chooser+1)%sim.decks.length;
-    ctx.log(p.id,'CounterCard anunciada','Respuesta única; no se permiten cadenas de CounterCards.',c);resolveChain();
+    ctx.log(p.id,'CounterCard anunciada','Respuesta única; no se permiten cadenas de CounterCards.',c);if(sim.mode==='ASSISTED')ctx.assistedCounterPlayed?.(chain.stack[0].playerId,p.id,c?.id);resolveChain();
   }
   function counterPass(){
     const sim=get(),chain=sim?.chain;if(!chain)return;
