@@ -248,6 +248,17 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    }
    if(modal){issue('Límite de decisiones automáticas de efecto alcanzado.');modal=null}
   }
+  function blackjackPair(hand){
+    const rank=c=>({J:11,Q:12,K:13,A:14})[c.rank]||Number(c.rank);
+    return hand.some((a,i)=>hand.some((b,j)=>j>i&&a.rank!==b.rank&&rank(a)+rank(b)===21));
+  }
+  function mainPayoutAvailable(pid){
+    const st=get(pid),hand=st.pokerHand;
+    return st.hand.some((other,i)=>!st.activeHyper.includes(i)&&fx.canPlay(other,pid)&&
+      (code(other)==='041'&&blackjackPair(hand)||
+       code(other)==='045'&&hand.some(c=>c.rank==='A')||
+       code(other)==='061'&&hand.some(c=>['J','Q','K'].includes(c.rank))));
+  }
   function scoreCard(pid,id){
    const p=players.find(x=>x.id===pid),s=get(pid),c=code(id),plan=planFor(p),hand=s.pokerHand;
    const active=c=>s.activeHyper.some(i=>code(s.hand[i])===c);
@@ -258,10 +269,12 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    if(c==='049'){
      // Gran Inversor solo bonifica fichas GENERADAS por Power Cards durante Main Phase.
      // Robar fichas a un rival no es una ganancia bonificable.
-     const opportunities=s.hand.some((other,i)=>!s.activeHyper.includes(i)&&
-       ['041','045','061','005'].includes(code(other))&&fx.canPlay(other,pid));
+     const opportunities=mainPayoutAvailable(pid);
      val+=opportunities?5:-12;
    }
+   if(c==='041')val+=blackjackPair(hand)?6:-5;
+   if(c==='045')val+=(plan.aces>=2?Math.min(7,plan.aces*1.75):plan.aces===1?-.5:-6);
+   if(c==='061')val+=(plan.faces>=4?6:plan.faces>=2?2:-6);
    if(c==='003'){
      const usableDice=s.hand.some((other,i)=>!s.activeHyper.includes(i)&&
        ['014','015','018','019','020','036'].includes(code(other))&&fx.canPlay(other,pid));
@@ -356,8 +369,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
        if(allowed&&!s.hyperDeniedThisTurn?.includes(id)){
          const n=code(id),diceAvailable=s.hand.some((other,j)=>!s.activeHyper.includes(j)&&
            ['014','015','018','019','020','036'].includes(code(other))&&fx.canPlay(other,p.id));
-         const payoutAvailable=s.hand.some((other,j)=>!s.activeHyper.includes(j)&&
-           ['041','045','061','005'].includes(code(other))&&fx.canPlay(other,p.id));
+         const payoutAvailable=mainPayoutAvailable(p.id);
          if((n!=='003'||diceAvailable)&&(n!=='049'||payoutAvailable))
            available.push({i:ri,id,kind:'HYPER_RESERVE',score:scoreCard(p.id,id)+0.7});
        }
