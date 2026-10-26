@@ -133,16 +133,20 @@ tasks.register('prepareOfflineWeb') {
     }
 ''')
 
-        def pdfMarker = "  async function savePdfDocument(pdf,filename,handle=null){const blob=pdf.output('blob');"
+        // Inyección compatible con la función PDF multilínea (sin depender de su implementación interna).
+        def pdfMarker = '  async function savePdfDocument(pdf,filename,handle=null){'
         if (!html.contains(pdfMarker)) {
             throw new GradleException('No se encontró savePdfDocument(); revisar integración Android.')
         }
         html = html.replace(pdfMarker, """  async function savePdfDocument(pdf,filename,handle=null){
-    const blob=pdf.output('blob');
     if (window.AndroidBridge && window.PokerBlitzAndroid) {
-      window.PokerBlitzAndroid.saveBlob(blob, filename);
-      toast('Selecciona dónde guardar el PDF');
-      return true;
+      try {
+        window.PokerBlitzAndroid.saveBlob(pdf.output('blob'), filename);
+        toast('Selecciona dónde guardar el PDF');
+        return true;
+      } catch (err) {
+        console.warn('Error de guardado Android, se usará el flujo web.', err);
+      }
     }
 """)
 
