@@ -18,7 +18,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   const hypers=ids(['001','003','025','029','030','035','042','043','044','046','049','062']);
   let queue=[],pending=null,deferred=[],rollingEffect=null;
   function supported(id){const match=String(id||'').match(/catalog_v3_(\d{3})/);const code=match?.[1];return !!code&&(usable.has(code)||hypers.has(code));}
-  function copyCandidates(pid){const s=pile(pid);if(!s)return [];return (s.assistedPlayedSupers||[]).filter(x=>x.turn===s.turnsTaken&&x.round===sim().round&&x.cardId!=='catalog_v3_017'&&x.cardId!=='catalog_v3_040'&&supported(x.cardId)&&canPlay(x.cardId,pid)).map(x=>x.cardId);}
+  function copyCandidates(pid){const s=pile(pid);if(!s)return [];return (s.assistedPlayedSupers||[]).filter(x=>x.turn===s.turnsTaken&&x.round===sim().round&&x.cardId!=='catalog_v3_017'&&supported(x.cardId)&&canPlay(x.cardId,pid)).map(x=>x.cardId);}
   function canPlay(id,pid){if(!supported(id))return false;const s=pile(pid);if(!s)return false;const num=String(id).slice(-3),freePoker=s.pokerHand.filter(c=>!links()?.protectedCard(pid,c)).length;const freePower=s.hand.filter(x=>x===id).length?Math.max(0,s.hand.length-s.activeHyper.length-1):s.hand.length-s.activeHyper.length;
     const costPoker={ '007':1 }; const costPower={'007':1,'032':1};
     if((costPoker[num]||0)>freePoker)return false;
@@ -307,7 +307,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
          break;
        }
        case '040':{
-        if(!item.ownerId){log(pid,id,'Sabueso de Ases no puede materializarse desde una copia sin carta física original.');if(sim().autoMode)ctx.toast('Intento de copia física ilegal de Sabueso de Ases.');break;}
+        // Copied Sabueso works as a temporary enchantment; it must not duplicate a physical Power Card.
         if(!active(pid,'046')){const cost=popPoker(pid,1);log(pid,id,'Pagó '+cost.length+' Poker Card por Sabueso de Ases.');}
         links()?.sabueso(item);return false;
       }
