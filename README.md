@@ -1,5 +1,14 @@
 # POKER BLITZ V1 — GitHub Pages
 
+## Corrección de imágenes individuales — Web 1.20.1 (26/10/2026)
+
+- Se corrigió el recorte erróneo que mezclaba partes de imágenes vecinas (visible especialmente en **Operación Táctica**).
+- La aplicación carga cada carta oficial desde **`assets/cards/catalog_v3_XXX.webp`**, con una imagen WebP individual recortada directamente de la lámina original del usuario; ya no usa coordenadas de atlas durante la visualización de cartas.
+- Se han verificado las **50 ilustraciones individuales** en una lámina de revisión y se han conservado sus correspondientes textos, colores y nombres. **Secuaz de las Fichas** y **Maestro de Fichas** mantienen ilustraciones distintas.
+- Afecta al catálogo, Deck Builder, vistas ampliadas, pruebas manuales/asistidas, simulador y a toda vista que reutilice `cardHTML`. Los retratos de personajes y los paneles de diálogo permanecen intactos.
+- La suite `android/tools/check_card_art.js` exige ahora **50 WebP distintos**, todos existentes y vinculados a los 50 IDs oficiales; ya no depende de atlas antiguos. Los antiguos atlas permanecen como recursos históricos, pero su renderizado está desactivado.
+- Esta actualización es **estrictamente visual**, sin alterar efectos o reglas. Las auditorías de lógica del simulador y prueba asistida siguen siendo trabajos independientes.
+
 ## Paneles de diálogo adicionales — Web 1.20.0 (26/10/2026)
 
 - Se integró **el atlas original de 10 paneles de diálogo** en `assets/poker_character_dialogues.webp`; no sustituye los retratos de personaje.
