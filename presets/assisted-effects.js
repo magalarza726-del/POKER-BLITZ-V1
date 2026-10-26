@@ -16,7 +16,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   const ids=(s)=>new Set(s);
   const usable=ids(['004','006','007','009','010','011','012','013','014','015','016','017','018','019','020','021','022','023','026','031','032','033','034','036','037','039','040','041','045','047','052','053','054','055','056','057','061','063']);
   const hypers=ids(['001','003','025','029','030','035','042','043','044','046','049','062']);
-  let queue=[],pending=null,deferred=[],rollingEffect=null;
+  let queue=[],pending=null,pendingShield=null,deferred=[],rollingEffect=null;
   function supported(id){const match=String(id||'').match(/catalog_v3_(\d{3})/);const code=match?.[1];return !!code&&(usable.has(code)||hypers.has(code));}
   function copyCandidates(pid){const s=pile(pid);if(!s)return [];return (s.assistedPlayedSupers||[]).filter(x=>x.turn===s.turnsTaken&&x.round===sim().round&&x.cardId!=='catalog_v3_017'&&supported(x.cardId)&&canPlay(x.cardId,pid)).map(x=>x.cardId);}
   function canPlay(id,pid){if(!supported(id))return false;const s=pile(pid);if(!s)return false;const num=String(id).slice(-3),freePoker=s.pokerHand.filter(c=>!links()?.protectedCard(pid,c)).length;const freePower=s.hand.filter(x=>x===id).length?Math.max(0,s.hand.length-s.activeHyper.length-1):s.hand.length-s.activeHyper.length;
@@ -238,6 +238,13 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   }
   function choose(id){
     if(!pending||pending.kind!=='target'||!pending.players.some(p=>p.id===id))return;
+    const origin=pending.sourcePid,st=pile(id),shieldIndex=st.hand.findIndex((cid,i)=>cid==='catalog_v3_004'&&!st.activeHyper.includes(i));
+    if(!sim().autoMode&&!pending.shieldOffered&&id!==origin&&shieldIndex>=0){
+      pending.shieldOffered=true;
+      pendingShield={id,sourcePid:origin};
+      ctx.setModal({type:'shield-counter',defenderId:id,sourcePid:origin});
+      ctx.render();return;
+    }
     const f=pending.callback,sourcePid=pending.sourcePid;pending=null;ctx.setModal(null);
     // Escudo de Cartas triggers when a CounterCard is played, not on target selection.
     if(active(id,'050')){
@@ -286,6 +293,27 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
       log(id,'004','Sin objetivo alternativo: robó '+stolen.length+' Poker Card del atacante.');
     }else f(id);
     links()?.cleanup();drain();
+  }
+  function shieldRespond(use){
+    const choice=pendingShield;pendingShield=null;
+    if(!choice||!pending||pending.kind!=='target')return;
+    if(use){
+      const st=pile(choice.id),i=st.hand.findIndex((cid,j)=>cid==='catalog_v3_004'&&!st.activeHyper.includes(j));
+      if(i>=0){
+        const played=ctx.manual().take(choice.id,i);
+        if(played){
+          ctx.manual().giveBack(played.cardId,played.ownerId);
+          markUsed(played.cardId,choice.id);
+          log(choice.id,'004','Escudo Resplandeciente: defensa activada al ser seleccionado.');
+          sim().redirectNextTarget={defender:choice.id,attacker:choice.sourcePid};
+          if(active(choice.sourcePid,'025')&&!pile(choice.sourcePid).shieldCardsTriggered){
+            pile(choice.sourcePid).shieldCardsTriggered=true;draw(choice.sourcePid,1);
+            log(choice.sourcePid,'025','Escudo de Cartas: robó una Poker Card por CounterCard rival.');
+          }
+        }
+      }
+    }
+    choose(choice.id);
   }
   function enqueue(item){queue.push(item);const c=card(item.cardId),st=pile(item.playerId);if(c&&ctx.type?.(c)==='SUPER'&&c.id!=='catalog_v3_017'&&!item.copied){st.assistedLastSuper=c.id;st.assistedLastSuperTurn=st.turnsTaken;st.assistedPlayedSupers??=[];st.assistedPlayedSupers.push({cardId:c.id,turn:st.turnsTaken,round:sim().round});}}
   function finishChain(){drain()}
@@ -437,5 +465,5 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   }
   function choiceState(){if(!pending)return null;return {kind:pending.kind,pid:pending.pid,enemy:pending.enemy,phase:pending.phase,ownId:pending.ownId,done:pending.done,usedOwn:[...(pending.usedOwn||[])],usedEnemy:[...(pending.usedEnemy||[])]};}
   function cancelChoice(){if(!pending)return;const p=pending;log(p.pid||sim().decks[0]?.id,'','La elección del efecto se canceló por falta de opciones legales: '+p.kind+'.');if(p.kind==='peek')sim().pokerDrawPile.unshift(...p.cards);pending=null;ctx.setModal(null);drain();}
-  return {supported,canPlay,markUsed,usable,hypers,enqueue,finishChain,afterSelection,afterReaction,modalMarkup,choose,chooseOption,choiceOptions,choiceState,cancelChoice,activate,phase,round,recalc,beginTurn};
+  return {supported,canPlay,markUsed,usable,hypers,enqueue,finishChain,afterSelection,afterReaction,modalMarkup,choose,shieldRespond,chooseOption,choiceOptions,choiceState,cancelChoice,activate,phase,round,recalc,beginTurn};
 };
