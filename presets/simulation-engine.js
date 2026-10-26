@@ -20,8 +20,10 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
  const difficulty={beginner:'Principiante',intermediate:'Intermedio',expert:'Experto'};
  const types=['Par','Trío','Póker','Escalera','Color'];
  async function play(config,onProgress){
-  if(!Array.isArray(config?.players)||config.players.length<1||config.players.length>6)throw Error('La simulación requiere entre 1 y 6 jugadores.');
+  if(!Array.isArray(config?.players)||config.players.length<1||config.players.length>10)throw Error('La simulación requiere entre 1 y 10 jugadores.');
   if(![1,2].includes(Number(config.pokerDeckCount||1)))throw Error('Selecciona una o dos barajas de Poker.');
+  if(config.players.length*7>Number(config.pokerDeckCount||1)*52)
+    throw Error('Se requieren 2 barajas de Poker para repartir 7 cartas a '+config.players.length+' jugadores.');
   const wrong=config.players.find(p=>{
     if(!Array.isArray(p.cardIds)||!Array.isArray(p.hyperCardIds||[]))return true;
     const h=(p.hyperCardIds||[]).length,n=p.cardIds.length,counts={};
@@ -32,18 +34,20 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    });
    if(wrong)throw Error('Power Deck no cumple el reglamento oficial (20+2H a 30+2H; H≤3; máximo 3 copias): '+(wrong.name||'sin nombre')+'. Las cartas faltantes no se sustituyen automáticamente.');
   const rng=randomFactory(config.seed),players=config.players.map((p,i)=>({...p,id:'AUTO-'+(i+1),participantId:p.participantId||'P'+(i+1),seat:i+1,sourceDeckId:p.id,playerNumber:i+1,
-   difficulty:p.difficulty||'intermediate',style:Object.entries(styleKeys).sort((a,b)=>{
+   difficulty:'expert',style:Object.entries(styleKeys).sort((a,b)=>{
     const n=lst=>p.cardIds.filter(x=>lst.includes(code(x))).length;return n(b[1])-n(a[1]);
    })[0][0]}));
   const rush=config.battleMode==='RUSH',initialPoker=7,initialPower=3,target=rush?15:30;
   const rngShuffle=a=>rng.shuffle(a),random=n=>rng.int(n);
   const game={mode:'ASSISTED',autoMode:true,decks:players,states:{},histories:{},pokerDrawPile:sourceDeck(config.pokerDeckCount||1,rng),round:1,
    turnIndex:0,activeIndex:0,goal:target,assistedPending:[],linkedEvents:[],finished:false};
-  const startedAt=Date.now(),incidents=[],counts={};
+  const startedAt=Date.now(),incidents=[],counts={};let eventCount=0;
   const issue=x=>{if(incidents.length<40)incidents.push(String(x))};
   function log(pid,action,detail='',card=null){
    if(!game.histories[pid])game.histories[pid]=[];
-   const st=game.states[pid];game.histories[pid].push({at:Date.now(),round:game.round,action,detail,cardName:card?.name||'',cardDescription:card?.description||'',state:st?{chips:st.chips,poker:st.pokerHand.length,power:st.hand.length-st.activeHyper.length,hyper:st.activeHyper.length}:null});
+   eventCount++;
+   const st=game.states[pid];
+   if(!config.summaryOnly)game.histories[pid].push({at:Date.now(),round:game.round,action,detail,cardName:card?.name||'',cardDescription:card?.description||'',state:st?{chips:st.chips,poker:st.pokerHand.length,power:st.hand.length-st.activeHyper.length,hyper:st.activeHyper.length}:null});
    if(['Efecto asistido','Efecto vinculado','Entendí la referencia'].includes(action)){const id=card?.id;if(id)counts[id]=(counts[id]||0)+1;}
   }
   for(const p of players){
@@ -641,18 +645,18 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
      finalWinners=tieContenders.filter(id=>get(id).chips===top);
      game.finished=true;outcome='Empate total tras 3 rondas adicionales';break;
    }
-   onProgress?.({round,maxRounds,events:Object.values(game.histories).reduce((n,x)=>n+x.length,0)});
+   onProgress?.({round,maxRounds,events:eventCount});
    if(round%2===0)await new Promise(resolve=>setTimeout(resolve,0));
   }
   audit();
   const ranking=[...players].sort((a,b)=>get(b.id).chips-get(a.id).chips),top=get(ranking[0].id).chips;
-  const totals=Object.values(game.histories).reduce((n,x)=>n+x.length,0),endedAt=Date.now();
+  const totals=eventCount,endedAt=Date.now();
   const result={seed:config.seed,version:context.version||'1.19.8',mode:'AUTO_SIM',battleMode:rush?'RUSH':'BLITZ',goal:target,
    rounds,startedAt,endedAt,durationMs:endedAt-startedAt,pokerDeckCount:config.pokerDeckCount||1,finished:game.finished,
    outcome,cancelled:!!config.cancel?.cancelled,winnerIds:finalWinners.length?finalWinners:ranking.filter(p=>get(p.id).chips===top).map(x=>x.id),
    incidents,effectCounts:counts,eventsCount:totals,
    players:ranking.map(p=>({id:p.id,participantId:p.participantId,seat:p.seat,name:p.name,deckId:p.sourceDeckId,difficulty:p.difficulty,style:p.style,chips:get(p.id).chips,
-    events:game.histories[p.id],pokerHand:get(p.id).pokerHand.length,powerHand:get(p.id).hand.length-get(p.id).activeHyper.length,
+    events:config.summaryOnly?[]:game.histories[p.id],pokerHand:get(p.id).pokerHand.length,powerHand:get(p.id).hand.length-get(p.id).activeHyper.length,
     activeHyper:get(p.id).activeHyper.length,deckLeft:get(p.id).drawPile.length}))
   };
   onProgress?.({round:rounds,maxRounds,events:totals,finished:true});
