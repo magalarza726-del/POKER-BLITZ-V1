@@ -14,12 +14,14 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   function eligible(pid,index){
     const s=state(pid);if(!s||s.currentPhase!=='MAIN'||s.activeHyper.includes(index)||s.activeHyper.length>=3)return false;
     const t=code(s.hand[index]);if(!supported.has(t)||['004','005','040'].includes(t))return false;
+    // Oficial §6: el encantamiento debe activarse antes de usar la primera SuperCard.
+    if(['029','030','035','042','043','044'].includes(t)&&(s.assistedPlayedSupers||[]).length)return false;
     const count=bonds(pid).filter(b=>b.type===t).length;
     if(count>=1)return false;
     const [pow,pok]=prices(t),free=s.hand.filter((_,i)=>i!==index&&!s.activeHyper.includes(i)).length;
-    if(free<pow||s.pokerHand.length<pok)return false;
-    if(t==='029'&&!s.pokerHand.length)return false;
-    if(t==='030'&&!s.pokerHand.length)return false;
+    if(free<pow||s.pokerHand.filter(c=>!protectedCard(pid,c)).length<pok)return false;
+    if(t==='029'&&!s.pokerHand.some(c=>!protectedCard(pid,c)))return false;
+    if(t==='030'&&!s.pokerHand.some(c=>!protectedCard(pid,c)))return false;
    if(t==='035'&&s.pokerHand.length<4)return false;
     if(artifacts.has(t)&&!s.pokerHand.some(c=>!virtual(c)))return false;
     return true;
@@ -72,10 +74,10 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   function activate(pid,index,selected){
     if(!eligible(pid,index))return;
     const s=state(pid),t=code(s.hand[index]),id=s.hand[index], [pc,hc]=prices(t);
-    if(hc>s.pokerHand.filter(c=>!selected.includes(c.id)).length){ctx.toast('Debes conservar las Poker Cards vinculadas para pagar el coste.');return}
+    if(hc>s.pokerHand.filter(c=>!selected.includes(c.id)&&!protectedCard(pid,c)).length){ctx.toast('Debes conservar las Poker Cards vinculadas para pagar el coste.');return}
     ctx.pushUndo(pid,'Activar vínculo '+t);
     for(let i=0;i<hc;i++){
-      const choices=s.pokerHand.map((c,n)=>({c,n})).filter(x=>!selected.includes(x.c.id));
+      const choices=s.pokerHand.map((c,n)=>({c,n})).filter(x=>!selected.includes(x.c.id)&&!protectedCard(pid,x.c));
       const picked=ctx.choosePokerPayment?[...choices].sort((a,b)=>ctx.choosePokerPayment(pid,a.c)-ctx.choosePokerPayment(pid,b.c))[0]:choices[0];
       const x=s.pokerHand.splice(picked.n,1)[0];recyclePoker(pid,[x]);
     }
