@@ -84,6 +84,13 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
       if(slots.length)options.push({value:'power',label:'Activar una Power Card aleatoria del rival; devolverla si no es aplicable',score:1.6});
       return options;
     }
+    if(p.kind==='color')return ['S','H','D','C'].map(suit=>({value:'suit:'+suit,label:({S:'Picas',H:'Corazones',D:'Diamantes',C:'Tréboles'})[suit],score:0}));
+    if(p.kind==='peek')return p.cards.map((c,i)=>({value:'peek:'+i,label:c.rank+' de '+c.suit,score:pokerValue(c)}));
+    if(p.kind==='spy'){
+      const target=p.phase==='attack'?p.enemy:p.owner,st=pile(target);
+      return st.pokerHand.filter(c=>!links()?.protectedCard(target,c)).map(c=>({value:'poker:'+c.id,label:'Poker Card: '+c.rank+' de '+c.suit,score:pokerValue(c)}))
+        .concat(st.hand.map((cid,i)=>({cid,i})).filter(x=>!st.activeHyper.includes(x.i)).map(x=>({value:'power:'+x.i,label:'Power Card: '+(card(x.cid)?.name||x.cid),score:ctx.cardScore?.(target,x.cid)||3})));
+    }
     if(p.kind==='forced-swap'){
       const src=p.phase==='own'?p.pid:p.enemy,hand=pile(src).pokerHand,used=p.phase==='own'?p.usedOwn:p.usedEnemy;
       const options=hand.map(c=>({value:p.phase+':'+c.id,label:c.rank+' '+(c.symbol||c.suit)+(links()?.protectedCard(src,c)?' (protegida)':''),score:p.phase==='own'?15-pokerValue(c):pokerValue(c),disabled:!!links()?.protectedCard(src,c)||used.includes(c.id)}));
@@ -96,12 +103,19 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   }
   function choiceMarkup(){
     const p=pending,options=choiceOptions(),who=sim().decks.find(x=>x.id===p.enemy);
-    const title=p.kind==='hyper-search'?'Anzuelo de Mejoras: elige una HyperCard':p.kind==='maestro'?'Maestro de Fichas: elige uno de los 3 efectos':
-      'Intercambio Forzado: mira la mano completa de J'+(who?.playerNumber||'?');
-    const hint=p.kind==='forced-swap'
-      ?(p.phase==='own'?'Selecciona una de tus Poker Cards para entregar. Pares completados: '+p.done+'/2.':'Mano completa del rival (señaladas las protegidas). Elige qué carta recibir.')
-      :p.kind==='hyper-search'?'Solo se muestran HyperCards que realmente están en tu Deck. El coste ya se descontó.':
-        'El rival tiene al menos 5 fichas; elige exactamente una de las opciones aplicables.';
+    const title=({
+      spy:'Espía vs Espía: '+(p.phase==='attack'?'elige carta rival':'el rival elige una carta tuya'),
+      peek:'Ojo del Más Allá: '+(p.phase==='take'?'elige carta para robar':'coloca una carta en la parte superior del mazo'),
+      color:'Mi Color Favorito: declara un símbolo',
+      maestro:'Maestro de Fichas: elige un efecto',
+      'forced-swap':'Intercambio Forzado: selección de cartas',
+      'hyper-search':'Búsqueda de HyperCard'
+    })[p.kind]||'Elegir efecto';
+    const hint=p.kind==='spy'?'Puedes elegir entre las Poker Cards y las Power Cards de esa mano completa.':
+      p.kind==='peek'?'Toma una Poker Card y ordena las restantes encima del mazo.':
+      p.kind==='color'?'Declara un palo antes de robar.':
+      p.kind==='forced-swap'?'Selecciona hasta dos pares de Poker Cards.':
+      'Elige una de las opciones legales disponibles.';
     let preview='';
     if(p.kind==='forced-swap'){
       const enemy=pile(p.enemy);preview='<p class="small muted">Mano completa de J'+(who?.playerNumber||'?')+': '+
