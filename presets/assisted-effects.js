@@ -41,11 +41,13 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     if(num==='055'&&(s.pokerHand.filter(c=>!links()?.protectedCard(pid,c)).length<2||!opponents(pid).some(p=>pile(p.id).chips>=1)))return false;
     if((num==='057'||num==='063')&&!active(pid,'062')&&freePoker<2)return false;
     if(num==='017'&&!copyCandidates(pid).length)return false;
+    // Reglamento oficial §6: todo efecto que Encanta debe preceder a la primera SuperCard de ese turno.
+    if(ctx.type?.(card(id))==='SUPER'&&/\bencanta\b/i.test(String(card(id)?.description||''))&&(s.assistedPlayedSupers||[]).length)return false;
     if(num==='040'&&freePoker<(!active(pid,'046')?2:1))return false;
     if(num==='005'&&new Set(s.activeHyper.map(i=>String(s.hand[i]).slice(-3)).filter(x=>links()?.artifacts.has(x))).size<3)return false;
     if(num==='004'&&!sim().chain?.stack?.[0])return false;
      if(['010','033','034'].includes(num)&&ctx.type?.(card(sim().chain?.stack?.[0]?.cardId))!=='SUPER')return false;
-     if(num==='052'&&ctx.type?.(card(sim().chain?.stack?.[0]?.cardId))!=='HYPER')return false;
+     if(num==='052'&&ctx.type?.(card(sim().pendingHyperActivationCardId||sim().chain?.stack?.[0]?.cardId))!=='HYPER')return false;
     if(num==='041'&&s.pokerHand.length<2)return false;
      if(num==='045'&&!active(pid,'046')&&freePoker<2)return false;
     if(num==='045'&&!active(pid,'046')&&(s.pokerHand.length<1||freePower<1))return false;
@@ -272,7 +274,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     }
     if(!ctx.modal())ctx.render();
   }
-  function beginTurn(pid){const st=pile(pid);if(!st)return;st.assistedPlayedSupers=[];st.assistedLastSuper=null;st.assistedLastSuperTurn=null;st.pendingDieCounter=null;st.pendingDieShift=0;}
+  function beginTurn(pid){const st=pile(pid);if(!st)return;st.assistedPlayedSupers=[];st.assistedLastSuper=null;st.assistedLastSuperTurn=null;st.pendingDieCounter=null;st.pendingDieShift=0;st.destinyDieUsed=false;}
   function active(pid,id){return pile(pid).activeHyper.some(i=>pile(pid).hand[i]==='catalog_v3_'+id);}
   function dieShift(value,source,benefit){
     const preferEven=['018','020'].includes(source),preferOdd=['008','019'].includes(source);
@@ -284,10 +286,11 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     return 0;
   }
   function die(pid){const st=pile(pid),base=1+random(6);let final=base;
-    const pending=st.pendingDieCounter;if(pending?.source===rollingEffect){const shift=dieShift(final,rollingEffect,false);final=Math.max(1,Math.min(6,final+shift));log(pending.by||pid,'052','Agujero Negro modificó el dado rival de '+base+' a '+final+'.');}st.pendingDieCounter=null;
+    // Agujero Negro solo bloquea HyperCards: nunca altera resultados de dados.
+    st.pendingDieCounter=null;
     if(st.pendingDieShift){final=Math.max(1,Math.min(6,final+st.pendingDieShift));st.pendingDieShift=0;}
     if(active(pid,'003')&&!st.destinyDieUsed){
-       const delta=dieShift(final,rollingEffect,true),adjust=delta||(final<6?1:-1),before=final;
+       const delta=dieShift(final,rollingEffect,true),adjust=delta||((final<6)?1:-1),before=final;
        final=Math.max(1,Math.min(6,final+adjust));
        st.destinyDieUsed=true;log(pid,'003','Manipulador del Destino ajustó la primera tirada de '+before+' a '+final+'.');
      }
@@ -378,7 +381,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     const requirements={'003':[0,1],'049':[0,1]};
     const [power,poker]=requirements[key]||[0,0];
     const powerReady=s.hand.filter((c,i)=>i!==index&&!s.activeHyper.includes(i)).length;
-    if(powerReady<power||s.pokerHand.length<poker){ctx.toast('No hay suficientes cartas para pagar el coste de esta HyperCard.');return}
+    if(powerReady<power||s.pokerHand.filter(c=>!links()?.protectedCard(pid,c)).length<poker){ctx.toast('No hay suficientes cartas para pagar el coste de esta HyperCard.');return}
     ctx.pushUndo(pid,'HyperCard asistida');
     const entry=ctx.manual().take(pid,index);
     const removed=popPower(pid,power),discarded=popPoker(pid,poker);
