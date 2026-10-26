@@ -12,7 +12,7 @@ const ids=cards.map(m=>m[1]);
 assert.equal(cards.length,50,'The catalog must contain exactly 50 official cards');
 assert.equal(new Set(ids).size,50,'Duplicate official card id');
 assert(html.includes('class="pb-original-card-art"'),'Original individual card image element missing');
-assert(html.includes('assets/cards/\\${card.id}.webp'),'Card image source must be derived from its official ID');
+assert(html.includes('assets/cards/${card.id}.webp'),'Card image source must be derived from its official ID');
 assert(!html.includes('class="pb-art-sheet"'),'The old sprite-sheet renderer must be disabled');
 const fingerprints=new Set();
 for(const id of ids){
