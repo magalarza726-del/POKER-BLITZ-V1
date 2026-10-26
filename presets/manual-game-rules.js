@@ -70,7 +70,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
      for(const i of [...(s.activeHyper||[])].sort((a,b)=>b-a)){
        const it=take(d.id,i);if(it)giveBack(it.cardId,it.ownerId);
      }
-     s.hyperActivationsThisTurn=0;
+     s.hyperActivationsThisTurn=0;s.hyperActivationLimit=1;s.hyperDeniedThisTurn=[];
     s.turnsTaken=(s.turnsTaken||0)+1;ctx.log(d.id,'Fin de turno','Turno '+s.turnsTaken+' completado. Fichas: '+s.chips+'.');
     sim.chargeSelection=[];
     if(sim.turnIndex===sim.decks.length-1){
