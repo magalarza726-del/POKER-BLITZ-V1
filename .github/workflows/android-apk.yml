@@ -53,6 +53,8 @@ jobs:
         run: gradle --no-daemon --stacktrace assembleDebug
       - name: Validar los scripts de la aplicación offline
         run: python3 android/tools/verify_offline_web.py
+      - name: Verificar las 50 ilustraciones y los 10 retratos del juego
+        run: node android/tools/check_card_art.js
       - name: Probar reglas manuales, CounterCards, cobros y reacción
         run: node android/tools/check_manual_rules.js
       - name: Probar motor de efectos asistidos y los tres modos de prueba
