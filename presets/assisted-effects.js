@@ -437,7 +437,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   }
   function recalc(pid){
     const st=pile(pid),count=id=>st.activeHyper.filter(i=>st.hand[i]==='catalog_v3_'+id).length;
-    st.powerHandLimit=3;
+    st.powerHandLimit=4;
     st.pokerLimit=7;
     st.powerDrawBonus=0;
   }
@@ -459,6 +459,11 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     recalc(pid);
     log(pid,id,'HyperCard activada realmente. Coste: '+removed.length+' Power Cards y '+discarded.length+' Poker Cards. Se actualizan efectos persistentes.');
     if(key==='003')s.destinyDieUsed=false;
+    if(['046','062'].includes(key)){
+      simState.assistedPending??=[];
+      simState.assistedPending.push({type:'HYPER_END_CHIP',actor:pid,round:simState.round,turn:s.turnsTaken,cardId:key,n:1});
+      log(pid,id,'Bonificación de +1 ficha programada para la End Phase de esta activación.');
+    }
     ctx.render();
   }
   function phase(phase,pid){
@@ -474,6 +479,12 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     }
     links()?.phase(phase,pid);
     if(phase!=='END')return;
+    const bonuses=all.filter(e=>e.type==='HYPER_END_CHIP'&&e.actor===pid&&e.turn===pile(pid).turnsTaken);
+    for(const e of bonuses){
+      const gained=addChips(pid,e.n||1,false);
+      log(pid,e.cardId,'Bonificación de End Phase: +'+gained+' ficha(s) por HyperCard activada.');
+      all.splice(all.indexOf(e),1);
+    }
     for(const c of pile(pid).pokerHand){
       if(c.numberCharmOriginal!==undefined){c.rank=c.numberCharmOriginal;delete c.numberCharmOriginal;}
     }
