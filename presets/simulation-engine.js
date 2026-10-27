@@ -210,7 +210,16 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    if(!candidates.length)return null;
    if(p.difficulty==='beginner')return candidates[random(candidates.length)];
    const pid=p.id,s=get(pid),cards=s.pokerHand,ranks=ranksOf(cards),plan=planFor(p);
-   if(linked?.kind==='sabueso')return [...candidates].sort((a,b)=>(ranks.suits[b]||0)-(ranks.suits[a]||0))[0];
+   if(linked?.kind==='sabueso'){
+    // Prefer two distinct non-Aces that maximize the resulting strategic hand.
+    const enchanted=cards.map(c=>selected.has(c.id)?{...c,rank:'A'}:c);
+    const before=handPotential(pid,enchanted,plan);
+    return [...candidates].map(id=>{
+      const result=handPotential(pid,enchanted.map(c=>c.id===id?{...c,rank:'A'}:c),plan);
+      const original=cards.find(c=>c.id===id);
+      return {id,gain:result-before+(original?.rank==='A'?-100:0)};
+    }).sort((a,b)=>b.gain-a.gain)[0].id;
+   }
    const pick=candidates.map(id=>{
     const c=cards.find(c=>c.id===id);if(!c)return {id,score:0};
     const score=pokerCardValue(pid,c)+
