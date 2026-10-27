@@ -210,6 +210,12 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    if(!candidates.length)return null;
    if(p.difficulty==='beginner')return candidates[random(candidates.length)];
    const pid=p.id,s=get(pid),cards=s.pokerHand,ranks=ranksOf(cards),plan=planFor(p);
+   if(linked?.kind==='hyper-power'){
+    return [...candidates].sort((a,b)=>{
+      const ix=v=>Number(v.slice(6));
+      return scoreCard(p.id,get(p.id).hand[ix(a)])-scoreCard(p.id,get(p.id).hand[ix(b)]);
+    })[0];
+   }
    if(linked?.kind==='hyper-quantity'){
     const st=get(p.id),plan=planFor(p),unprotected=st.pokerHand.filter(c=>!links.protectedCard(p.id,c)),valuable=unprotected.length>=2&&(plan.role==='relics'||plan.suitCount>=3);
     const max=Number(linked.maxCost||0),wanted=Math.max(0,Math.min(max,valuable?2:1));
