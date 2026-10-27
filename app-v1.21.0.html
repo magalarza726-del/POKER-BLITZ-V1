@@ -851,6 +851,57 @@ window.STARTER_CARDS = [
     <button class="quick-action" data-action="auto-simulation">${icon('game','lg')}<div><b>Simulación</b><span>1–1000 partidas y hasta 10 jugadores</span></div></button>
   </section></main>`;}
 
+
+  async function runDeckLaboratory(mode){
+    if(labBusy)return;syncLabSettings();
+    const legalDecks=availableTestDecks(),selected=legalDecks.find(d=>d.id===labSettings.deckId);
+    const rivals=labSettings.opponentIds.slice(0,labSettings.players-1).map(id=>legalDecks.find(d=>d.id===id)).filter(Boolean);
+    if(rivals.length!==labSettings.players-1||!rivals.length)return toast('Escoge rivales legales para todos los puestos.');
+    if(mode==='improve'&&!selected)return toast('El deck original debe cumplir el reglamento.');
+    let seed;try{seed=parseSeed(labSettings.seedInput)??generateSeed()}catch(err){return toast(String(err.message||err))}
+    labBusy=true;labCancel={cancelled:false};labResult=null;labProgress={message:'Preparando partidas y semillas reproducibles…'};render();
+    try{
+      const engine=window.POKER_BLITZ_AUTOMATION({getCard,cardType,version:APP_VERSION});
+      const ctx={engine,cancel:labCancel,games:labSettings.games,seed,pokerDeckCount:labSettings.players>7?2:1,
+        maxRounds:40,onProgress:data=>{
+          labProgress={message:'Versión '+data.iteration+'/'+data.total+
+             ' · Mejor evaluación: '+(data.best?.wins??0)+' V, '+(data.best?.losses??0)+' D.'};
+          if(screen==='deckImprove'||screen==='deckCreate')render();
+        }};
+      const type=id=>cardType(getCard(id)),catalog=state.cards.filter(c=>officialCardIds.has(c.id));
+      const settings={...labSettings,seed};
+      if(mode==='improve'){
+        const original=selected.optimizationOrigin||{cardIds:[...selected.cardIds],hyperCardIds:[...selected.hyperCardIds]};
+        const result=await window.POKER_BLITZ_DECK_LAB.improve({...selected,...original},rivals,catalog,type,settings,ctx);
+        if(!labCancel.cancelled){
+          selected.optimizationOrigin??={cardIds:[...original.cardIds],hyperCardIds:[...original.hyperCardIds]};
+          selected.versionHistory??=[];
+          for(const trial of result.trials)selected.versionHistory.push({...trial,mode:'improve',createdAt:new Date().toISOString()});
+          selected.versionHistory=selected.versionHistory.slice(-180);
+          selected.cardIds=[...result.best.cardIds];selected.hyperCardIds=[...result.best.hyperCardIds];
+          if(!deckIsLegal(selected))throw Error('El motor devolvió un deck ilegal.');
+          saveState();labResult={mode,metrics:result.bestMetrics,similarity:result.similarity,count:result.trials.length,saved:true,deckId:selected.id};
+        }else labResult={mode,metrics:result.bestMetrics,similarity:result.similarity,count:result.trials.length,saved:false};
+      }else{
+        const result=await window.POKER_BLITZ_DECK_LAB.create(catalog,rivals,type,settings,ctx);
+        if(result.best&&!labCancel.cancelled){
+          const deck={id:crypto.randomUUID(),name:'Generado · '+labSettings.style+' · '+new Date().toLocaleDateString(),
+            description:'Deck creado por simulaciones. Agresividad '+labSettings.aggression+'/5; facilidad '+labSettings.ease+'.',
+            ...result.best,characterImage:null,characterScale:1,characterFocusX:50,characterFocusY:50,
+            versionHistory:result.history.map(item=>({...item,mode:'create',createdAt:new Date().toISOString()}))};
+          if(!deckIsLegal(deck))throw Error('El generador devolvió un deck ilegal.');
+          state.decks.push(deck);saveState();
+          labResult={mode,metrics:result.metrics,count:result.history.length,saved:true,deckId:deck.id};
+        }else labResult={mode,metrics:result.metrics,count:result.history.length,saved:false};
+      }
+      labProgress={message:labCancel.cancelled?'Se canceló: el deck existente no se modificó.':'Evaluación terminada; versiones guardadas.'};
+    }catch(err){
+      console.error('Laboratorio de decks',err);
+      labProgress={message:'Error: '+String(err.message||err)};
+      toast(labProgress.message);
+    }finally{labBusy=false;labCancel=null;render();}
+  }
+
   function syncLabSettings(){
     const decks=availableTestDecks();
     if(!decks.some(d=>d.id===labSettings.deckId))labSettings.deckId=decks[0]?.id||'';
@@ -928,7 +979,11 @@ window.STARTER_CARDS = [
   function renderDeckEditor(){
     const d=getDeck(editingDeckId);if(!d){screen='home';return renderHome();}
     const counts=countIds([...d.cardIds,...(d.hyperCardIds||[])]); const unique=Object.keys(counts).map(getCard).filter(Boolean).filter(c=>c.name.toLowerCase().includes(deckQuery.toLowerCase())&&typeMatches(c,deckTypeFilter));
-    return `<main class="app-shell">${appBar('Deck: '+d.name,{back:true})}<section class="deck-editor-layout"><aside class="panel deck-side"><div class="field"><label>Nombre del deck</label><input id="deckName" value="${esc(d.name)}" maxlength="50"></div><div class="deck-stats" style="margin-top:12px"><div class="stat-box"><strong>${d.cardIds.length}</strong><span>Super/Counter</span></div><div class="stat-box"><strong>${(d.hyperCardIds||[]).length}/3</strong><span>HyperZone: únicas</span></div></div><p class="small muted">Power Deck actual: <strong>${20+2*(d.hyperCardIds||[]).length} mínimo</strong> y <strong>${30+2*(d.hyperCardIds||[]).length} máximo</strong> (${d.cardIds.length} presentes). Máximo 3 copias de cada SuperCard o CounterCard y 1 de cada HyperCard. Sin sustituciones de cartas retiradas.</p><div class="deck-profile"><div class="deck-character-column"><div class="deck-character-preview ${d.characterImage?'':'empty'}">${d.characterImage?deckCharacterPhoto(d):'<span>Sin imagen de personaje</span>'}</div><div class="character-controls"><button class="btn primary" data-action="open-character-picker">${icon('upload')} ${d.characterImage?'Cambiar imagen':'Añadir imagen'}</button>${d.characterImage?`<button class="btn" data-action="edit-character-image">${icon('edit')} Editar encuadre</button><button class="btn danger" data-action="remove-character-image">${icon('trash')} Quitar</button>`:''}</div></div><div class="deck-profile-fields"><div><label class="small" style="font-weight:900;display:block;margin-bottom:4px">Personaje del deck</label><div class="small muted">Sube una imagen y encuádrala arrastrando, como en un editor de perfil.</div></div><div><label class="small" style="font-weight:900;display:block;margin-bottom:4px">Descripción breve</label><textarea id="deckDescription" maxlength="180" placeholder="Describe la idea o estilo del deck...">${esc(d.description||'')}</textarea><div class="field-help">${(d.description||'').length}/180</div></div></div></div>${PRESET_DIALOGUE_PANELS[d.id]?`<div class="deck-dialogue-section"><label>Panel de diálogo (adicional al retrato)</label>${characterDialogueHTML(d,'','preview')}<div class="small muted">También aparece junto al personaje en partida; su foto se conserva.</div></div>`:''}<div style="flex:1"></div><button class="btn primary" data-action="test-deck" ${deckIsLegal(d)?'':'disabled'}>${icon('play')} Probar deck</button><div class="small muted" style="margin-top:10px">Controla las copias con - / +. La imagen de personaje aparecerá junto a tu mano en el modo de prueba.</div></aside><section class="deck-right"><div class="deck-list-head"><h2>Power Deck (${d.cardIds.length}) · HyperZone (${(d.hyperCardIds||[]).length})</h2><div class="search">${icon('search')}<input id="deckSearch" value="${esc(deckQuery)}" placeholder="Buscar cartas..."></div><select id="deckTypeFilter" class="type-filter">${typeFilterOptions(deckTypeFilter)}</select><button class="btn primary" data-action="add-card-modal">${icon('plus')} Añadir carta</button></div><div class="deck-card-list">${unique.length?unique.map(c=>deckCardRow(c,counts[c.id])).join(''):`<div class="empty" style="grid-column:1/-1">${d.cardIds.length?'No hay coincidencias.':'Añade cartas al deck.'}</div>`}</div></section></section></main>`;
+    return `<main class="app-shell">${appBar('Deck: '+d.name,{back:true})}<section class="deck-editor-layout"><aside class="panel deck-side"><div class="field"><label>Nombre del deck</label><input id="deckName" value="${esc(d.name)}" maxlength="50"></div><div class="deck-stats" style="margin-top:12px"><div class="stat-box"><strong>${d.cardIds.length}</strong><span>Super/Counter</span></div><div class="stat-box"><strong>${(d.hyperCardIds||[]).length}/3</strong><span>HyperZone: únicas</span></div></div><p class="small muted">Power Deck actual: <strong>${20+2*(d.hyperCardIds||[]).length} mínimo</strong> y <strong>${30+2*(d.hyperCardIds||[]).length} máximo</strong> (${d.cardIds.length} presentes). Máximo 3 copias de cada SuperCard o CounterCard y 1 de cada HyperCard. Sin sustituciones de cartas retiradas.</p><div class="deck-profile"><div class="deck-character-column"><div class="deck-character-preview ${d.characterImage?'':'empty'}">${d.characterImage?deckCharacterPhoto(d):'<span>Sin imagen de personaje</span>'}</div><div class="character-controls"><button class="btn primary" data-action="open-character-picker">${icon('upload')} ${d.characterImage?'Cambiar imagen':'Añadir imagen'}</button>${d.characterImage?`<button class="btn" data-action="edit-character-image">${icon('edit')} Editar encuadre</button><button class="btn danger" data-action="remove-character-image">${icon('trash')} Quitar</button>`:''}</div></div><div class="deck-profile-fields"><div><label class="small" style="font-weight:900;display:block;margin-bottom:4px">Personaje del deck</label><div class="small muted">Sube una imagen y encuádrala arrastrando, como en un editor de perfil.</div></div><div><label class="small" style="font-weight:900;display:block;margin-bottom:4px">Descripción breve</label><textarea id="deckDescription" maxlength="180" placeholder="Describe la idea o estilo del deck...">${esc(d.description||'')}</textarea><div class="field-help">${(d.description||'').length}/180</div></div></div></div>${PRESET_DIALOGUE_PANELS[d.id]?`<div class="deck-dialogue-section"><label>Panel de diálogo (adicional al retrato)</label>${characterDialogueHTML(d,'','preview')}<div class="small muted">También aparece junto al personaje en partida; su foto se conserva.</div></div>`:''}<div style="flex:1"></div><button class="btn primary" data-action="test-deck" ${deckIsLegal(d)?'':'disabled'}>${icon('play')} Probar deck</button><div class="small muted" style="margin-top:10px">Controla las copias con - / +. La imagen de personaje aparecerá junto a tu mano en el modo de prueba.</div>
+    ${(d.versionHistory||[]).length?`<div class="deck-dialogue-section"><h3>Historial de versiones (${d.versionHistory.length})</h3>
+      <div style="max-height:300px;overflow-y:auto">${d.versionHistory.map((v,i)=>`<div class="summary-row">
+       <span>v${v.version||i+1} · ${v.metrics?.wins??0} V / ${v.metrics?.losses??0} D ${v.similarity==null?'':('· '+Math.round(v.similarity*100)+' % semejanza')}</span>
+       <button class="btn" data-action="deck-version-restore" data-index="${i}">Restaurar</button></div>`).reverse().join('')}</div></div>`:''}</aside><section class="deck-right"><div class="deck-list-head"><h2>Power Deck (${d.cardIds.length}) · HyperZone (${(d.hyperCardIds||[]).length})</h2><div class="search">${icon('search')}<input id="deckSearch" value="${esc(deckQuery)}" placeholder="Buscar cartas..."></div><select id="deckTypeFilter" class="type-filter">${typeFilterOptions(deckTypeFilter)}</select><button class="btn primary" data-action="add-card-modal">${icon('plus')} Añadir carta</button></div><div class="deck-card-list">${unique.length?unique.map(c=>deckCardRow(c,counts[c.id])).join(''):`<div class="empty" style="grid-column:1/-1">${d.cardIds.length?'No hay coincidencias.':'Añade cartas al deck.'}</div>`}</div></section></section></main>`;
   }
   function deckCardRow(c,count){return `<div class="deck-card-item"><div class="deck-card-thumb" data-action="zoom-card" data-id="${c.id}">${cardHTML(c)}</div><div class="deck-card-name">${esc(c.name)}</div><button class="icon-btn" data-action="zoom-card" data-id="${c.id}">${icon('zoom')}</button><div class="stepper"><button data-action="deck-minus" data-id="${c.id}">${icon('minus')}</button><strong>${count}</strong><button data-action="deck-plus" data-id="${c.id}">${icon('plus')}</button></div></div>`}
   function availableTestDecks(){return state.decks.filter(d=>Array.isArray(d.cardIds)&&d.cardIds.length>0&&deckIsLegal(d))}
@@ -1260,7 +1315,19 @@ function syncAutoSetup(){
     return'';
   }
   function bindInputs(){
-    $$('[data-auto-deck]').forEach(el=>el.addEventListener('change',()=>{autoSetup.deckIds[Number(el.dataset.autoDeck)]=el.value}));
+    $('[data-auto-deck]').forEach(el=>el.addEventListener('change',()=>{autoSetup.deckIds[Number(el.dataset.autoDeck)]=el.value}));
+    $('#lab-deck')?.addEventListener('change',e=>{labSettings.deckId=e.target.value;labSettings.opponentIds=[];syncLabSettings();render();});
+    $('[data-lab-opponent]').forEach(el=>el.addEventListener('change',e=>{labSettings.opponentIds[Number(el.dataset.labOpponent)]=e.target.value;}));
+    for(const [id,key,max] of [['lab-players','players',10],['lab-iterations','iterations',80],['lab-games','games',40]]){
+      $('#'+id)?.addEventListener('change',e=>{
+        labSettings[key]=Math.max(key==='iterations'?1:2,Math.min(max,Math.trunc(Number(e.target.value)||1)));
+        syncLabSettings();render();
+      });
+    }
+    $('#lab-seed')?.addEventListener('input',e=>{labSettings.seedInput=e.target.value.trim();});
+    for(const key of ['style','aggression','ease']){
+      $('#lab-'+key)?.addEventListener('change',e=>{labSettings[key]=key==='aggression'?Number(e.target.value):e.target.value;});
+    }
 
     const numberOfGames=$('#auto-games-count');if(numberOfGames){numberOfGames.addEventListener('change',()=>{autoSetup.gamesCount=Math.min(1000,Math.max(1,Math.trunc(Number(numberOfGames.value)||1)));numberOfGames.value=autoSetup.gamesCount;});numberOfGames.addEventListener('input',()=>{const n=Number(numberOfGames.value);if(Number.isInteger(n)&&n>=1&&n<=1000)autoSetup.gamesCount=n;});}
     for(const [selector,setup] of [['#auto-seed-input',autoSetup],['#test-seed-input',testSetup]]){const el=$(selector);if(el)el.addEventListener('input',()=>{setup.seedInput=el.value.trim()});}
@@ -1795,6 +1862,16 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='deck-hub')go('deckHub');
     else if(a==='deck-improve'){labProgress=null;labResult=null;syncLabSettings();go('deckImprove');}
     else if(a==='deck-generate'){labProgress=null;labResult=null;syncLabSettings();go('deckCreate');}
+    else if(a==='lab-run-improve')runDeckLaboratory('improve');
+    else if(a==='lab-run-create')runDeckLaboratory('create');
+    else if(a==='lab-cancel'){if(labCancel)labCancel.cancelled=true;}
+    else if(a==='lab-open-result'){editingDeckId=id;go('deckEditor');}
+    else if(a==='deck-version-restore'){
+      const deck=getDeck(editingDeckId),version=deck?.versionHistory?.[Number(el.dataset.index)];
+      if(!deck||!version||!window.confirm('¿Restaurar esta versión de prueba? Se conservará el historial.'))return;
+      if(!deckIsLegal(version))return toast('El historial contiene un deck ilegal.');
+      deck.cardIds=[...version.cardIds];deck.hyperCardIds=[...version.hyperCardIds];saveState();render();
+    }
     else if(a==='test-hub')go('testHub');
     else if(a==='settings')go('settings'); else if(a==='rules')go('rules'); else if(a==='all-cards'){libraryTypeFilter='ALL';go('cards')} else if(a==='all-decks')go('decks'); else if(a==='export')go('export'); else if(a==='manual-test'){sim=null;go('manualChoice')}
     else if(a==='manual-full'){testMode='MANUAL_FULL';syncTestSetup();go('simSetup')}
