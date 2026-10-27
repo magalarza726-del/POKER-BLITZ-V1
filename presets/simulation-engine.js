@@ -401,7 +401,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    if(plan.goal==='ace-chain'){
      if(c==='046')bonus+=ready('040')||ready('047')||ready('045')?9:plan.aces?3:0;
      if(c==='040')bonus+=active('046')?10:ready('045')?6:2;
-     if(c==='047')bonus+=active('046')?7:plan.aces>=3?-2:3;
+     if(c==='047')bonus+=active('046')?(ready('016')?10:7):plan.aces>=3?-2:3;
      if(c==='016')bonus+=ready('045')&&plan.aces<4?6:plan.aces<2?3:0;
      if(c==='045')bonus+=plan.aces>=2?(setupA?-12:14):-12;
      if(['053','032','039'].includes(c))bonus+=plan.aces<3?2:0;
@@ -437,6 +437,21 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    const required=({'003':[0,1],'049':[0,1]})[c]||[0,0];
    return s.pokerHand.length>=required[1]&&s.hand.filter((_,j)=>j!==i&&!s.activeHyper.includes(j)).length>=required[0];
   }
+  function hyperMakesSense(pid,id,index,plan){
+   const c=code(id),s=get(pid),ready=plan.available;
+   const spare=s.hand.filter((_,i)=>i!==index&&!s.activeHyper.includes(i)).length;
+   const canSearch=['016','053','032','039','063'].some(ready);
+   if(c==='046')return ['040','045','047'].some(ready);
+   if(c==='062')return ['023','057','061','063'].some(ready);
+   if(c==='030')return spare>=1&&(plan.suitCount>=4||(plan.suitCount===3&&canSearch));
+   if(c==='029')return spare>=1&&(plan.straightHits>=4||(plan.straightHits===3&&(spare>=2||canSearch)));
+   if(c==='043')return s.pokerHand.length>=3&&
+     (Object.values(ranksOf(s.pokerHand).counts).some(n=>n>=2)||plan.suitCount>=4);
+   if(c==='003')return s.hand.some((x,i)=>i!==index&&!s.activeHyper.includes(i)&&
+     ['014','015','018','019','020','036'].includes(code(x)));
+   if(c==='049')return mainPayoutAvailable(pid);
+   return true;
+  }
   function selectAction(p){
    const s=get(p.id),available=[],plan=planFor(p);
    const ready=id=>s.hand.some((x,i)=>!s.activeHyper.includes(i)&&code(x)===id&&fx.canPlay(x,p.id));
@@ -444,8 +459,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     if(s.activeHyper.includes(i))continue;
     const id=s.hand[i],kind=cardType(getCard(id)),c=code(id);
     if(c==='003'&&kind!=='HYPER')continue; // Manipulador belongs to HyperZone.
-    if(c==='030'&&(s.pokerHand.length<5||plan.suitCount<3))continue;
-    if(c==='029'&&(s.pokerHand.length<5||plan.straightHits<3))continue;
+    if(kind==='HYPER'&&!hyperMakesSense(p.id,id,i,plan))continue;
     if(c==='007'&&(s.pokerHand.length<5||!(s.hyperReserve||[]).length))continue;
     if(c==='035'&&s.pokerHand.length<6)continue;
     // Avoid activating a HyperCard simply because it is available; require real payoff.
@@ -469,7 +483,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
          const n=code(id),diceAvailable=s.hand.some((other,j)=>!s.activeHyper.includes(j)&&
            ['014','015','018','019','020','036'].includes(code(other))&&fx.canPlay(other,p.id));
          const payoutAvailable=mainPayoutAvailable(p.id);
-         if((n!=='003'||diceAvailable)&&(n!=='049'||payoutAvailable))
+         if((n!=='003'||diceAvailable)&&(n!=='049'||payoutAvailable)&&hyperMakesSense(p.id,id,i,plan))
            available.push({i:ri,id,kind:'HYPER_RESERVE',score:scoreCard(p.id,id)+0.7});
        }
       }
@@ -668,7 +682,9 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
        links.phase('DRAW_END',p.id);
      }
     s.currentPhase='MAIN';fx.beginTurn(p.id);links.phase('MAIN_START',p.id);autoModal();
-    const currentPlan=planFor(p);s.aiPlan=currentPlan.goal;log(p.id,'Plan IA',currentPlan.role+': '+currentPlan.goal+' (ases '+currentPlan.aces+', figuras '+currentPlan.faces+').');
+    const currentPlan=planFor(p);s.aiPlan=currentPlan.goal;
+    const planned=currentPlan.sequence.filter(x=>currentPlan.available(x)||currentPlan.accessible(x));
+    log(p.id,'Plan IA',currentPlan.goal+' | secuencia: '+(planned.join(' → ')||'cobro flexible')+' | alternativas: '+currentPlan.alternatives.slice(0,2).join(', ')+' | Ases '+currentPlan.aces+', figuras '+currentPlan.faces+', palo mayor '+currentPlan.suitCount+'.');
     for(let j=0;j<64;j++){
      const choice=selectAction(p);if(!choice)break;
      if(choice.kind==='HYPER'||choice.kind==='HYPER_RESERVE'){
