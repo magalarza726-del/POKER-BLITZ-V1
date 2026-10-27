@@ -912,6 +912,11 @@ window.STARTER_CARDS = [
        <p class="small"><strong>Validación independiente:</strong> ${stats?.games||0} partidas · ${stats?.participants||5} jugadores · ${stats?.winRate==null?'Sin medición':(stats.winRate*100).toFixed(1)+'%'} de victorias con la política elegida.</p>
        <p class="small muted">Intervalo aproximado del 95%: ${stats?.interval95?.length===2?(stats.interval95[0]*100).toFixed(1)+'% – '+(stats.interval95[1]*100).toFixed(1)+'%':'No calculado'}. Solo se aplica una política nueva si supera al control en semillas no utilizadas durante el aprendizaje.</p>
        <p class="small muted">Control anterior: ${stats?.baselineWinRate==null?'Sin medición':(stats.baselineWinRate*100).toFixed(1)+'%'} · Diferencia media de fichas: ${Number(stats?.meanChipMargin||0).toFixed(2)} · Incidencias: ${stats?.incidents||0}.</p>
+       <p class="small"><strong>Diagnóstico Tipo III:</strong>
+       ${result.training?.records?.III?.weaknesses?.lost||0} derrotas,
+       ${result.training?.records?.III?.weaknesses?.farBehind||0} partidas con déficit mayor de 5 fichas,
+       ${result.training?.records?.III?.weaknesses?.lastPlaces||0} finales en los dos últimos puestos,
+       ${result.training?.records?.III?.weaknesses?.hyperUnused||0} partidas sin activar HyperCards.</p>
        ${!upToDate&&selected?.aiTraining?'<p class="small" style="color:#a34c00">Este entrenamiento ya no coincide con las cartas actuales y no se aplica automáticamente.</p>':''}
        <p class="small muted">Una tasa semejante al 10% frente a nueve adversarios distintos NO está garantizada; para afirmar balance competitivo se necesita un torneo independiente suficientemente grande.</p>
        ${result.warnings?.length?`<p class="small" style="color:#ad4521">Observaciones del motor: ${esc(result.warnings.slice(0,3).join(' · '))}</p>`:''}
