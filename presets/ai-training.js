@@ -5,15 +5,23 @@
 window.POKER_BLITZ_TRAINING=(function(){
  'use strict';
  const LIMIT=200,ROUTES=['ace-chain','royal-chain','color-chain','straight-chain','poker-control'];
+ const CHAIN=[
+  ['046','040','047','016','045'],['062','023','063','057','061'],
+  ['029','016','053','032','039'],['030','016','053','032','039'],
+  ['003','014','015','018','020'],['049','041','045','009'],
+  ['043','053','016'],['001','013','016'],['025','013','053']
+ ];
  const code=id=>String(id||'').slice(-3);
  const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
  const fingerprint=deck=>{
   const tally={};for(const id of deck.cardIds||[])tally[id]=(tally[id]||0)+1;
   return JSON.stringify({power:Object.entries(tally).sort((a,b)=>a[0].localeCompare(b[0])),hyper:[...(deck.hyperCardIds||[])].sort()});
  };
- const empty=()=>({version:1,cards:{},routes:{},threshold:0,horizon:0});
+ const empty=()=>({version:1,cards:{},routes:{},links:{},threshold:0,horizon:0});
  const normalize=policy=>{
   const p=empty();if(!policy||typeof policy!=='object')return p;
+  p.links={};
+  for(const [key,val] of Object.entries(policy.links||{}))if(/^\d{3}>\d{3}$/.test(key)&&Number.isFinite(Number(val)))p.links[key]=clamp(Number(val),-4,4);
   for(const [key,x] of Object.entries(policy.cards||{}))if(/^\d{3}$/.test(key)&&Number.isFinite(Number(x)))p.cards[key]=clamp(Number(x),-6,6);
   for(const key of ROUTES)if(Number.isFinite(Number(policy.routes?.[key])))p.routes[key]=clamp(Number(policy.routes[key]),-4,4);
   p.threshold=clamp(Number(policy.threshold)||0,-1.5,1.5);
@@ -27,11 +35,18 @@ window.POKER_BLITZ_TRAINING=(function(){
  const shuffle=(arr,r)=>{const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
  function mutate(parent,deck,r){
   const p=normalize(parent),codes=[...new Set((deck.cardIds||[]).map(code))];
-  const k=Math.floor(r()*5),step=(r()<.5?-1:1)*(.5+r()*.9);
+  const k=Math.floor(r()*6),step=(r()<.5?-1:1)*(.5+r()*.9);
   if(k<2&&codes.length){const c=choose(codes,r);p.cards[c]=clamp((p.cards[c]||0)+step,-6,6);}
   else if(k===2){const c=choose(ROUTES,r);p.routes[c]=clamp((p.routes[c]||0)+step,-4,4);}
   else if(k===3)p.threshold=clamp(p.threshold+step*.25,-1.5,1.5);
-  else p.horizon=clamp(p.horizon+step*.12,-.6,.6);
+  else if(k===4)p.horizon=clamp(p.horizon+step*.12,-.6,.6);
+  else{
+   const all=[...new Set([...(deck.cardIds||[]),...(deck.hyperCardIds||[])].map(code))];
+   const chains=CHAIN.flatMap(seq=>seq.slice(1).map((n,i)=>[seq[i],n]))
+    .filter(([a,b])=>all.includes(a)&&all.includes(b));
+   if(chains.length){const [a,b]=choose(chains,r),key=a+'>'+b;
+    p.links[key]=clamp((p.links[key]||0)+step,-4,4);}
+  }
   // Occasionally coordinate two synergistic cards rather than only one.
   if(r()<.22&&codes.length){const next=choose(codes,r);p.cards[next]=clamp((p.cards[next]||0)+step*.45,-6,6);}
   return p;
@@ -40,15 +55,7 @@ window.POKER_BLITZ_TRAINING=(function(){
   const pool=deck.cardIds||[];
   // Samples from the WHOLE fixed deck; no cards added and no copy-count violations.
   let hand=[];
-  const packages=[
-   ['046','040','047','016','045'],
-   ['062','023','063','057','061'],
-   ['029','016','053','032','039'],
-   ['030','016','053','032','039'],
-   ['003','014','015','018','020'],
-   ['049','041','045','048','009']
-  ];
-  const pkg=packages[(index+iteration)%packages.length];
+  const pkg=CHAIN[(index+iteration)%CHAIN.length];
   const copy=[...pool];
   if(iteration%2===0){
    for(const id of pkg){const at=copy.findIndex(x=>code(x)===id);if(at!==-1&&hand.length<size){hand.push(copy.splice(at,1)[0]);}}
@@ -102,10 +109,10 @@ window.POKER_BLITZ_TRAINING=(function(){
   const failures=[],discovered=new Map();
   const report=(phase,step,message)=>progress?.({phase,step,total,percent:Math.round(100*((['I','II','III'].indexOf(phase)*total+step)/(total*3))),message,accepts,records});
   const interrupted=()=>{if(cancel?.cancelled)throw Object.assign(new Error('Entrenamiento cancelado.'),{cancelled:true});};
-  const runSolo=async(pol,hand,seed)=>{
+  const runSolo=async(pol,hand,seed,orderCodes=null)=>{
    const players=[{...deck,participantId:'LEARNER',aiPolicy:pol}];
    const x=await trial(engine,players,seed,{maxRounds:1,summaryOnly:false,
-    trainingScenario:{handSize:hand.length,handIds:hand},cancel});
+    trainingScenario:{handSize:hand.length,handIds:hand,orderCodes},cancel});
    return evaluate(x,'LEARNER');
   };
   const runAgainst=async(pol,others,seed,mirror=false)=>{
@@ -121,8 +128,23 @@ window.POKER_BLITZ_TRAINING=(function(){
    interrupted();const candidate=mutate(current,deck,r),base=[],newTrial=[];
    for(let handSize=2;handSize<=7;handSize++){
     const sample=soloHand(deck,handSize,handSize,i,r),simSeed=(seed+i*71197+handSize*17041)>>>0;
-    const b=await runSolo(current,sample,simSeed),c=await runSolo(candidate,sample,simSeed);
-    base.push(b);newTrial.push(c);records.I.hands[handSize]++;records.I.trials+=2;
+    const b=await runSolo(current,sample,simSeed);
+    const present=new Set([...sample,...(deck.hyperCardIds||[])].map(code));
+    const chain=CHAIN[(handSize+i)%CHAIN.length].filter(id=>present.has(id));
+    const randomOrder=shuffle(sample.map(code),r);
+    const scripted=await runSolo(current,sample,simSeed,chain.length>=2?chain:randomOrder);
+    // Distill experimentally stronger sequences into persistent *relative*
+    // action-order weights. Re-check without a forced script.
+    if(scripted.value>b.value+0.0001){
+     const sequence=chain.length>=2?chain:randomOrder;
+     for(let j=1;j<sequence.length;j++){
+      const key=sequence[j-1]+'>'+sequence[j];
+      candidate.links[key]=clamp((candidate.links[key]||0)+.65,-4,4);
+     }
+    }
+    const c=await runSolo(candidate,sample,simSeed);
+    base.push(b);newTrial.push(c);records.I.hands[handSize]++;records.I.trials+=3;
+    for(const a of scripted.actions){discovered.set(a,(discovered.get(a)||0)+1);}
     for(const a of c.actions){discovered.set(a,(discovered.get(a)||0)+1);}
    }
    const before=average(base),after=average(newTrial);comparisons++;
