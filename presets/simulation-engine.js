@@ -216,11 +216,6 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
       return scoreCard(p.id,get(p.id).hand[ix(a)])-scoreCard(p.id,get(p.id).hand[ix(b)]);
     })[0];
    }
-   if(linked?.kind==='hyper-quantity'){
-    const st=get(p.id),plan=planFor(p),unprotected=st.pokerHand.filter(c=>!links.protectedCard(p.id,c)),valuable=unprotected.length>=2&&(plan.role==='relics'||plan.suitCount>=3);
-    const max=Number(linked.maxCost||0),wanted=Math.max(0,Math.min(max,valuable?2:1));
-    return 'quantity:'+wanted;
-   }
    if(linked?.kind==='sabueso'){
     // Prefer two distinct non-Aces that maximize the resulting strategic hand.
     const enchanted=cards.map(c=>selected.has(c.id)?{...c,rank:'A'}:c);
