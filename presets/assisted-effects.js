@@ -46,7 +46,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     if(num==='017'&&!copyCandidates(pid).length)return false;
     // Reglamento oficial §6: todo efecto que Encanta debe preceder a la primera SuperCard de ese turno.
     if(ctx.type?.(card(id))==='SUPER'&&/\bencanta\b/i.test(String(card(id)?.description||''))&&(s.assistedPlayedSupers||[]).length)return false;
-    if(num==='040'&&freePoker<(!active(pid,'046')?2:1))return false;
+    if(num==='040'&&freePoker<(!active(pid,'046')?5:2))return false;
     if(num==='005'&&new Set(s.activeHyper.map(i=>String(s.hand[i]).slice(-3)).filter(x=>links()?.artifacts.has(x))).size<3)return false;
     if(num==='004'&&!sim().chain?.stack?.[0])return false;
      if(['010','033','034'].includes(num)&&ctx.type?.(card(sim().chain?.stack?.[0]?.cardId))!=='SUPER')return false;
@@ -381,7 +381,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
        }
        case '040':{
         // Copied Sabueso works as a temporary enchantment; it must not duplicate a physical Power Card.
-        if(!active(pid,'046')){const cost=popPoker(pid,1);log(pid,id,'Pagó '+cost.length+' Poker Card por Sabueso de Ases.');}
+        if(!active(pid,'046')){const cost=popPoker(pid,3);log(pid,id,'Pagó '+cost.length+'/3 Poker Cards por Sabueso de Ases.');}
         links()?.sabueso(item);return false;
       }
       case '003':{log(pid,id,'Manipulador del Destino solo se activa desde HyperZone.');break}
