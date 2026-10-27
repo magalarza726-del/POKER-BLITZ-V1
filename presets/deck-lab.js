@@ -134,24 +134,24 @@ async function evaluate(deck,opponents,ctx){
   score:played?(2*wins-losses+0.35*ties)/played+Math.max(-1,Math.min(1,difference/played/35))*.2:-Infinity};
 }
 async function improve(base,opponents,catalog,type,options,ctx){
- if(!legal(base,type))throw Error('El deck original debe ser legal antes de mejorar; no se rellenarán cartas eliminadas.');
- const random=rng(options.seed||1),iterations=Math.max(1,Math.min(80,options.iterations||12)),trials=[];
+ if(!legal(base,type)||!legal(ctx.original||base,type))throw Error('El deck original debe ser legal antes de mejorar; no se rellenarán cartas eliminadas.');
+ const random=rng(options.seed||1),iterations=Math.max(1,Math.min(80,options.iterations||12)),trials=[],original=ctx.original||base;
  const engine=ctx.engine,batch={...ctx,engine,seed:options.seed||1,games:options.games||4};
  const baseline=await evaluate(base,opponents,batch);let best={cardIds:[...base.cardIds],hyperCardIds:[...base.hyperCardIds]},bestMetrics=baseline;
  ctx.onProgress?.({iteration:0,total:iterations,baseline,best:baseline,similarity:1});
  for(let i=0;i<iterations;i++){
   if(ctx.cancel?.cancelled)break;
   let next=null;
-  for(let attempt=0;attempt<45&&!next;attempt++)next=mutate(best,base,catalog,type,random);
+  for(let attempt=0;attempt<45&&!next;attempt++)next=mutate(best,original,catalog,type,random);
   if(!next)continue;
-  const metrics=await evaluate({...base,...next},opponents,batch),ratio=similarity(base,next);
+  const metrics=await evaluate({...base,...next},opponents,batch),ratio=similarity(original,next);
   const accepted=metrics.score>bestMetrics.score+1e-8&&metrics.incidents===0;
   trials.push({version:i+1,cardIds:[...next.cardIds],hyperCardIds:[...next.hyperCardIds],similarity:ratio,metrics,accepted,seed:batch.seed,opponents:opponents.map(d=>d.id)});
   if(accepted){best=next;bestMetrics=metrics;}
   ctx.onProgress?.({iteration:i+1,total:iterations,latest:metrics,best:bestMetrics,similarity:ratio,accepted});
   await Promise.resolve();
  }
- return {baseMetrics:baseline,bestMetrics,best,similarity:similarity(base,best),trials,completed:trials.length};
+ return {baseMetrics:baseline,bestMetrics,best,similarity:similarity(original,best),trials,completed:trials.length};
 }
 async function create(catalog,opponents,type,options,ctx){
  const random=rng(options.seed||1),rounds=Math.max(1,Math.min(80,options.iterations||12)),batch={...ctx,seed:options.seed||1,games:options.games||4};
