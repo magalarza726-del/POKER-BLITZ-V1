@@ -390,7 +390,43 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    if(c==='016'&&['aces','faces','relics'].includes(plan.role))val+=1.15;
    // Keep scarce combo enablers and avoid clearing the entire Power Hand.
    if(s.hand.length-s.activeHyper.length<=2&&['007','029','030','045','061','013'].includes(c))val+=.4;
-   return val;
+   return val+strategyBonus(pid,id,plan);
+  }
+  function strategyBonus(pid,cardId,plan){
+   const s=get(pid),c=code(cardId),h=s.pokerHand,ready=plan.available,active=plan.active;
+   const playable=id=>ready(id)&&fx.canPlay('catalog_v3_'+id,pid);
+   const setupA=playable('040')||playable('047')||(playable('016')&&plan.aces<4);
+   const setupR=playable('023')||playable('063')||(playable('016')&&plan.faces<4);
+   let bonus=0;
+   if(plan.goal==='ace-chain'){
+     if(c==='046')bonus+=ready('040')||ready('047')||ready('045')?9:plan.aces?3:0;
+     if(c==='040')bonus+=active('046')?10:ready('045')?6:2;
+     if(c==='047')bonus+=active('046')?7:plan.aces>=3?-2:3;
+     if(c==='016')bonus+=ready('045')&&plan.aces<4?6:plan.aces<2?3:0;
+     if(c==='045')bonus+=plan.aces>=2?(setupA?-12:14):-12;
+     if(['053','032','039'].includes(c))bonus+=plan.aces<3?2:0;
+   }else if(plan.goal==='royal-chain'){
+     if(c==='062')bonus+=ready('063')||ready('057')||ready('061')?9:plan.faces>=2?3:0;
+     if(c==='023')bonus+=active('062')?7:plan.faces<4?3:0;
+     if(c==='063')bonus+=active('062')?8:plan.faces<3?3:0;
+     if(c==='057')bonus+=active('062')?6:0;
+     if(c==='016')bonus+=plan.faces<4&&ready('061')?6:0;
+     if(c==='061')bonus+=plan.faces>=3?(setupR?-10:13):-11;
+   }else if(plan.goal==='color-chain'){
+     if(c==='030')bonus+=plan.suitCount>=4?8:plan.suitCount===3?5:-5;
+     if(c==='043')bonus+=h.length>=3?4:-4;
+     if(['016','053'].includes(c))bonus+=plan.suitCount>=3?3:1;
+     if(c==='029')bonus+=plan.straightHits>=4?3:-2;
+   }else if(plan.goal==='straight-chain'){
+     if(c==='029')bonus+=plan.straightHits>=4?9:plan.straightHits===3?5:-5;
+     if(['016','053'].includes(c))bonus+=plan.straightHits>=3?4:0;
+     if(c==='030')bonus+=plan.suitCount>=4?3:-3;
+   }
+   // Preserve payoff cards for the current route; do not force unused HyperCards.
+   if(c==='045'&&plan.goal!=='ace-chain')bonus+=plan.aces>=2?3:-5;
+   if(c==='061'&&plan.goal!=='royal-chain')bonus+=plan.faces>=3?3:-5;
+   if(['046','062','029','030'].includes(c)&&active(c))bonus-=20;
+   return bonus;
   }
   function legalHyper(pid,i){
    const s=get(pid),id=s.hand[i],c=code(id);
