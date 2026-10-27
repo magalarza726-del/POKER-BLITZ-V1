@@ -868,6 +868,92 @@ window.STARTER_CARDS = [
   </section></main>`;}
 
 
+
+  // The only controls are current deck version and iteration count.
+  // Three types of training and rival selection run automatically.
+  function renderTraining(){
+    const trainer=window.POKER_BLITZ_TRAINING,decks=availableTestDecks();
+    if(!decks.some(d=>d.id===trainingSettings.deckId))trainingSettings.deckId=decks[0]?.id||'';
+    const selected=decks.find(d=>d.id===trainingSettings.deckId);
+    const trained=selected?.aiTraining;
+    const upToDate=!!selected&&!!trained&&trainer?.fingerprint(selected)===trained.fingerprint;
+    const result=trainingResult|| (upToDate?trained:null),stats=result?.validation;
+    const pct=trainingProgress?.percent||0;
+    const labels={I:'Tipo I · Exploración de sinergias',II:'Tipo II · Combate contra rivales',III:'Tipo III · Autocompetencia',DONE:'Entrenamiento completado'};
+    const block='<div class="panel test-setup-card" style="margin-bottom:12px">';
+    return `<main class="app-shell">${appBar('Entrenamiento',{back:true})}
+    <section class="test-setup-wrap" style="max-width:940px;margin:0 auto;overflow:auto;padding:14px 12px 40px">
+      ${block}<h2 style="margin:0 0 6px">Entrena a tu personaje</h2>
+      <p class="small muted">El deck permanece fijo. La IA prueba decisiones y secuencias; las políticas quedan ligadas exactamente a esta versión de sus PowerCards y HyperCards.</p>
+      <div class="field"><label for="training-deck">Personaje y versión actual del Deck</label>
+       <select id="training-deck" ${trainingBusy?'disabled':''}>${decks.map(d=>`<option value="${esc(d.id)}" ${d.id===trainingSettings.deckId?'selected':''}>${esc(d.name)} · ${d.cardIds.length} Power / ${d.hyperCardIds.length} Hyper</option>`).join('')}</select></div>
+      <div class="field" style="margin-top:12px"><label for="training-iterations">Iteraciones de entrenamiento (1–200)</label>
+       <input id="training-iterations" type="number" min="1" max="200" step="1" style="max-width:180px;padding:10px;border:1px solid #9ca3af;border-radius:8px" value="${trainingSettings.iterations}" ${trainingBusy?'disabled':''}></div>
+      <p class="small muted">Se realizan automáticamente los tres entrenamientos, con semillas nuevas, rotación de asientos y evaluación independiente. No se añaden, eliminan ni sustituyen cartas.</p>
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-top:14px">
+       <button class="btn primary" data-action="training-run" ${trainingBusy||!selected?'disabled':''}>${trainingBusy?'Entrenando…':'Iniciar entrenamiento automático'}</button>
+       ${trainingBusy?'<button class="btn" data-action="training-cancel">Cancelar entrenamiento</button>':''}
+      </div>
+      ${!decks.length?'<p style="color:#ae4926">No hay decks legales. Completa un Power Deck dentro de los límites oficiales.</p>':''}
+      </div>
+      ${block}<h3 style="margin:0 0 8px">Las tres etapas</h3>
+       <p class="small"><strong>Tipo I:</strong> un único participante, acceso a todas las cartas del deck fijo y manos especiales de 2, 3, 4, 5, 6 y 7 Power Cards. Ejecuta un turno completo por escenario; no hay rivales.</p>
+       <p class="small"><strong>Tipo II:</strong> combate contra 4 rivales seleccionados automáticamente entre los otros decks legales; entrena el orden de PowerCards y sus respuestas.</p>
+       <p class="small"><strong>Tipo III:</strong> enfrenta un candidato a 4 copias de su propio deck con la política actual, buscando decisiones que mejoren su autocompetencia.</p>
+       <p class="small muted">Los 2–7 Power Cards son un entorno especial de práctica; la partida normal mantiene 4. La evaluación final contra rivales utiliza condiciones legales.</p></div>
+      ${trainingProgress? `${block}<h3 style="margin:0 0 7px">${esc(labels[trainingProgress.phase]||'Entrenamiento')}</h3>
+        <div style="height:12px;background:#dee7eb;border-radius:7px;overflow:hidden"><div style="width:${pct}%;background:#18c4c9;height:100%;border-radius:7px"></div></div>
+        <p class="small muted">${esc(trainingProgress.message||'')} · ${pct}% · mejoras aceptadas: ${trainingProgress.accepts||0}</p>
+       </div>`:''}
+      ${result? `${block}<h3 style="margin:0 0 7px">Resultado del entrenamiento${upToDate?' · política de esta versión':''}</h3>
+       <p class="small"><strong>${result.accepted?'Política validada':'Política anterior conservada'}</strong> · ${result.iterations} iteraciones · ${result.training?.accepts||0} mejoras internas aceptadas.</p>
+       <div class="test-setup-players" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr));display:grid;gap:8px;margin:10px 0">
+       ${['I','II','III'].map(k=>`<div class="panel" style="padding:10px"><b>Tipo ${k}</b><p class="small" style="margin:4px 0">${result.training?.records?.[k]?.trials||0} pruebas</p><p class="small muted">${result.training?.records?.[k]?.improvements||0} mejoras adoptadas</p></div>`).join('')}</div>
+       <p class="small"><strong>Validación independiente:</strong> ${stats?.games||0} partidas · ${stats?.winRate==null?'Sin medición':(stats.winRate*100).toFixed(1)+'%'} de victorias con la política elegida.</p>
+       <p class="small muted">Control anterior: ${stats?.baselineWinRate==null?'Sin medición':(stats.baselineWinRate*100).toFixed(1)+'%'} · Diferencia media de fichas: ${Number(stats?.meanChipMargin||0).toFixed(2)} · Incidencias: ${stats?.incidents||0}.</p>
+       ${!upToDate&&selected?.aiTraining?'<p class="small" style="color:#a34c00">Este entrenamiento ya no coincide con las cartas actuales y no se aplica automáticamente.</p>':''}
+       <p class="small muted">Una tasa semejante al 10% frente a nueve adversarios distintos NO está garantizada; para afirmar balance competitivo se necesita un torneo independiente suficientemente grande.</p>
+       ${result.warnings?.length?`<p class="small" style="color:#ad4521">Observaciones del motor: ${esc(result.warnings.slice(0,3).join(' · '))}</p>`:''}
+      </div>`:''}
+    </section></main>`;
+  }
+
+  async function runTraining(){
+    if(trainingBusy)return;
+    const trainer=window.POKER_BLITZ_TRAINING;
+    if(!trainer){toast('Módulo de entrenamiento no disponible. Recarga la aplicación.');return;}
+    const original=availableTestDecks().find(d=>d.id===trainingSettings.deckId);
+    if(!original){toast('Selecciona un deck que cumpla el reglamento oficial.');return;}
+    const snapshot=structuredClone(original),all=availableTestDecks().map(d=>structuredClone(d));
+    const fp=trainer.fingerprint(snapshot),seed=generateSeed();
+    trainingBusy=true;trainingCancel={cancelled:false};trainingResult=null;
+    trainingProgress={phase:'I',percent:0,step:0,message:'Preparando las manos de 2 a 7 Power Cards…',accepts:0};
+    render();
+    try{
+      const engine=makeAutoEngine();
+      const result=await trainer.train({deck:snapshot,decks:all,iterations:trainingSettings.iterations,seed,
+       engine,cancel:trainingCancel,progress:data=>{
+         trainingProgress=data;
+         if(screen==='training'&&(data.step===data.total||data.step%Math.max(1,Math.ceil(data.total/30))===0||data.phase==='DONE'))render();
+       }});
+      const live=getDeck(original.id);
+      if(!live||trainer.fingerprint(live)!==fp){
+        trainingResult=result;toast('El deck cambió durante el entrenamiento. No se guardó una política para otra versión.');
+      }else{
+        live.aiTrainingHistory??=[];
+        if(live.aiTraining)live.aiTrainingHistory.push(live.aiTraining);
+        live.aiTrainingHistory=live.aiTrainingHistory.slice(-8);
+        live.aiTraining=result;
+        trainingResult=result;
+        if(!saveState())toast('No se pudo guardar la política. Exporta tu JSON como respaldo.');
+        else toast(result.accepted?'IA entrenada y guardada para esta versión.':'Entrenamiento terminado. Se conserva la mejor política verificada.');
+      }
+    }catch(err){
+      if(!err?.cancelled){console.error('Entrenamiento',err);toast('Error durante entrenamiento: '+String(err?.message||err));}
+      else toast('Entrenamiento cancelado. El deck y la política anterior se conservan.');
+    }finally{trainingBusy=false;trainingCancel=null;if(screen==='training')render();}
+  }
+
   async function runDeckLaboratory(mode){
     if(labBusy)return;syncLabSettings();
     const legalDecks=availableTestDecks(),selected=legalDecks.find(d=>d.id===labSettings.deckId);
