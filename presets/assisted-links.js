@@ -10,7 +10,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   const virtual=c=>!!c?.virtualPower;
   const refs=(pid,c)=>bonds(pid).filter(b=>b.targets?.includes(c.id)||b.virtualId===c.id);
   const protectedCard=(pid,c)=>refs(pid,c).some(b=>['029','030','035','040','042','043','044'].includes(b.type));
-  function prices(t){return { '001':[0,0],'029':[1,0],'030':[1,0],'035':[0,3]}[t]||[0,0]}
+  function prices(t){return { '001':[0,0],'029':[0,0],'030':[0,0],'035':[0,3]}[t]||[0,0]}
   function eligible(pid,index){
     const s=state(pid);if(!s||s.currentPhase!=='MAIN'||s.activeHyper.includes(index)||s.activeHyper.length>=3)return false;
     const t=code(s.hand[index]);if(!supported.has(t)||['004','005','040'].includes(t))return false;
@@ -20,8 +20,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     if(count>=1)return false;
     const [pow,pok]=prices(t),free=s.hand.filter((_,i)=>i!==index&&!s.activeHyper.includes(i)).length;
     if(free<pow||s.pokerHand.filter(c=>!protectedCard(pid,c)).length<pok)return false;
-    if(t==='029'&&!s.pokerHand.some(c=>!protectedCard(pid,c)))return false;
-    if(t==='030'&&!s.pokerHand.some(c=>!virtual(c)&&!protectedCard(pid,c)))return false;
+    // El Simbionte y Cambio de Color permiten activar con coste 0 y 0 objetivos.
    if(t==='035'&&s.pokerHand.length<4)return false;
     if(artifacts.has(t)&&!s.pokerHand.some(c=>!virtual(c)))return false;
     return true;
@@ -29,8 +28,10 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   function open(index){
     const pid=game().decks[game().activeIndex].id,s=state(pid),t=code(s.hand[index]);
     if(!eligible(pid,index)){ctx.toast('No se cumplen costes, límite de HyperCards o requisitos del vínculo.');return}
-    if(t==='030'){
-      pending={kind:'hyper-power',pid,index,type:t,needed:1,powerCost:1,selected:[],selectedPower:[]};
+    if(t==='029'||t==='030'){
+      const power=s.hand.filter((_,i)=>i!==index&&!s.activeHyper.includes(i)).length;
+      const poker=s.pokerHand.filter(c=>!virtual(c)&&!protectedCard(pid,c)).length;
+      pending={kind:'hyper-quantity',pid,index,type:t,needed:0,selected:[],maxCost:Math.min(2,power,poker)};
       ctx.setModal({type:'linked-picker'});ctx.render();return;
     }
     const needed=t==='001'?0:1;
@@ -78,8 +79,12 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   function activate(pid,index,selected,powerCost=null,paymentSlots=null){
     if(!eligible(pid,index))return;
     const s=state(pid),t=code(s.hand[index]),id=s.hand[index], [defaultPower,hc]=prices(t);
-    const pc=defaultPower;
-    if(t==='030'&&(selected.length!==1||powerCost!==1||!paymentSlots||paymentSlots.length!==1)){ctx.toast('Cambio de Color requiere 1 Power Card descartada y 1 Poker Card encantada.');return;}
+    const variable=['029','030'].includes(t);
+    const pc=variable?Number(powerCost):defaultPower;
+    if(variable&&(
+      !Number.isInteger(pc)||pc<0||pc>2||selected.length!==pc||
+      !Array.isArray(paymentSlots)||paymentSlots.length!==pc||new Set(selected).size!==pc
+    )){ctx.toast('El coste debe ser de 0 a 2 Power Cards, encantando la misma cantidad de Poker Cards diferentes.');return;}
     if(hc>s.pokerHand.filter(c=>!selected.includes(c.id)&&!protectedCard(pid,c)).length){ctx.toast('Debes conservar las Poker Cards vinculadas para pagar el coste.');return}
     if(pc>s.hand.filter((_,j)=>j!==index&&!s.activeHyper.includes(j)).length){ctx.toast('No hay Power Cards suficientes para pagar el coste elegido.');return;}
     if(paymentSlots&&(
@@ -114,6 +119,10 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     const point={Par:1,'Trío':3,Escalera:5,Color:5,'Póker':7}[kind],required={Par:2,'Trío':3,Escalera:5,Color:5,'Póker':4}[kind];
     if(!point||cards.length!==required||cards.some(x=>!x))return 0;
     const wr=cards.map(c=>wildRank(pid,c)),ws=cards.map(c=>wildSuit(pid,c));
+    // Two cards linked to the SAME effect cannot declare an equal adopted value or suit.
+    const sameBindingCount=t=>bonds(pid).some(b=>b.type===t&&b.targets.filter(id=>cards.some(c=>c.id===id)).length>1);
+    if(['Par','Trío','Póker'].includes(kind)&&sameBindingCount('029'))return 0;
+    if(kind==='Color'&&sameBindingCount('030'))return 0;
     if(actives.includes('catalog_v3_046')&&!cards.some((c,i)=>wr[i]||c.rank==='A'))return 0;
     if(actives.includes('catalog_v3_062')&&!cards.some((c,i)=>wr[i]||['J','Q','K'].includes(c.rank)))return 0;
     let valid=false;
@@ -197,6 +206,15 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
       }
      pending=null;ctx.setModal(null);if(offenseQueue.length)startOffense();else ctx.render();return;
     }
+    if(p.kind==='hyper-quantity'){
+      const match=String(id).match(/^quantity:([012])$/);
+      if(!match)return;
+      const quantity=Number(match[1]);
+      if(quantity>p.maxCost)return;
+      if(quantity===0){pending=null;ctx.setModal(null);activate(p.pid,p.index,[],0,[]);return;}
+      p.kind='hyper-power';p.needed=quantity;p.powerCost=quantity;p.selected=[];p.selectedPower=[];
+      ctx.render();return;
+    }
     if(p.kind==='hyper-power'){
       const match=String(id).match(/^power:(\d+)$/);
       if(!match)return;
@@ -241,11 +259,19 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   }
   function modalMarkup(){
     if(!pending)return'';
-    const p=pending;
+    const p=pending,name=p.type==='029'?'El Simbionte':'Cambio de Color';
+    if(p.kind==='hyper-quantity'){
+      const options=Array.from({length:p.maxCost+1},(_,i)=>i);
+      return '<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>'+name+' · Coste</h2></div>'+
+        '<div class="modal-content"><p>Descarta hasta 2 Power Cards. Por cada una podrás encantar una Poker Card. '+
+        (p.type==='029'?'Las encantadas no podrán adoptar el mismo valor.':'Las encantadas no podrán adoptar el mismo símbolo.')+'</p>'+
+        '<div style="display:flex;gap:10px;flex-wrap:wrap">'+options.map(i=>'<button class="btn primary" data-action="linked-option" data-id="quantity:'+i+'">'+i+' Power Cards → '+i+' Poker Cards</button>').join('')+
+        '</div></div></div></div>';
+    }
     if(p.kind==='hyper-power'){
       const options=state(p.pid).hand.map((cid,i)=>({id:'power:'+i,name:ctx.card(cid)?.name||cid,index:i}))
         .filter(x=>x.index!==p.index&&!state(p.pid).activeHyper.includes(x.index)&&!p.selectedPower.includes(x.index));
-      return '<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>Cambio de Color · Descartar Power Cards</h2></div>'+
+      return '<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>'+name+' · Descartar Power Cards</h2></div>'+
         '<div class="modal-content"><p>Selecciona '+(p.needed-p.selectedPower.length)+' Power Card(s) para descartar.</p><div style="display:flex;flex-wrap:wrap;gap:10px">'+
         options.map(x=>'<button class="btn primary" data-action="linked-option" data-id="'+x.id+'">'+ctx.esc(x.name)+'</button>').join('')+
         '</div></div></div></div>';
@@ -254,7 +280,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
       (p.kind==='offense'?game().decks.filter(x=>x.id!==p.pid).map(x=>({id:x.id,name:'Jugador '+x.playerNumber+' · '+x.name})):
        state(p.pid).pokerHand.filter(x=>!virtual(x)&&!protectedCard(p.pid,x)&&!(p.kind==='sabueso'&&p.selected.includes(x.id))).map(x=>({id:x.id,name:x.rank+' de '+x.suit})).concat(p.kind==='ability'?[{id:'__ALL__',name:'Intercambiar toda mi mano'}]:[]));
     return '<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>'+
-      (p.kind==='sabueso'?'Sabueso de Ases · Encantar 2 Poker Cards':p.kind==='ability'?'Reglas Antiguas · Intercambiar':p.kind==='offense'?'Artilugio · Elegir rival':'Vincular Poker Cards')+
+      (p.kind==='sabueso'?'Sabueso de Ases · Encantar 2 Poker Cards':p.kind==='ability'?'Reglas Antiguas · Intercambiar':p.kind==='offense'?'Artilugio · Elegir rival':p.type==='029'||p.type==='030'?name+' · Encantar Poker Cards':'Vincular Poker Cards')+
       '</h2></div><div class="modal-content"><p>Selecciona '+Math.max(1,(p.needed||1)-(p.selected?.length||0))+' opción(es).</p><div style="display:flex;flex-wrap:wrap;gap:10px">'+options.map(x=>
       '<button class="btn '+(p.selected.includes(x.id)?'primary':'')+'" data-action="linked-option" data-id="'+ctx.esc(x.id)+'">'+ctx.esc(x.name)+'</button>').join('')+'</div></div></div></div>';
   }
