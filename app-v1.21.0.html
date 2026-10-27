@@ -209,8 +209,9 @@ button,input,textarea,select{font:inherit;color:inherit}button{cursor:pointer}bu
 <script src="presets/manual-game-rules.js?v=card-rules-20261027"></script>
 <script src="presets/assisted-effects.js?v=hyper-4hand-20261027"></script>
 <script src="presets/assisted-links.js?v=distinct-dual-enchants-20261027"></script>
-<script src="presets/simulation-engine.js?v=adaptive-hyper-ai-20261027"></script>
+<script src="presets/simulation-engine.js?v=training-ai-20261027"></script>
 <script src="presets/deck-lab.js?v=lab-1210-20261026"></script>
+<script src="presets/ai-training.js?v=training-ai-20261027"></script>
 </head>
 <body>
 <noscript>POKER BLITZ necesita JavaScript activado.</noscript>
@@ -604,6 +605,7 @@ window.STARTER_CARDS = [
   let autoSetup={playerCount:2,deckIds:[],pokerDeckCount:1,battleMode:'BLITZ',seed:0,seedInput:'',gamesCount:1};
   let labSettings={deckId:'',opponentIds:[],players:4,iterations:12,games:4,seedInput:'',style:'equilibrado',aggression:3,ease:'media'};
   let labBusy=false,labCancel=null,labProgress=null,labResult=null;
+  let trainingSettings={deckId:'',iterations:12},trainingBusy=false,trainingCancel=null,trainingProgress=null,trainingResult=null;
   let autoStatus={round:0,maxRounds:40,events:0};
   let autoResult=null,autoBatchResults=[],autoBusy=false,autoCancel=null,autoPdfBusy=false;
   let activePdfUrl=null;
@@ -791,6 +793,17 @@ window.STARTER_CARDS = [
   }
   function hueFromHex(hex){if(!/^#[0-9a-f]{6}$/i.test(hex||''))return 0;const r=parseInt(hex.slice(1,3),16)/255,g=parseInt(hex.slice(3,5),16)/255,b=parseInt(hex.slice(5,7),16)/255,max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;if(!d)return 0;let h=max===r?((g-b)/d)%6:max===g?(b-r)/d+2:(r-g)/d+4;return Math.round(h*60<0?h*60+360:h*60)-50;}
   function getCard(id){return state.cards.find(c=>c.id===id)} function getDeck(id){return state.decks.find(d=>d.id===id)}
+  function trainedPolicy(deck){
+    const trainer=window.POKER_BLITZ_TRAINING;
+    if(!trainer||!deck?.aiTraining||deck.aiTraining.fingerprint!==trainer.fingerprint(deck))return null;
+    return trainer.normalize(deck.aiTraining.policy);
+  }
+  function makeAutoEngine(){
+    const base=window.POKER_BLITZ_AUTOMATION({getCard,cardType,version:APP_VERSION});
+    return {play:(config,onProgress)=>base.play({...config,players:(config.players||[]).map(deck=>({
+      ...deck,aiPolicy:Object.prototype.hasOwnProperty.call(deck,'aiPolicy')?deck.aiPolicy:trainedPolicy(deck)
+    }))},onProgress)};
+  }
   function cardType(card){const c=String(card?.accentColor||'').toUpperCase();if(['#FFC31A','#FFE052','#FFCC00','#F9B900'].includes(c))return 'HYPER';if(['#FF0A68','#F56B94','#E6005C','#FF006E'].includes(c))return 'COUNTER';return 'SUPER'}
   function cardTypeLabel(card){return cardType(card)==='HYPER'?'HyperCard':cardType(card)==='COUNTER'?'CounterCard':'SuperCard'}
   function typeMatches(card,filter){return !filter||filter==='ALL'||cardType(card)===filter}
@@ -824,7 +837,7 @@ window.STARTER_CARDS = [
   }
 
   function render(){
-    const maps={home:renderHome,deckHub:renderDeckHub,testHub:renderTestHub,deckImprove:renderDeckImprove,deckCreate:renderDeckCreate,cards:renderCards,decks:renderDecks,cardEditor:renderCardEditor,deckEditor:renderDeckEditor,simSetup:renderSimSetup,manualChoice:renderManualChoice,autoSetup:renderAutoSetup,autoRunning:renderAutoRunning,simulator:renderSimulator,settings:renderSettings,export:renderExport,rules:renderRules};
+    const maps={home:renderHome,deckHub:renderDeckHub,testHub:renderTestHub,training:renderTraining,deckImprove:renderDeckImprove,deckCreate:renderDeckCreate,cards:renderCards,decks:renderDecks,cardEditor:renderCardEditor,deckEditor:renderDeckEditor,simSetup:renderSimSetup,manualChoice:renderManualChoice,autoSetup:renderAutoSetup,autoRunning:renderAutoRunning,simulator:renderSimulator,settings:renderSettings,export:renderExport,rules:renderRules};
     root.innerHTML=(maps[screen]||renderHome)()+renderModal();
     bindInputs();
   }
@@ -837,6 +850,8 @@ window.STARTER_CARDS = [
       <button class="quick-action" data-action="all-cards">${icon('cards','lg')}<div><b>Catálogo</b><span>50 cartas oficiales</span></div></button>
       <button class="quick-action" data-action="test-history">${icon('cards','lg')}<div><b>Historial</b><span>Pruebas anteriores</span></div></button>
       <button class="quick-action" data-action="export">${icon('swap','lg')}<div><b>Importar / Exportar</b><span>Guardar o compartir</span></div></button>
+    </section><section class="quick-row">
+      <button class="quick-action" data-action="training-open">&#9881; <div><b>Entrenamiento</b><span>Entrena a la IA sin modificar el deck</span></div></button>
     </section></main>`;
   }
   function renderDeckHub(){return `<main class="app-shell">${appBar('Decks',{back:true})}<section class="quick-row">
@@ -849,6 +864,7 @@ window.STARTER_CARDS = [
     <button class="quick-action" data-action="manual-test">${icon('game','lg')}<div><b>Prueba Manual</b><span>Completo o Sencillo</span></div></button>
     <button class="quick-action" data-action="assisted-test">${icon('game','lg')}<div><b>Prueba Asistida</b><span>Resolución de efectos</span></div></button>
     <button class="quick-action" data-action="auto-simulation">${icon('game','lg')}<div><b>Simulación</b><span>1–1000 partidas y hasta 10 jugadores</span></div></button>
+    <button class="quick-action" data-action="training-open">&#9881; <div><b>Entrenamiento</b><span>Tipos I, II y III · IA adaptable</span></div></button>
   </section></main>`;}
 
 
@@ -861,7 +877,7 @@ window.STARTER_CARDS = [
     let seed;try{seed=parseSeed(labSettings.seedInput)??generateSeed()}catch(err){return toast(String(err.message||err))}
     labBusy=true;labCancel={cancelled:false};labResult=null;labProgress={message:'Preparando partidas y semillas reproducibles…'};render();
     try{
-      const engine=window.POKER_BLITZ_AUTOMATION({getCard,cardType,version:APP_VERSION});
+      const engine=makeAutoEngine();
       const ctx={engine,cancel:labCancel,games:labSettings.games,seed,pokerDeckCount:labSettings.players>7?2:1,
         maxRounds:40,onProgress:data=>{
           labProgress={message:'Versión '+data.iteration+'/'+data.total+
@@ -1064,13 +1080,13 @@ function syncAutoSetup(){
         </div>
         <div class="test-setup-players">${Array.from({length:autoSetup.playerCount},(_,i)=>{
           const chosen=decks.find(d=>d.id===autoSetup.deckIds[i])||decks[0];
-          return `<div class="panel test-setup-player"><div class="test-setup-player-head">${chosen?deckCharacterHTML(chosen,'deck-row-avatar'):''}<div><strong>Jugador ${i+1}</strong><div class="small muted">Deck individual · IA experta común</div></div></div>
+          return `<div class="panel test-setup-player"><div class="test-setup-player-head">${chosen?deckCharacterHTML(chosen,'deck-row-avatar'):''}<div><strong>Jugador ${i+1}</strong><div class="small muted">Deck individual · IA experta · política del Deck</div></div></div>
             <label for="auto-deck-${i}">Deck</label><select id="auto-deck-${i}" data-auto-deck="${i}">${decks.map(d=>`<option value="${esc(d.id)}" ${chosen?.id===d.id?'selected':''}>${esc(d.name)} (${d.cardIds.length})</option>`).join('')}</select>
-            <p class="small muted"><strong>IA:</strong> Experto (igual para todos)</p>
+            <p class="small muted"><strong>IA:</strong> Experto · usa el entrenamiento guardado si corresponde a esta versión.</p>
           </div>`;
         }).join('')}</div>
         <div class="panel test-setup-card">
-          <p class="small muted">Todos utilizan la misma IA experta y sus decisiones heurísticas. No se asegura juego óptimo matemático.</p>
+          <p class="small muted">El motor experto es común; las políticas aprendidas por deck pueden modificar decisiones. No se garantiza un juego óptimo.</p>
           <p class="small muted">La simulación usa los efectos disponibles en Prueba Asistida. Algunas interacciones especiales siguen en validación; cualquier incidencia detectada se detallará en el PDF.</p>
           <button class="btn primary" data-action="auto-run" ${decks.length?'':'disabled'}>${icon('play')} Iniciar simulación y generar PDF</button>
         </div>
@@ -1327,6 +1343,9 @@ function syncAutoSetup(){
   }
   function bindInputs(){
     $$('[data-auto-deck]').forEach(el=>el.addEventListener('change',()=>{autoSetup.deckIds[Number(el.dataset.autoDeck)]=el.value}));
+    $('#training-deck')?.addEventListener('change',e=>{trainingSettings.deckId=e.target.value;trainingResult=null;render();});
+    $('#training-iterations')?.addEventListener('input',e=>{const n=Number(e.target.value);if(Number.isInteger(n)&&n>=1&&n<=200)trainingSettings.iterations=n;});
+    $('#training-iterations')?.addEventListener('change',e=>{trainingSettings.iterations=Math.max(1,Math.min(200,Math.trunc(Number(e.target.value)||12)));e.target.value=trainingSettings.iterations;});
     $('#lab-deck')?.addEventListener('change',e=>{labSettings.deckId=e.target.value;labSettings.opponentIds=[];syncLabSettings();render();});
     $$('[data-lab-opponent]').forEach(el=>el.addEventListener('change',e=>{labSettings.opponentIds[Number(el.dataset.labOpponent)]=e.target.value;}));
     for(const [id,key,max] of [['lab-players','players',10],['lab-iterations','iterations',80],['lab-games','games',40]]){
@@ -1579,7 +1598,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     go('autoRunning');
     await new Promise(resolve=>setTimeout(resolve,0));
     try{
-      const engine=window.POKER_BLITZ_AUTOMATION({getCard,cardType,version:APP_VERSION});
+      const engine=makeAutoEngine();
       const baseSeed=chosenSeed??generateSeed();autoSetup.seed=baseSeed;
       for(let i=0;i<count;i++){
         if(autoCancel.cancelled)break;
@@ -1869,8 +1888,11 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     if(skipTradeClick){skipTradeClick=false;e.preventDefault();return;}
     const el=e.target.closest('[data-action]');if(!el)return;const a=el.dataset.action,id=el.dataset.id;
     if(sim&&screen==='simulator'&&['use-card','activate-hyper','discard-card','discard-poker-card','draw-poker-random','draw-poker-view','draw-poker-select','draw-select','draw-random','draw-view','add-chips','roll-die','die-adjust','adjust-hand-limit','set-phase','finish-turn','charge-toggle','charge-combo'].includes(a)&&!manualRules.canAct()){toast('Debes volver al jugador del turno.');return}
-    if(a==='back'){if(['deckEditor','decks','deckImprove','deckCreate'].includes(screen))go('deckHub');else if(['autoSetup','manualChoice','simSetup'].includes(screen))go('testHub');else go('home')}
+    if(a==='back'){if(['deckEditor','decks','deckImprove','deckCreate'].includes(screen))go('deckHub');else if(['autoSetup','manualChoice','simSetup','training'].includes(screen))go('testHub');else go('home')}
     else if(a==='deck-hub')go('deckHub');
+    else if(a==='training-open'){trainingProgress=null;trainingResult=null;go('training');}
+    else if(a==='training-run')runTraining();
+    else if(a==='training-cancel'){if(trainingCancel)trainingCancel.cancelled=true;}
     else if(a==='deck-improve'){labProgress=null;labResult=null;syncLabSettings();go('deckImprove');}
     else if(a==='deck-generate'){labProgress=null;labResult=null;syncLabSettings();go('deckCreate');}
     else if(a==='lab-run-improve')runDeckLaboratory('improve');
