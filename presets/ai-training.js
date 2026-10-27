@@ -67,7 +67,7 @@ window.POKER_BLITZ_TRAINING=(function(){
   const avg=rivals.length?rivals.reduce((a,b)=>a+b.chips,0)/rivals.length:0;
   const chipDiff=(me.chips-avg)/Math.max(10,avg,me.chips);
   const placement=n>1?1-idx/(n-1):1;
-  return {value:(n===1?me.chips/30+.02*result.eventsCount:top?.72:0)+(n===1?0:placement*.20+chipDiff*.08),
+  return {value:(n===1?me.chips/30+.02*result.eventsCount:top ? .72 : 0)+(n===1?0:placement*.20+chipDiff*.08),
    chips:me.chips,win:!!top,position:idx+1,margin:me.chips-avg,incidents:result.incidents?.length||0,
    eventCount:result.eventsCount||0,
    actions:(me.events||[]).filter(e=>e.action==='Usar Power Card'||e.action==='HyperCard activada').map(e=>e.detail),
@@ -79,9 +79,9 @@ window.POKER_BLITZ_TRAINING=(function(){
    chips:rows.reduce((s,r)=>s+r.chips,0)/rows.length,incidents:rows.reduce((s,r)=>s+r.incidents,0)};
  }
  function seating(decks,target,policy,seed,opponentsPolicy=null){
-  const n=decks.length,k=seed%n;
+  const n=decks.length+1,k=seed%n;
   const members=[{...target,participantId:'LEARNER',aiPolicy:policy},
-   ...decks.map((d,j)=>({...d,participantId:'RIVAL-'+j,aiPolicy:opponentsPolicy||d.aiPolicy||null}))];
+   ...decks.map((d,j)=>({...d,participantId:'RIVAL-'+j,...(opponentsPolicy?{aiPolicy:opponentsPolicy}:d.aiPolicy?{aiPolicy:d.aiPolicy}:{})}))];
   return [...members.slice(k),...members.slice(0,k)];
  }
  const trial=async(engine,players,seed,options={})=>{
