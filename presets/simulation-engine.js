@@ -60,7 +60,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
   const get=pid=>game.states[pid],my=()=>game.decks[game.turnIndex];
   const drawPoker=(pid,st=get(pid),reason='Robar Poker Card')=>{
    if(!game.pokerDrawPile.length){issue('Mazo Poker agotado.');return null}
-   const card=game.pokerDrawPile.splice(random(game.pokerDrawPile.length),1)[0];st.pokerHand.push(card);
+   const card=game.pokerDrawPile.shift();st.pokerHand.push(card);
    log(pid,reason,card.rank+' de '+card.suit);return card;
   };
   let fx,links,modal=null;
@@ -617,8 +617,9 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     s.currentPhase='END';
     const qty=Math.max(0,7-s.pokerHand.length);s.chargeReplacement=0;
     for(let k=0;k<qty;k++)drawPoker(p.id,s,'Reposición aleatoria End Phase');
-    fx.phase('END',p.id);links.phase('END',p.id);
+    fx.phase('END',p.id);
     endPhaseDiscard(p);
+    fx.phase('END_COMPLETE',p.id);
     for(const i of [...s.activeHyper].sort((a,b)=>b-a)){const it=manual.take(p.id,i);if(it)manual.giveBack(it.cardId,it.ownerId);}
     s.hyperActivationsThisTurn=0;s.hyperActivationLimit=1;s.hyperDeniedThisTurn=[];s.shieldCardsTriggered=false;
     s.turnsTaken++;log(p.id,'Fin del turno','Ronda '+round+', fichas '+s.chips+'.');
