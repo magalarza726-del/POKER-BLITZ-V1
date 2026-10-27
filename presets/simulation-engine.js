@@ -107,12 +107,13 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
   // Persistent, reproducible, per-deck objectives. This is an in-engine planning
   // policy, not online training and not hidden information about opponents.
   function role(p){
-   const name=String(p.name||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-   if(/astra|bruja|reliquia/.test(name))return 'relics';
-   if(/vortice|torbellino/.test(name))return 'swaps';
-   if(/aceron|maldito.*as/.test(name))return 'aces';
-   if(/regulus|caballero real/.test(name))return 'faces';
-   return p.style==='hyper'?'relics':p.style==='aces'?'aces':p.style==='faces'?'faces':p.style==='poker'?'swaps':p.style;
+   // Match deck content, including evolution-generated versions, before character identity.
+   const hyper=new Set((p.hyperCardIds||[]).map(code)),deck=p.cardIds||[];
+   const has=ids=>deck.filter(x=>ids.includes(code(x))).length;
+   if(hyper.has('046')&&has(['040','045','047'])>=2)return 'aces';
+   if(hyper.has('062')&&has(['023','057','061','063'])>=2)return 'faces';
+   if((hyper.has('029')||hyper.has('030'))&&has(['016','029','030','032','053'])>=2)return 'relics';
+   return p.style==='hyper'?'relics':p.style==='aces'?'aces':p.style==='faces'?'faces':p.style==='poker'?'swaps':p.style||'balanced';
   }
   function ranksOf(cards){
    const counts={},suits={S:0,H:0,D:0,C:0};
@@ -120,21 +121,33 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    return {counts,suits};
   }
   function planFor(p){
-   const s=get(p.id),roleName=role(p),r=ranksOf(s.pokerHand);
+   const s=get(p.id),base=role(p),r=ranksOf(s.pokerHand);
    const aces=r.counts.A||0,faces=(r.counts.J||0)+(r.counts.Q||0)+(r.counts.K||0);
-   const available=id=>s.hand.some((c,i)=>code(c)===id&&!s.activeHyper.includes(i))||s.hyperReserve?.some(c=>code(c)===id);
-   let goal='balanced';
-   if(roleName==='relics')goal=!s.activeHyper.some(i=>code(s.hand[i])==='030')&&available('030')?'install-color':'link-and-convert';
-   if(roleName==='swaps')goal='prepare-targeted-swap';
-   if(roleName==='aces')goal=aces>=2&&available('045')?'cash-aces':aces===0?'find-aces':'hold-and-build-aces';
-   if(roleName==='faces')goal=faces>=2&&available('061')?'cash-royals':faces<2?'find-royals':'hold-and-build-royals';
-   if(roleName==='artifacts')goal='assemble-artifacts';
-   if(roleName==='chips')goal='economic-pressure';
-   if(roleName==='dice')goal='optimize-die-outcomes';
-   const ranked=Object.entries(r.suits).sort((a,b)=>b[1]-a[1]),suitCount=ranked[0]?.[1]||0;
+   const available=id=>s.hand.some((c,i)=>code(c)===id&&!s.activeHyper.includes(i));
    const active=id=>s.activeHyper.some(i=>code(s.hand[i])===id);
-   return {role:roleName,goal,aces,faces,hyperCount:s.activeHyper.length,suit:r.suits,suitCount,
-    hasColor:active('030'),wantsColor:roleName==='relics'&&!active('030')&&available('030'),pokerSize:s.pokerHand.length};
+   const accessible=id=>available(id)||active(id)||(s.hyperReserve||[]).some(c=>code(c)===id);
+   const inDeck=id=>s.drawPile.some(c=>code(c)===id);
+   const suitCount=Math.max(0,...Object.values(r.suits));
+   const numbers=new Set(s.pokerHand.map(c=>({A:14,K:13,Q:12,J:11})[c.rank]||Number(c.rank)));
+   if(numbers.has(14))numbers.add(1);
+   let straightHits=0;
+   for(let low=1;low<=10;low++){let hits=0;for(let i=0;i<5;i++)if(numbers.has(low+i))hits++;straightHits=Math.max(straightHits,hits)}
+   const routes=[
+    {goal:'ace-chain',role:'aces',score:(accessible('046')?3:0)+(available('040')?4:inDeck('040')?1:0)+(available('047')?2.5:0)+(available('016')?1.8:0)+(available('045')?3:0)+Math.min(3,aces)*1.6+(base==='aces'?1:0)},
+    {goal:'royal-chain',role:'faces',score:(accessible('062')?3:0)+(available('063')?3:inDeck('063')?1:0)+(available('023')?2:0)+(available('061')?4:0)+Math.min(4,faces)*1.4+(base==='faces'?1:0)},
+    {goal:'color-chain',role:'relics',score:(accessible('030')?3:0)+(accessible('043')?1:0)+(suitCount>=3?3:0)+Math.max(0,suitCount-2)*1.45+(base==='relics'?1:0)},
+    {goal:'straight-chain',role:'relics',score:(accessible('029')?3:0)+(straightHits>=3?3:0)+Math.max(0,straightHits-2)*1.6+(base==='relics'?.7:0)},
+    {goal:'poker-control',role:base,score:3.5+(available('013')?2:0)+(available('010')?1:0)+(available('053')?1:0)+(base==='swaps'?2:0)}
+   ].sort((a,b)=>b.score-a.score);
+   const best=routes[0];
+   const sequence=best.goal==='ace-chain'?['046','040','047','016','045']:
+    best.goal==='royal-chain'?['062','023','063','057','061']:
+    best.goal==='color-chain'?['030','043','016','053']:
+    best.goal==='straight-chain'?['029','016','053']:['013','010','053'];
+   return {role:best.role,baseRole:base,goal:best.goal,sequence,alternatives:routes.slice(1).map(x=>x.goal),
+    aces,faces,suit:r.suits,suitCount,straightHits,hyperCount:s.activeHyper.length,
+    hasColor:active('030'),wantsColor:best.goal==='color-chain'&&accessible('030')&&!active('030'),
+    pokerSize:s.pokerHand.length,available,active,accessible,inDeck};
   }
   function handPotential(pid,hand,plan=planFor(players.find(p=>p.id===pid))){
    const r=ranksOf(hand),n=hand.length,counts=Object.values(r.counts),suits=Object.values(r.suits).sort((a,b)=>b-a);
