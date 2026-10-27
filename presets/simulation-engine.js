@@ -406,7 +406,20 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    // Keep scarce combo enablers and avoid clearing the entire Power Hand.
    if(s.hand.length-s.activeHyper.length<=2&&['007','029','030','045','061','013'].includes(c))val+=.4;
    const learned=Number(p.aiPolicy?.cards?.[c]||0);
-   return val+strategyBonus(pid,id,plan)+Math.max(-6,Math.min(6,Number.isFinite(learned)?learned:0));
+   let sequenceBonus=0;
+   for(const [pair,boost] of Object.entries(p.aiPolicy?.links||{})){
+     const [before,after]=pair.split('>');
+     if(after!==c||!/^\d{3}$/.test(before))continue;
+     const weight=Math.max(-4,Math.min(4,Number(boost)||0));
+     const played=(s.assistedPlayedSupers||[]).some(x=>code(x.cardId)===before);
+     const enabled=s.activeHyper.some(i=>code(s.hand[i])===before);
+     const waiting=s.hand.some((v,i)=>!s.activeHyper.includes(i)&&code(v)===before)||
+      (s.hyperReserve||[]).some(v=>code(v)===before);
+     if(played||enabled)sequenceBonus+=weight;
+     else if(waiting)sequenceBonus-=weight*.7;
+   }
+   return val+strategyBonus(pid,id,plan)+sequenceBonus+
+    Math.max(-6,Math.min(6,Number.isFinite(learned)?learned:0));
   }
   function strategyBonus(pid,cardId,plan){
    const s=get(pid),c=code(cardId),h=s.pokerHand,ready=plan.available,active=plan.active;
@@ -505,6 +518,14 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
       }
     }
     if(!available.length)return null;
+    // Type I can probe different action orders while still obeying real
+    // effect eligibility. Orders never override canPlay, phases or costs.
+    const practice=soloTraining&&Array.isArray(config.trainingScenario?.orderCodes)
+     ?config.trainingScenario.orderCodes:[];
+    if(practice.length)for(const action of available){
+      const place=practice.indexOf(code(action.id));
+      if(place>=0)action.score+=Math.min(20,(practice.length-place)*3);
+    }
    available.sort((a,b)=>b.score-a.score);
    const baseThreshold=(planFor(p).role==='swaps'?{beginner:2.1,intermediate:2.4,expert:2.75}: {beginner:2.45,intermediate:3,expert:3.6})[p.difficulty]||3;
    const threshold=baseThreshold+Math.max(-1.5,Math.min(1.5,Number(p.aiPolicy?.threshold)||0));
