@@ -205,13 +205,13 @@ button,input,textarea,select{font:inherit;color:inherit}button{cursor:pointer}bu
 }
 
 </style>
-<script src="presets/default-decks.js?v=20261026-50cards"></script>
+<script src="presets/default-decks.js?v=training-suite-final-20261027"></script>
 <script src="presets/manual-game-rules.js?v=card-rules-20261027"></script>
 <script src="presets/assisted-effects.js?v=hyper-4hand-20261027"></script>
 <script src="presets/assisted-links.js?v=distinct-dual-enchants-20261027"></script>
-<script src="presets/simulation-engine.js?v=training-ai-20261027"></script>
+<script src="presets/simulation-engine.js?v=training-suite-final-20261027"></script>
 <script src="presets/deck-lab.js?v=lab-1210-20261026"></script>
-<script src="presets/ai-training.js?v=training-ai-20261027"></script>
+<script src="presets/ai-training.js?v=training-suite-final-20261027"></script>
 </head>
 <body>
 <noscript>POKER BLITZ necesita JavaScript activado.</noscript>
@@ -616,7 +616,7 @@ window.STARTER_CARDS = [
   const RULES_SECTIONS = [
     {title:"1. Objetivo",html:`<p>Alcanza la meta de fichas y termina la ronda con más fichas que tus rivales para reclamar la Mano Imposible.</p>`},
     {title:"2. Preparación",html:`<p>Cada jugador arma un Power Deck de 20 + 2H a 30 + 2H cartas, formado por SuperCards y CounterCards. H es la cantidad de HyperCards seleccionadas (0–3): las HyperCards se colocan boca abajo en la HyperZone y no forman parte del Power Deck. Mano inicial: 4 Power Cards y 7 Poker Cards. Límites normales: 4 y 7, respectivamente.</p>`},
-    {title:"3. Fases del turno",html:`<p>Draw Phase: roba Power Cards al azar hasta tener 3 en mano. Main Phase: juega SuperCards y activa HyperCards según sus condiciones. Charge Phase: cobra todas las combinaciones válidas, sin reutilizar Poker Cards. End Phase: repón al azar tu Poker Hand hasta 7 cartas, aplica los efectos de End Phase y desactiva las HyperCards usadas en ese turno.</p>`},
+    {title:"3. Fases del turno",html:`<p>Draw Phase: roba Power Cards al azar hasta tener 4 en mano. Main Phase: juega SuperCards y activa HyperCards según sus condiciones. Charge Phase: cobra todas las combinaciones válidas, sin reutilizar Poker Cards. End Phase: repón al azar tu Poker Hand hasta 7 cartas, aplica los efectos de End Phase y desactiva las HyperCards usadas en ese turno.</p>`},
     {title:"4. Combinaciones y cobro",html:`<p>Par: 1 ficha. Trío: 3 fichas. Escalera de 5: 5 fichas. Color de 5: 5 fichas. Póker de 4: 7 fichas. No hay premios independientes de doble pareja ni full house; cada combinación se cobra por separado sin compartir Poker Cards. Las cartas usadas regresan a sus respectivas barajas.</p>`},
     {title:"5. Power Cards",html:`<p>SuperCards (celestes): efectos de Main Phase. CounterCards (magenta): respuestas durante la Main Phase rival cuando se cumple la condición; no existen cadenas de CounterCards. HyperCards (amarillas): normalmente puedes activar una por turno, excepto que otra carta permita una adicional. Se desactivan al final de la End Phase y regresan boca abajo a la HyperZone. Los efectos programados permanecen pendientes aunque su carta ya no esté activa.</p>`},
     {title:"6. Encantar",html:`<p>Solo puedes comenzar un Encantar si todavía no has jugado una SuperCard este turno. La Poker Card encantada se coloca boca arriba en HyperZone, sigue contando como parte de la mano y puede formar combinaciones; mientras esté encantada no puede seleccionarse, intercambiarse ni modificarse mediante efectos. Puedes jugar SuperCards después. Termina al abandonar la mano o al final de tu End Phase.</p>`},
