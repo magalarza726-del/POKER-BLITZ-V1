@@ -76,7 +76,7 @@ window.POKER_BLITZ_TRAINING=(function(){
   const placement=n>1?1-idx/(n-1):1;
   return {value:(n===1?me.chips/30+.02*result.eventsCount:top ? .72 : 0)+(n===1?0:placement*.20+chipDiff*.08),
    chips:me.chips,win:!!top,position:idx+1,margin:me.chips-avg,incidents:result.incidents?.length||0,
-   eventCount:result.eventsCount||0,
+   eventCount:result.eventsCount||0,hyperUses:(me.events||[]).filter(e=>e.action==='HyperCard activada').length,
    actions:(me.events||[]).filter(e=>e.action==='Usar Power Card'||e.action==='HyperCard activada').map(e=>e.detail),
    plans:(me.events||[]).filter(e=>e.action==='Plan IA').map(e=>e.detail)};
  }
@@ -187,7 +187,7 @@ window.POKER_BLITZ_TRAINING=(function(){
    if(!after.win)weak.lost++;
    if(after.margin<-5)weak.farBehind++;
    if(after.position>=4)weak.lastPlaces++;
-   if((deck.hyperCardIds||[]).length&& !after.actions.some(x=>/hypercard/i.test(x)))weak.hyperUnused++;
+   if((deck.hyperCardIds||[]).length&&after.hyperUses===0)weak.hyperUnused++;
    weak.avgChipDeficit+=Math.max(0,-after.margin)/total;
    if(after.value>before.value+0.00001&&after.incidents<=before.incidents){
     current=candidate;accepts++;records.III.improvements++;
