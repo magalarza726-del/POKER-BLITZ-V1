@@ -206,9 +206,9 @@ button,input,textarea,select{font:inherit;color:inherit}button{cursor:pointer}bu
 
 </style>
 <script src="presets/default-decks.js?v=20261026-50cards"></script>
-<script src="presets/manual-game-rules.js?v=rules-1202-20261026"></script>
-<script src="presets/assisted-effects.js?v=rules-1202-20261026"></script>
-<script src="presets/assisted-links.js?v=rules-1202-20261026"></script>
+<script src="presets/manual-game-rules.js?v=official-1210-20261026"></script>
+<script src="presets/assisted-effects.js?v=official-1210-20261026"></script>
+<script src="presets/assisted-links.js?v=official-1210-20261026"></script>
 <script src="presets/simulation-engine.js?v=lab-1210-20261026"></script>
 <script src="presets/deck-lab.js?v=lab-1210-20261026"></script>
 </head>
@@ -817,7 +817,7 @@ window.STARTER_CARDS = [
   function restoreAddScroll(top){requestAnimationFrame(()=>{const list=$('.add-list');if(list)list.scrollTop=Number(top||0);});}
   function renderAddPreservingScroll(top){render();restoreAddScroll(top);}
   function closeModal(){
-    if(['counter-window','reference-reaction','assisted-target','assisted-choice','linked-picker'].includes(modal?.type)){toast('Termina la resolución pendiente antes de continuar.');return;}
+    if(['counter-window','reference-reaction','assisted-target','assisted-choice','linked-picker','shield-counter'].includes(modal?.type)){toast('Termina la resolución pendiente antes de continuar.');return;}
     if(modal?.type==='zoom'&&modal.returnTo){const back=modal.returnTo,top=back.scrollTop||0;modal=back;render();restoreAddScroll(top);return;}
     if(modal?.type==='character-edit')characterDraft=null;
     modal=null;render();
@@ -971,7 +971,8 @@ window.STARTER_CARDS = [
     const selected=getCard(selectedCardId);
     return `<main class="app-shell">${appBar('Mis cartas',{back:true})}<div class="toolbar"><div class="search">${icon('search')}<input id="librarySearch" value="${esc(libraryQuery)}" placeholder="Buscar cartas..."></div><select id="libraryTypeFilter" class="type-filter">${typeFilterOptions(libraryTypeFilter)}</select><button class="btn primary rules-button" data-action="rules">${icon('cards')} Ver reglas</button></div><section class="cards-layout"><div class="card-grid-scroll"><div class="card-grid">${f.length?f.map(c=>`<article class="card-cell ${selectedCardId===c.id?'selected':''}" data-action="select-card" data-id="${c.id}"><div class="card-preview-wrap">${cardHTML(c)}</div><div class="cell-actions"><button data-action="edit-card" data-id="${c.id}" title="Editar">${icon('edit')}</button><button data-action="delete-card" data-id="${c.id}" title="Eliminar">${icon('trash')}</button></div></article>`).join(''):`<div class="empty" style="grid-column:1/-1">No hay cartas que coincidan con este filtro.</div>`}</div></div><aside class="panel card-detail">${selected?`<div class="detail-preview-wrap">${cardHTML(selected)}</div><div class="detail-actions two"><button class="btn primary" data-action="edit-card" data-id="${selected.id}">${icon('edit')} Editar</button><button class="btn" data-action="delete-card" data-id="${selected.id}">${icon('trash')} Eliminar</button></div>`:`<div class="empty">Sin cartas</div>`}</aside></section></main>`;
   }
-  function renderDecks(){return `<main class="app-shell">${appBar('Mis decks',{back:true})}<div class="decks-list"><button class="btn primary" data-action="new-deck">${icon('plus')} Nuevo deck</button>${state.decks.length?state.decks.map(d=>`<div class="deck-row" data-action="open-deck" data-id="${d.id}">${deckCharacterHTML(d,'deck-row-avatar')}<div class="grow"><div class="name">${esc(d.name)}</div><div class="muted">${d.cardIds.length} cartas${d.description?' · '+esc(d.description):''}</div>${characterDialogueHTML(d,'','deck-row-dialogue')}</div><button class="icon-btn" data-action="delete-deck" data-id="${d.id}">${icon('trash')}</button></div>`).join(''):`<div class="empty">Todavía no hay decks. Crea uno para organizar tus cartas.</div>`}</div></main>`}
+  function renderDecks(){return `<main class="app-shell">${appBar('Mis decks',{back:true})}<div class="decks-list"><button class="btn primary" data-action="new-deck">${icon('plus')} Nuevo deck</button>${state.decks.length?state.decks.map(d=>`<div class="deck-row" data-action="open-deck" data-id="${d.id}">${deckCharacterHTML(d,'deck-row-avatar')}<div class="grow"><div class="name">${esc(d.name)}</div><div class="muted">${d.cardIds.length} cartas${d.description?' · '+esc(d.description):''}</div><div class="small" style="color:${deckIsLegal(d)?'#067a55':'#a34c00'}">${deckIsLegal(d)?'Deck válido para jugar':('Incompleto: faltan '+Math.max(0,20+2*(d.hyperCardIds||[]).length-d.cardIds.length)+' Power Cards oficiales')}</div>
+${characterDialogueHTML(d,'','deck-row-dialogue')}</div><button class="icon-btn" data-action="delete-deck" data-id="${d.id}">${icon('trash')}</button></div>`).join(''):`<div class="empty">Todavía no hay decks. Crea uno para organizar tus cartas.</div>`}</div></main>`}
   function renderCardEditor(){
     const c=editingCard||defaultCard();editingCard=c;
     return `<main class="app-shell">${appBar('Editor de carta',{back:true})}<section class="editor-layout"><div class="panel preview-panel">${cardHTML(c)}</div><div class="editor-scroll"><div class="editor-box"><div class="field"><label>Nombre</label><input id="cardName" maxlength="40" value="${esc(c.name)}"><div class="field-help">${c.name.length}/40</div></div><div class="field" style="margin-top:6px"><label>Texto</label><textarea id="cardDesc" maxlength="350">${esc(c.description)}</textarea><div class="field-help">${c.description.length}/350</div></div></div><div class="editor-box"><div class="editor-row"><h3 style="margin:0">Color</h3><div class="palette">${palette.map(p=>`<button class="swatch ${p.toUpperCase()===(c.accentColor||'').toUpperCase()?'selected':''}" style="background:${p}" data-action="set-color" data-color="${p}" title="${p}"></button>`).join('')}</div></div></div><div class="editor-box"><div class="editor-row"><h3 style="margin:0;flex:1">Foto de la carta</h3><button class="btn primary" data-action="pick-image">${icon('upload')} ${c.image?'Reemplazar foto':'Subir foto'}</button></div><div class="range-grid" style="margin-top:8px"><div class="range-wrap"><label>Margen ${Math.round((c.imageInsetFraction??.03)*100)}%</label><input id="imageInset" type="range" min="0" max="0.12" step="0.005" value="${c.imageInsetFraction??.03}"><label>Zoom ${Math.round((c.imageScale||1)*100)}%</label><input id="imageScale" type="range" min="1" max="3" step="0.01" value="${c.imageScale||1}"></div><div class="range-wrap"><label>Mover X ${Math.round((c.imageOffsetX||0)*100)}%</label><input id="imageX" type="range" min="-1" max="1" step="0.01" value="${c.imageOffsetX||0}"><label>Mover Y ${Math.round((c.imageOffsetY||0)*100)}%</label><input id="imageY" type="range" min="-1" max="1" step="0.01" value="${c.imageOffsetY||0}"></div></div><div style="text-align:right;margin-top:6px"><button class="btn" data-action="recenter">${icon('zoom')} Recentrar</button></div></div><div class="editor-box"><div class="editor-row"><h3 style="margin:0">Filtro</h3><label style="display:flex;align-items:center;gap:7px"><input id="tintEnabled" type="checkbox" ${c.tintEnabled?'checked':''}> Aplicar tinte</label><div class="range-wrap" style="flex:1"><label>Intensidad ${Math.round((c.tintStrength||0)*100)}%</label><input id="tintStrength" type="range" min="0" max="1" step="0.01" value="${c.tintStrength||0}"></div></div></div><div class="editor-footer"><button class="btn primary" data-action="save-card">${icon('save')} Guardar</button><button class="btn" data-action="duplicate-card">${icon('copy')} Duplicar</button></div></div></section></main>`;
@@ -1047,11 +1048,11 @@ function syncAutoSetup(){
   function generateSeed(){const bytes=new Uint32Array(1);if(typeof crypto!=='undefined'&&crypto.getRandomValues)crypto.getRandomValues(bytes);else bytes[0]=Date.now()>>>0;return bytes[0]>>>0;}
   function makeSeededRandom(seed){let state=(seed>>>0)||123456789;return {next:()=>{state^=state<<13;state^=state>>>17;state^=state<<5;return (state>>>0)/4294967296;},getState:()=>state>>>0,setState:n=>{state=n|0;}};}
   function renderAutoSetup(){
-    syncAutoSetup();const decks=availableTestDecks();
+    syncAutoSetup();const decks=availableTestDecks(),incomplete=state.decks.filter(d=>!deckIsLegal(d));
     return `<main class="app-shell">${appBar('Simulación automática',{back:true})}
       <section class="test-setup-wrap" style="max-width:1040px;margin:0 auto;overflow-y:auto;padding-bottom:30px">
         <div class="panel test-setup-card"><h2>Configurar partida de IA</h2>
-          <p class="small muted">Las partidas se juegan sin intervención. El resultado y todas las acciones se entregan exclusivamente en PDF.</p>
+          <p class="small muted">Las partidas se juegan sin intervención. Hasta 50 partidas se conservan los eventos completos; los lotes mayores presentan estadísticas resumidas para controlar la memoria.</p>${incomplete.length?`<p class="small" style="color:#a34c00">${incomplete.length} decks incompletos no participan en la simulación. Puedes completarlos manualmente.</p>`:''}
           <label for="auto-games-count" style="display:block;margin:12px 0 5px;font-weight:bold">Número de partidas (1–1000)</label>
           <input id="auto-games-count" type="number" inputmode="numeric" min="1" max="1000" step="1" value="${autoSetup.gamesCount}" style="width:160px;max-width:100%;padding:10px;border:1px solid #9ca3af;border-radius:8px" aria-describedby="auto-games-hint">
           <p id="auto-games-hint" class="small muted">Los jugadores utilizan la misma IA experta y los decks permanecen fijos. Los asientos rotan en cada partida y cada encuentro recibe una semilla reproducible diferente.</p>
@@ -1279,6 +1280,15 @@ function syncAutoSetup(){
 
   function renderModal(){
     if(modal?.type==='linked-picker')return assistedLinks.modalMarkup();
+    if(modal?.type==='shield-counter'){
+      const defender=sim?.decks?.find(p=>p.id===modal.defenderId);
+      return `<div class="modal-backdrop"><div class="modal" style="max-width:610px">
+        <div class="modal-head"><h2>Escudo Resplandeciente · J${defender?.playerNumber||'?'}</h2></div>
+        <div class="modal-content"><p>Acabas de ser seleccionado como objetivo. ¿Quieres activar Escudo Resplandeciente para redirigir el efecto?</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn primary" data-action="shield-counter-use">Activar CounterCard</button>
+        <button class="btn soft" data-action="shield-counter-pass">No reaccionar</button></div></div></div></div>`;
+    }
     if(modal?.type==='hyper-counter'){
       const c=getCard(modal.cardId);
       return `<div class="modal-backdrop"><div class="modal" style="max-width:650px"><div class="modal-head"><h2>Respuesta a HyperCard · ${esc(c?.name||'')}</h2></div><div class="modal-content"><p>Una CounterCard puede responder antes de activar esta HyperCard. Agujero Negro bloquea; Tiro por la Culata obliga a descartar una Poker Card.</p><div style="display:flex;flex-wrap:wrap;gap:8px">${modal.counters.map((x,j)=>`<button class="btn primary" data-action="hyper-counter-play" data-index="${j}">J${x.number} · ${esc(getCard(x.cardId)?.name||'CounterCard')}</button>`).join('')}<button class="btn soft" data-action="hyper-counter-pass">No reaccionar</button></div></div></div></div>`;
@@ -1967,6 +1977,8 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='discard-card'){const {d,s}=currentSim(),i=+el.dataset.index,c=getCard(s.hand[i]);if(!c||!['MAIN','END'].includes(s.currentPhase))return;pushUndo(d.id,'Descartar '+cardTypeLabel(c));const wasActive=cardType(c)==='HYPER'&&s.activeHyper.includes(i),item=manualRules.take(d.id,i);if(!item)return;manualRules.giveBack(item.cardId,item.ownerId);logSim(d.id,'Descartar '+cardTypeLabel(c),(wasActive?'HyperCard activa':'Power Card')+' devuelta al deck de su propietario.',c);render()}
     else if(a==='assist-old-rules'){assistedLinks.ability(+el.dataset.index)}
     else if(a==='activate-hyper-reserve'){activateReservedHyper(Number(el.dataset.index));}
+    else if(a==='shield-counter-use'){assistedEffects.shieldRespond(true);}
+    else if(a==='shield-counter-pass'){assistedEffects.shieldRespond(false);}
     else if(a==='hyper-counter-pass'){resolveHyperCounter(null);}
     else if(a==='hyper-counter-play'){resolveHyperCounter(Number(el.dataset.index));}
     else if(a==='activate-hyper'&&sim?.mode==='ASSISTED'){assistedEffects.activate(+el.dataset.index)}
