@@ -167,29 +167,37 @@ window.POKER_BLITZ_TRAINING=(function(){
    report('III',i+1,'Autocompetencia · iteración '+(i+1)+'/'+total);
    await new Promise(resolve=>setTimeout(resolve,0));
   }
-  // Independent holdout: new seeds, unchanged fixed decks. Show raw rates, not
-  // claim equal competitive strength on the basis of the training objective.
+  // Independent holdout: unseen seeds, actual legal rivals or a one-deck
+  // self-play baseline. Nine distinct opponents when available = 10-player
+  // competitive testing rather than treating a 5-player rate as 10-player.
   const validated=[],control=[];
-  if(pool.length){
-   const n=Math.min(50,Math.max(12,total)),vs=shuffle(pool,r);
-   for(let i=0;i<n;i++){
-    interrupted();
-    const others=Array.from({length:4},(_,j)=>vs[(i*3+j)%vs.length]);
-    const common=(seed+0xbadc0de+i*74639)>>>0;
-    validated.push(await runAgainst(current,others,common,false));
-    control.push(await runAgainst(policyStart,others,common,false));
-    if(i%3===0){report('III',total,'Validación independiente '+(i+1)+'/'+n);await new Promise(resolve=>setTimeout(resolve,0));}
-   }
+  const n=Math.min(80,Math.max(20,total*2)),vs=shuffle(pool,r);
+  for(let i=0;i<n;i++){
+   interrupted();
+   const count=vs.length>=9?9:4,others=vs.length
+    ?Array.from({length:count},(_,j)=>vs[(i*3+j)%vs.length])
+    :Array.from({length:4},()=>deck);
+   const common=(seed+0xbadc0de+i*74639)>>>0,mirror=!vs.length;
+   validated.push(await runAgainst(current,others,common,mirror));
+   control.push(await runAgainst(policyStart,others,common,mirror));
+   if(i%3===0){report('III',total,'Validación independiente '+(i+1)+'/'+n);await new Promise(resolve=>setTimeout(resolve,0));}
   }
   const champion=average(validated),baseline=average(control);
-  const recommend=validated.length>0&&champion.score+0.00001>=baseline.score&&champion.incidents<=baseline.incidents;
+  const recommend=accepts>0&&validated.length>0&&
+    champion.score>baseline.score+0.00001&&champion.incidents<=baseline.incidents;
   const savedPolicy=recommend?current:policyStart;
+  const interval=(()=>{
+   const n=validated.length,w=champion.wins,z=1.96,den=1+z*z/n,p=w/n;
+   const center=(p+z*z/(2*n))/den,half=z*Math.sqrt(p*(1-p)/n+z*z/(4*n*n))/den;
+   return [Math.max(0,center-half),Math.min(1,center+half)];
+  })();
   const topActions=[...discovered].sort((a,b)=>b[1]-a[1]).slice(0,12).map(([card,uses])=>({card,uses}));
   const finished={version:1,at:new Date().toISOString(),fingerprint:sig,iterations:total,
    policy:savedPolicy,seed:seed>>>0,accepted:recommend,
    training:{records,comparisons,accepts,topActions},
    validation:{games:validated.length,wins:champion.wins,winRate:validated.length?champion.wins/validated.length:null,
     baselineWins:baseline.wins,baselineWinRate:control.length?baseline.wins/control.length:null,
+    participants:pool.length>=9?10:5,interval95:interval,
     meanChipMargin:champion.margin,baselineChipMargin:baseline.margin,incidents:champion.incidents,
     verifiedOnNewSeeds:true},
    warnings:[...new Set(failures)].slice(0,8)};
