@@ -210,6 +210,15 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    if(!candidates.length)return null;
    if(p.difficulty==='beginner')return candidates[random(candidates.length)];
    const pid=p.id,s=get(pid),cards=s.pokerHand,ranks=ranksOf(cards),plan=planFor(p);
+   if(linked?.kind==='hyper-quantity'){
+    const max=Number(linked.maxCost||0),hand=get(p.id).pokerHand,bySuit=ranksOf(hand).suits;
+    const strongest=Math.max(0,...Object.values(bySuit)),rankGroups=ranksOf(hand).ranks;
+    // Two suit enchantments may not copy the same suit. A single wildcard is better for a single flush.
+    const requested=linked.type==='030'
+      ?(strongest>=3?1:hand.length>=8&&max===2?2:hand.length>=4?1:0)
+      :(hand.length>=5&&max===2&&plan.role!=='aces'&&plan.role!=='faces'?2:hand.length>=2?1:0);
+    return 'quantity:'+Math.min(max,requested);
+   }
    if(linked?.kind==='hyper-power'){
     return [...candidates].sort((a,b)=>{
       const ix=v=>Number(v.slice(6));
@@ -225,6 +234,19 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
       const original=cards.find(c=>c.id===id);
       return {id,gain:result-before+(original?.rank==='A'?-100:0)};
     }).sort((a,b)=>b.gain-a.gain)[0].id;
+   }
+   if(linked?.kind==='hyper'&&['029','030'].includes(linked.type)){
+    const bySuit=Object.entries(ranks.suits).sort((a,b)=>b[1]-a[1]),desiredSuit=bySuit[0]?.[0];
+    const values=ranks.ranks||{},scoreChoice=id=>{
+      const c=cards.find(c=>c.id===id);
+      if(!c)return -999;
+      if(linked.type==='030')return (c.suit!==desiredSuit?6:-3)+
+        (ranks.suits[c.suit]||0)*-.2+
+        (selected.size&&bySuit[1]?.[0]===c.suit?0.4:0);
+      return (values[c.rank]===1?4:-4)+(c.rank==='A'&&plan.role==='aces'?-4:0)+
+        (['J','Q','K'].includes(c.rank)&&plan.role==='faces'?-3:0);
+    };
+    return [...candidates].sort((a,b)=>scoreChoice(b)-scoreChoice(a))[0];
    }
    const pick=candidates.map(id=>{
     const c=cards.find(c=>c.id===id);if(!c)return {id,score:0};
