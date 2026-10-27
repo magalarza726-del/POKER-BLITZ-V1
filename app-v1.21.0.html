@@ -206,10 +206,10 @@ button,input,textarea,select{font:inherit;color:inherit}button{cursor:pointer}bu
 
 </style>
 <script src="presets/default-decks.js?v=20261026-50cards"></script>
-<script src="presets/manual-game-rules.js?v=official-1210-20261026"></script>
-<script src="presets/assisted-effects.js?v=official-1210-20261026"></script>
+<script src="presets/manual-game-rules.js?v=card-rules-20261027"></script>
+<script src="presets/assisted-effects.js?v=card-rules-20261027"></script>
 <script src="presets/assisted-links.js?v=official-1210-20261026"></script>
-<script src="presets/simulation-engine.js?v=lab-1210-20261026"></script>
+<script src="presets/simulation-engine.js?v=card-rules-20261027"></script>
 <script src="presets/deck-lab.js?v=lab-1210-20261026"></script>
 </head>
 <body>
@@ -235,7 +235,7 @@ window.STARTER_CARDS = [
   {
     "id": "catalog_v3_045",
     "name": "ARTIMAÑA DEL AS",
-    "description": "Solo puede usarse teniendo activo «Maldición de los Ases» o descartando una Poker Card y una Power Card.\n\nCobra 2 fichas por cada As de tu mano, descartándolos y robando la misma cantidad de Poker Cards del mazo en tu End Phase.",
+    "description": "Solo puede usarse teniendo activo «Maldición de los Ases» o descartando una Poker Card y una Power Card.\n\nCobra 3 fichas por cada As en tu mano, descartándolos y robando la misma cantidad de Poker Cards del mazo en tu End Phase.",
     "accentColor": "#18E0E5",
     "asset": ""
   },
@@ -269,15 +269,15 @@ window.STARTER_CARDS = [
   },
   {
     "id": "catalog_v3_055",
-    "name": "SECUAZ DE LAS FICHAS",
-    "description": "Roba una ficha a un jugador, pero págale dos Poker Cards.",
+    "name": "SECUAZ DE FICHAS",
+    "description": "Selecciona a un jugador. Si tiene 5 o más fichas, aplícale uno de estos efectos:\n• Róbale una ficha por cada 10 fichas.\n• Activa una de sus Power Cards al azar como si fuera tuya.",
     "accentColor": "#18E0E5",
     "asset": ""
   },
   {
     "id": "catalog_v3_056",
     "name": "FALSO LIMITADOR",
-    "description": "Obliga a un jugador a descartar Poker Cards hasta que solo le queden 5.\n\nEse jugador roba 1 Power Card adicional en su Draw Phase por cada 3 Poker Cards descartadas (ignorando el límite máximo de Power Cards en mano).",
+    "description": "Obliga a un jugador a descartar 3 Poker Cards, pero a cambio recibe una Power Card adicional en su próxima Draw Phase.",
     "accentColor": "#18E0E5",
     "asset": ""
   },
@@ -298,7 +298,7 @@ window.STARTER_CARDS = [
   {
     "id": "catalog_v3_047",
     "name": "EL HUESO",
-    "description": "Solo puede usarse teniendo activo «Maldición de los Ases» o descartando 5 Poker Cards.\n\nRoba 5 Poker Cards. Luego selecciona a un jugador e intercambia 2 cartas con él. Si una de tus cartas era un As, oblígalo a descartar 2 cartas.",
+    "description": "Solo puede usarse teniendo activo «Maldición de los Ases» o descartando 4 Poker Cards.\n\nRoba 5 Poker Cards. Luego selecciona a un jugador. Intercambia 2 cartas con él. Si una de tus cartas era un As, oblígalo a descartar 2 cartas.",
     "accentColor": "#18E0E5",
     "asset": ""
   },
@@ -312,7 +312,7 @@ window.STARTER_CARDS = [
   {
     "id": "catalog_v3_037",
     "name": "CARTA FANTASMA",
-    "description": "Haz que todos los jugadores (excepto tú) roben 2 Poker Cards del mazo esta ronda. Después del ajuste de mano de cada uno, obliga a cada uno a descartar 2.",
+    "description": "Haz que todos los jugadores (excepto tú) roben 2 Poker Cards del mazo esta ronda. Después de la End Phase de cada uno, obliga a cada uno a descartar 2.",
     "accentColor": "#18E0E5",
     "asset": ""
   },
@@ -326,7 +326,7 @@ window.STARTER_CARDS = [
   {
     "id": "catalog_v3_039",
     "name": "SIN REGLAS",
-    "description": "Roba 3 Poker Cards y en tu End Phase descarta 5.",
+    "description": "Roba 3 Poker Cards y en tu End Phase descarta 2.",
     "accentColor": "#18E0E5",
     "asset": ""
   },
@@ -403,21 +403,21 @@ window.STARTER_CARDS = [
   {
     "id": "catalog_v3_026",
     "name": "COMPARTIR ES GANAR",
-    "description": "Selecciona a un jugador. Ese jugador y tú roban 2 Poker Cards.",
+    "description": "Selecciona a un jugador. Ese jugador te roba 1 Poker Card al azar, pero tú robas 3 del mazo.",
     "accentColor": "#18E0E5",
     "asset": ""
   },
   {
     "id": "catalog_v3_016",
     "name": "OJO DEL MÁS ALLÁ",
-    "description": "Mira las 3 primeras Poker Cards de la parte superior del mazo. Roba una y devuelve el resto en cualquier orden arriba del mazo.",
+    "description": "Mira las 4 primeras Poker Cards arriba del mazo. Roba una y devuelve el resto en cualquier orden arriba del mazo.",
     "accentColor": "#18E0E5",
     "asset": ""
   },
   {
     "id": "catalog_v3_063",
     "name": "REINO AMABLE",
-    "description": "Solo puede usarse teniendo activo «Vínculo Noble» o descartando 2 Poker Cards.\n\nRoba 2 Poker Cards.",
+    "description": "Solo puede usarse teniendo activo «Vínculo noble» o descartando 2 Poker Cards.\n\nRoba 3 Poker Cards.",
     "accentColor": "#18E0E5",
     "asset": ""
   },
@@ -1414,7 +1414,7 @@ function syncAutoSetup(){
   }
   function drawPokerOne(deckId,s,action='Robar Poker Card'){
     if(!sim?.pokerDrawPile?.length){const msg='No quedan Poker Cards en el mazo.';sim.result=msg;toast(msg);return null}
-    const pos=randomInt(sim.pokerDrawPile.length),[card]=sim.pokerDrawPile.splice(pos,1);s.pokerHand??=[];s.pokerHand.push(card);logSim(deckId,action,`Se robó ${card.rank} de ${card.suit}.`);return card;
+    const card=sim.pokerDrawPile.shift();s.pokerHand??=[];s.pokerHand.push(card);logSim(deckId,action,`Se robó ${card.rank} de ${card.suit}.`);return card;
   }
   function initSim(initialDeckId=null){
     syncTestSetup(initialDeckId);
