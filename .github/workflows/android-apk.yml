@@ -59,6 +59,8 @@ jobs:
         run: node android/tools/check_dialogue_panels.js
       - name: Verificar el reglamento de 50 cartas, IA y efectos asistidos actualizados
         run: node android/tools/check_current_rules.js
+      - name: Probar nuevos laboratorios de Decks, diez IA y simulación extensiva
+        run: node android/tools/check_deck_lab.js
       - name: Verificar la vista Android en Chrome horizontal
         run: python3 android/tools/check_mobile_layout.py
       - name: Verificar Prueba Manual Sencillo y Prueba Asistida en Chrome
