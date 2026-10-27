@@ -601,7 +601,7 @@ window.STARTER_CARDS = [
   let sim = null;
   let testSetup = {playerCount:2,deckIds:[],pokerDeckCount:1,handView:'POWER',seedInput:''};
   let testMode = 'MANUAL_FULL';
-  let autoSetup={playerCount:2,deckIds:[],aiLevels:[],pokerDeckCount:1,battleMode:'BLITZ',seed:0,seedInput:'',gamesCount:1};
+  let autoSetup={playerCount:2,deckIds:[],pokerDeckCount:1,battleMode:'BLITZ',seed:0,seedInput:'',gamesCount:1};
   let autoStatus={round:0,maxRounds:40,events:0};
   let autoResult=null,autoBatchResults=[],autoBusy=false,autoCancel=null,autoPdfBusy=false;
   let activePdfUrl=null;
@@ -845,7 +845,7 @@ window.STARTER_CARDS = [
   function renderDeckEditor(){
     const d=getDeck(editingDeckId);if(!d){screen='home';return renderHome();}
     const counts=countIds([...d.cardIds,...(d.hyperCardIds||[])]); const unique=Object.keys(counts).map(getCard).filter(Boolean).filter(c=>c.name.toLowerCase().includes(deckQuery.toLowerCase())&&typeMatches(c,deckTypeFilter));
-    return `<main class="app-shell">${appBar('Deck: '+d.name,{back:true})}<section class="deck-editor-layout"><aside class="panel deck-side"><div class="field"><label>Nombre del deck</label><input id="deckName" value="${esc(d.name)}" maxlength="50"></div><div class="deck-stats" style="margin-top:12px"><div class="stat-box"><strong>${d.cardIds.length}</strong><span>Super/Counter</span></div><div class="stat-box"><strong>${(d.hyperCardIds||[]).length}/3</strong><span>HyperZone: únicas</span></div></div><p class="small muted">Power Deck permitido: ${20+2*(d.hyperCardIds||[]).length}–${30+2*(d.hyperCardIds||[]).length} cartas. Máximo 3 copias de cada SuperCard o CounterCard y 1 de cada HyperCard. Sin sustituciones de cartas retiradas.</p><div class="deck-profile"><div class="deck-character-column"><div class="deck-character-preview ${d.characterImage?'':'empty'}">${d.characterImage?deckCharacterPhoto(d):'<span>Sin imagen de personaje</span>'}</div><div class="character-controls"><button class="btn primary" data-action="open-character-picker">${icon('upload')} ${d.characterImage?'Cambiar imagen':'Añadir imagen'}</button>${d.characterImage?`<button class="btn" data-action="edit-character-image">${icon('edit')} Editar encuadre</button><button class="btn danger" data-action="remove-character-image">${icon('trash')} Quitar</button>`:''}</div></div><div class="deck-profile-fields"><div><label class="small" style="font-weight:900;display:block;margin-bottom:4px">Personaje del deck</label><div class="small muted">Sube una imagen y encuádrala arrastrando, como en un editor de perfil.</div></div><div><label class="small" style="font-weight:900;display:block;margin-bottom:4px">Descripción breve</label><textarea id="deckDescription" maxlength="180" placeholder="Describe la idea o estilo del deck...">${esc(d.description||'')}</textarea><div class="field-help">${(d.description||'').length}/180</div></div></div></div>${PRESET_DIALOGUE_PANELS[d.id]?`<div class="deck-dialogue-section"><label>Panel de diálogo (adicional al retrato)</label>${characterDialogueHTML(d,'','preview')}<div class="small muted">También aparece junto al personaje en partida; su foto se conserva.</div></div>`:''}<div style="flex:1"></div><button class="btn primary" data-action="test-deck" ${deckIsLegal(d)?'':'disabled'}>${icon('play')} Probar deck</button><div class="small muted" style="margin-top:10px">Controla las copias con - / +. La imagen de personaje aparecerá junto a tu mano en el modo de prueba.</div></aside><section class="deck-right"><div class="deck-list-head"><h2>Power Deck (${d.cardIds.length}) · HyperZone (${(d.hyperCardIds||[]).length})</h2><div class="search">${icon('search')}<input id="deckSearch" value="${esc(deckQuery)}" placeholder="Buscar cartas..."></div><select id="deckTypeFilter" class="type-filter">${typeFilterOptions(deckTypeFilter)}</select><button class="btn primary" data-action="add-card-modal">${icon('plus')} Añadir carta</button></div><div class="deck-card-list">${unique.length?unique.map(c=>deckCardRow(c,counts[c.id])).join(''):`<div class="empty" style="grid-column:1/-1">${d.cardIds.length?'No hay coincidencias.':'Añade cartas al deck.'}</div>`}</div></section></section></main>`;
+    return `<main class="app-shell">${appBar('Deck: '+d.name,{back:true})}<section class="deck-editor-layout"><aside class="panel deck-side"><div class="field"><label>Nombre del deck</label><input id="deckName" value="${esc(d.name)}" maxlength="50"></div><div class="deck-stats" style="margin-top:12px"><div class="stat-box"><strong>${d.cardIds.length}</strong><span>Super/Counter</span></div><div class="stat-box"><strong>${(d.hyperCardIds||[]).length}/3</strong><span>HyperZone: únicas</span></div></div><p class="small muted">Power Deck actual: <strong>${20+2*(d.hyperCardIds||[]).length} mínimo</strong> y <strong>${30+2*(d.hyperCardIds||[]).length} máximo</strong> (${d.cardIds.length} presentes). Máximo 3 copias de cada SuperCard o CounterCard y 1 de cada HyperCard. Sin sustituciones de cartas retiradas.</p><div class="deck-profile"><div class="deck-character-column"><div class="deck-character-preview ${d.characterImage?'':'empty'}">${d.characterImage?deckCharacterPhoto(d):'<span>Sin imagen de personaje</span>'}</div><div class="character-controls"><button class="btn primary" data-action="open-character-picker">${icon('upload')} ${d.characterImage?'Cambiar imagen':'Añadir imagen'}</button>${d.characterImage?`<button class="btn" data-action="edit-character-image">${icon('edit')} Editar encuadre</button><button class="btn danger" data-action="remove-character-image">${icon('trash')} Quitar</button>`:''}</div></div><div class="deck-profile-fields"><div><label class="small" style="font-weight:900;display:block;margin-bottom:4px">Personaje del deck</label><div class="small muted">Sube una imagen y encuádrala arrastrando, como en un editor de perfil.</div></div><div><label class="small" style="font-weight:900;display:block;margin-bottom:4px">Descripción breve</label><textarea id="deckDescription" maxlength="180" placeholder="Describe la idea o estilo del deck...">${esc(d.description||'')}</textarea><div class="field-help">${(d.description||'').length}/180</div></div></div></div>${PRESET_DIALOGUE_PANELS[d.id]?`<div class="deck-dialogue-section"><label>Panel de diálogo (adicional al retrato)</label>${characterDialogueHTML(d,'','preview')}<div class="small muted">También aparece junto al personaje en partida; su foto se conserva.</div></div>`:''}<div style="flex:1"></div><button class="btn primary" data-action="test-deck" ${deckIsLegal(d)?'':'disabled'}>${icon('play')} Probar deck</button><div class="small muted" style="margin-top:10px">Controla las copias con - / +. La imagen de personaje aparecerá junto a tu mano en el modo de prueba.</div></aside><section class="deck-right"><div class="deck-list-head"><h2>Power Deck (${d.cardIds.length}) · HyperZone (${(d.hyperCardIds||[]).length})</h2><div class="search">${icon('search')}<input id="deckSearch" value="${esc(deckQuery)}" placeholder="Buscar cartas..."></div><select id="deckTypeFilter" class="type-filter">${typeFilterOptions(deckTypeFilter)}</select><button class="btn primary" data-action="add-card-modal">${icon('plus')} Añadir carta</button></div><div class="deck-card-list">${unique.length?unique.map(c=>deckCardRow(c,counts[c.id])).join(''):`<div class="empty" style="grid-column:1/-1">${d.cardIds.length?'No hay coincidencias.':'Añade cartas al deck.'}</div>`}</div></section></section></main>`;
   }
   function deckCardRow(c,count){return `<div class="deck-card-item"><div class="deck-card-thumb" data-action="zoom-card" data-id="${c.id}">${cardHTML(c)}</div><div class="deck-card-name">${esc(c.name)}</div><button class="icon-btn" data-action="zoom-card" data-id="${c.id}">${icon('zoom')}</button><div class="stepper"><button data-action="deck-minus" data-id="${c.id}">${icon('minus')}</button><strong>${count}</strong><button data-action="deck-plus" data-id="${c.id}">${icon('plus')}</button></div></div>`}
   function availableTestDecks(){return state.decks.filter(d=>Array.isArray(d.cardIds)&&d.cardIds.length>0&&deckIsLegal(d))}
@@ -893,13 +893,14 @@ window.STARTER_CARDS = [
   }
 function syncAutoSetup(){
     const decks=availableTestDecks();
-    autoSetup.playerCount=Math.min(6,Math.max(1,Number(autoSetup.playerCount)||2));
+    autoSetup.playerCount=Math.min(10,Math.max(1,Number(autoSetup.playerCount)||2));
     if(![1,2].includes(Number(autoSetup.pokerDeckCount)))autoSetup.pokerDeckCount=1;
     if(!['BLITZ','RUSH'].includes(autoSetup.battleMode))autoSetup.battleMode='BLITZ';
-    autoSetup.gamesCount=Math.min(200,Math.max(1,Math.trunc(Number(autoSetup.gamesCount)||1)));
+    autoSetup.gamesCount=Math.min(1000,Math.max(1,Math.trunc(Number(autoSetup.gamesCount)||1)));
+    if(autoSetup.playerCount>7)autoSetup.pokerDeckCount=2;
     for(let i=0;i<autoSetup.playerCount;i++){
       if(!decks.some(d=>d.id===autoSetup.deckIds[i]))autoSetup.deckIds[i]=decks[i%Math.max(1,decks.length)]?.id||null;
-      if(!['beginner','intermediate','expert'].includes(autoSetup.aiLevels[i]))autoSetup.aiLevels[i]='intermediate';
+
     }
   }
   function seedEditorHTML(id,value,kind){return `<label for="${id}" style="display:block;margin:12px 0 6px;font-weight:700">Semilla de condiciones iniciales</label><input id="${id}" type="number" inputmode="numeric" min="0" max="4294967295" step="1" value="${esc(String(value??''))}" placeholder="Aleatoria (dejar vacío)" style="width:min(100%,310px);padding:10px;border:1px solid #9ca3af;border-radius:8px"><p class="small muted">Número entero entre 0 y 4.294.967.295. Vacío: generar semilla nueva; mismo valor: repetir condiciones aleatorias con el mismo modo y decks. La semilla se registra en ${kind==='auto'?'el PDF de Simulación':'el historial y el PDF de la prueba'}.</p>`}
@@ -912,25 +913,24 @@ function syncAutoSetup(){
       <section class="test-setup-wrap" style="max-width:1040px;margin:0 auto;overflow-y:auto;padding-bottom:30px">
         <div class="panel test-setup-card"><h2>Configurar partida de IA</h2>
           <p class="small muted">Las partidas se juegan sin intervención. El resultado y todas las acciones se entregan exclusivamente en PDF.</p>
-          <label for="auto-games-count" style="display:block;margin:12px 0 5px;font-weight:bold">Número de partidas (1–200)</label>
-          <input id="auto-games-count" type="number" inputmode="numeric" min="1" max="200" step="1" value="${autoSetup.gamesCount}" style="width:160px;max-width:100%;padding:10px;border:1px solid #9ca3af;border-radius:8px" aria-describedby="auto-games-hint">
-          <p id="auto-games-hint" class="small muted">Jugadores, barajas y dificultades permanecen constantes. Los asientos rotan en cada partida y cada encuentro recibe una semilla reproducible diferente.</p>
+          <label for="auto-games-count" style="display:block;margin:12px 0 5px;font-weight:bold">Número de partidas (1–1000)</label>
+          <input id="auto-games-count" type="number" inputmode="numeric" min="1" max="1000" step="1" value="${autoSetup.gamesCount}" style="width:160px;max-width:100%;padding:10px;border:1px solid #9ca3af;border-radius:8px" aria-describedby="auto-games-hint">
+          <p id="auto-games-hint" class="small muted">Los jugadores utilizan la misma IA experta y los decks permanecen fijos. Los asientos rotan en cada partida y cada encuentro recibe una semilla reproducible diferente.</p>
           ${seedEditorHTML('auto-seed-input',autoSetup.seedInput,'auto')}
-          <p class="small muted">Para comparar resultados por jugador se usa su identidad original, aunque cambie su posición en la mesa. Hasta 200 partidas.</p>
-          <h3>Jugadores</h3><div class="test-setup-count">${Array.from({length:6},(_,i)=>i+1).map(n=>`<button class="${autoSetup.playerCount===n?'active':''}" data-action="auto-players" data-value="${n}">${n}</button>`).join('')}</div>
+          <p class="small muted">Para comparar resultados por jugador se usa su identidad original, aunque cambie su posición en la mesa. Hasta 1000 partidas. Los lotes grandes guardan un registro resumido para ahorrar memoria.</p>
+          <h3>Jugadores</h3><div class="test-setup-count">${Array.from({length:10},(_,i)=>i+1).map(n=>`<button class="${autoSetup.playerCount===n?'active':''}" data-action="auto-players" data-value="${n}">${n}</button>`).join('')}</div>
           <h3 style="margin:12px 0 4px">Modo</h3><div class="test-poker-options">${[['BLITZ','Blitz Battle · 30 fichas'],['RUSH','Rush Battle · 15 fichas']].map(([id,title])=>`<button type="button" class="test-poker-option ${autoSetup.battleMode===id?'active':''}" data-action="auto-battle" data-value="${id}">${title}</button>`).join('')}</div>
           <h3 style="margin:12px 0 4px">Barajas de póker</h3><div class="test-poker-options">${[1,2].map(n=>`<button class="test-poker-option ${autoSetup.pokerDeckCount===n?'active':''}" data-action="auto-poker-decks" data-value="${n}">${n} baraja${n===1?'':'s'} · ${52*n} cartas</button>`).join('')}</div>
         </div>
         <div class="test-setup-players">${Array.from({length:autoSetup.playerCount},(_,i)=>{
           const chosen=decks.find(d=>d.id===autoSetup.deckIds[i])||decks[0];
-          return `<div class="panel test-setup-player"><div class="test-setup-player-head">${chosen?deckCharacterHTML(chosen,'deck-row-avatar'):''}<div><strong>Jugador ${i+1}</strong><div class="small muted">Deck y nivel de razonamiento independientes</div></div></div>
+          return `<div class="panel test-setup-player"><div class="test-setup-player-head">${chosen?deckCharacterHTML(chosen,'deck-row-avatar'):''}<div><strong>Jugador ${i+1}</strong><div class="small muted">Deck individual · IA experta común</div></div></div>
             <label for="auto-deck-${i}">Deck</label><select id="auto-deck-${i}" data-auto-deck="${i}">${decks.map(d=>`<option value="${esc(d.id)}" ${chosen?.id===d.id?'selected':''}>${esc(d.name)} (${d.cardIds.length})</option>`).join('')}</select>
-            <label for="auto-ai-${i}" style="margin-top:10px">Razonamiento</label>
-            <select id="auto-ai-${i}" data-auto-ai="${i}">${[['beginner','Principiante'],['intermediate','Intermedio'],['expert','Experto']].map(([k,v])=>`<option value="${k}" ${autoSetup.aiLevels[i]===k?'selected':''}>${v}</option>`).join('')}</select>
+            <p class="small muted"><strong>IA:</strong> Experto (igual para todos)</p>
           </div>`;
         }).join('')}</div>
         <div class="panel test-setup-card">
-          <p class="small muted"><strong>Principiante:</strong> decisiones casi aleatorias. <strong>Intermedio:</strong> estrategia táctica con algunos errores. <strong>Experto:</strong> evalúa sinergias del deck y combinaciones; busca buenas jugadas mediante heurísticas, sin garantizar la decisión matemáticamente perfecta.</p>
+          <p class="small muted">Todos utilizan la misma IA experta y sus decisiones heurísticas. No se asegura juego óptimo matemático.</p>
           <p class="small muted">La simulación usa los efectos disponibles en Prueba Asistida. Algunas interacciones especiales siguen en validación; cualquier incidencia detectada se detallará en el PDF.</p>
           <button class="btn primary" data-action="auto-run" ${decks.length?'':'disabled'}>${icon('play')} Iniciar simulación y generar PDF</button>
         </div>
@@ -1178,8 +1178,8 @@ function syncAutoSetup(){
   }
   function bindInputs(){
     $$('[data-auto-deck]').forEach(el=>el.addEventListener('change',()=>{autoSetup.deckIds[Number(el.dataset.autoDeck)]=el.value}));
-    $$('[data-auto-ai]').forEach(el=>el.addEventListener('change',()=>{autoSetup.aiLevels[Number(el.dataset.autoAi)]=el.value}));
-    const numberOfGames=$('#auto-games-count');if(numberOfGames){numberOfGames.addEventListener('change',()=>{autoSetup.gamesCount=Math.min(200,Math.max(1,Math.trunc(Number(numberOfGames.value)||1)));numberOfGames.value=autoSetup.gamesCount;});numberOfGames.addEventListener('input',()=>{const n=Number(numberOfGames.value);if(Number.isInteger(n)&&n>=1&&n<=200)autoSetup.gamesCount=n;});}
+
+    const numberOfGames=$('#auto-games-count');if(numberOfGames){numberOfGames.addEventListener('change',()=>{autoSetup.gamesCount=Math.min(1000,Math.max(1,Math.trunc(Number(numberOfGames.value)||1)));numberOfGames.value=autoSetup.gamesCount;});numberOfGames.addEventListener('input',()=>{const n=Number(numberOfGames.value);if(Number.isInteger(n)&&n>=1&&n<=1000)autoSetup.gamesCount=n;});}
     for(const [selector,setup] of [['#auto-seed-input',autoSetup],['#test-seed-input',testSetup]]){const el=$(selector);if(el)el.addEventListener('input',()=>{setup.seedInput=el.value.trim()});}
     $$('[data-trade-player]').forEach(el=>el.addEventListener('change',e=>{
       if(modal?.type!=='trade'||!sim)return;
@@ -1408,7 +1408,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     if(autoBusy)return;syncAutoSetup();
     const available=availableTestDecks(),players=Array.from({length:autoSetup.playerCount},(_,i)=>{
       const d=available.find(x=>x.id===autoSetup.deckIds[i])||available[0];
-      return d?{...d,participantId:'P'+(i+1),cardIds:[...d.cardIds],difficulty:autoSetup.aiLevels[i]||'intermediate'}:null;
+      return d?{...d,participantId:'P'+(i+1),cardIds:[...d.cardIds],difficulty:'expert'}:null;
     });
     if(players.some(p=>!p)){toast('No hay suficientes decks disponibles.');return}
     let chosenSeed;try{chosenSeed=parseSeed(autoSetup.seedInput)}catch(err){toast(String(err.message||err));return}
@@ -1425,7 +1425,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
         const seed=(baseSeed+Math.imul(i,0x9e3779b9))>>>0;
         const rotation=i%players.length,seatedPlayers=players.map((_,seat)=>players[(seat+rotation)%players.length]);
         autoStatus={round:1,maxRounds:40,events:0,game:i+1,totalGames:count,completedGames:i,rotation};
-        const result=await engine.play({players:seatedPlayers,pokerDeckCount:autoSetup.pokerDeckCount,battleMode:autoSetup.battleMode,seed,maxRounds:40,cancel:autoCancel},status=>{
+        const result=await engine.play({players:seatedPlayers,pokerDeckCount:autoSetup.pokerDeckCount,battleMode:autoSetup.battleMode,seed,maxRounds:40,summaryOnly:count>50,cancel:autoCancel},status=>{
           autoStatus={...status,game:i+1,totalGames:count,completedGames:i,rotation};
           if(screen==='autoRunning'&&(status.finished||status.round%3===0))render();
         });
@@ -1715,7 +1715,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='assisted-test'){testMode='ASSISTED';syncTestSetup();go('simSetup')}
     else if(a==='auto-simulation'){syncAutoSetup();go('autoSetup')}
     else if(a==='auto-players'){autoSetup.playerCount=Number(el.dataset.value)||2;syncAutoSetup();render()}
-    else if(a==='auto-poker-decks'){autoSetup.pokerDeckCount=Number(el.dataset.value)===2?2:1;render()}
+    else if(a==='auto-poker-decks'){autoSetup.pokerDeckCount=autoSetup.playerCount>7?2:Number(el.dataset.value)===2?2:1;render()}
     else if(a==='auto-battle'){autoSetup.battleMode=el.dataset.value==='RUSH'?'RUSH':'BLITZ';render()}
     else if(a==='auto-run'){startAutoRun()}
     else if(a==='auto-download'){downloadAutoPdf()}
