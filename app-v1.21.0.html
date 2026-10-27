@@ -1011,8 +1011,9 @@ window.STARTER_CARDS = [
     if(ix>=0){a.splice(ix,1);saveState();}
   }
   function syncTestSetup(preferredDeckId=null){
-    const valid=availableTestDecks();testSetup.playerCount=Math.max(1,Math.min(6,Number(testSetup.playerCount)||2));
+    const valid=availableTestDecks();testSetup.playerCount=Math.max(1,Math.min(10,Number(testSetup.playerCount)||2));
     testSetup.pokerDeckCount=[1,2].includes(Number(testSetup.pokerDeckCount))?Number(testSetup.pokerDeckCount):1;
+    if(testSetup.playerCount>7&&testMode!=='MANUAL_SIMPLE')testSetup.pokerDeckCount=2;
     testSetup.handView=['POWER','POKER','HYPER'].includes(testSetup.handView)?testSetup.handView:'POWER';
     if(preferredDeckId&&valid.some(d=>d.id===preferredDeckId))testSetup.deckIds[0]=preferredDeckId;
     for(let i=0;i<testSetup.playerCount;i++)if(!valid.some(d=>d.id===testSetup.deckIds[i]))testSetup.deckIds[i]=valid[i%valid.length]?.id||null;
@@ -1091,7 +1092,7 @@ function syncAutoSetup(){
       <section class="test-setup-wrap">
         <div class="panel test-setup-card">${testMode==='ASSISTED'?`<p class="small muted">Motor de efectos integrado: <strong>${starterCards.filter(c=>assistedEffects.supported(c.id)).length}/${starterCards.length} cartas oficiales</strong>. Actualiza realmente fichas, manos y decks. Las cartas aún pendientes quedan deshabilitadas para no simular efectos falsos.</p>`:''}<h2 style="margin:0 0 6px">¿Cuántos jugadores participarán?</h2>
           <p class="small muted">Configura de 1 a 6 jugadores. Cada uno tendrá su propia mano, deck, fichas, fases e historial, incluso si dos usan el mismo deck.</p>
-          <div class="test-setup-count">${Array.from({length:6},(_,i)=>i+1).map(n=>`<button type="button" class="${testSetup.playerCount===n?'active':''}" data-action="set-test-players" data-value="${n}" aria-label="${n} jugadores" aria-pressed="${testSetup.playerCount===n}">${n}</button>`).join('')}</div>
+          <div class="test-setup-count">${Array.from({length:10},(_,i)=>i+1).map(n=>`<button type="button" class="${testSetup.playerCount===n?'active':''}" data-action="set-test-players" data-value="${n}" aria-label="${n} jugadores" aria-pressed="${testSetup.playerCount===n}">${n}</button>`).join('')}</div>
         </div>
         ${testMode==='MANUAL_SIMPLE'?'':`<div class="panel test-setup-card"><h2 style="margin:0 0 6px">¿Cuántas barajas de Poker usarás?</h2>
           <p class="small muted">El Poker Deck es compartido por todos los jugadores. Una baraja usa 52 cartas; dos barajas usan 104.</p>
@@ -1912,7 +1913,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='add-card-modal'){addQuery='';addTypeFilter='ALL';modal={type:'add'};render()}
     else if(a==='add-card-to-deck'){const top=$('.add-list')?.scrollTop||0;addOfficialDeckCard(getDeck(editingDeckId),id);renderAddPreservingScroll(top)}
     else if(a==='test-deck'){if(!deckIsLegal(getDeck(editingDeckId))){toast('Completa el Power Deck hasta 20+2H–30+2H cartas para jugar.');return;}sim=null;testMode='MANUAL_FULL';syncTestSetup(editingDeckId);go('simSetup')}
-    else if(a==='set-test-players'){testSetup.playerCount=Math.max(1,Math.min(6,Number(el.dataset.value)||2));syncTestSetup();render()}
+    else if(a==='set-test-players'){testSetup.playerCount=Math.max(1,Math.min(10,Number(el.dataset.value)||2));syncTestSetup();render()}
     else if(a==='set-poker-decks'){testSetup.pokerDeckCount=[1,2].includes(Number(el.dataset.value))?Number(el.dataset.value):1;syncTestSetup();render()}
     else if(a==='start-sim'){if(!availableTestDecks().length){toast('No hay decks disponibles');return}if(initSim())go('simulator')}
     else if(a==='open-trade'){openTrade()}
