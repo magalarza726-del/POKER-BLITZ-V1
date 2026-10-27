@@ -77,13 +77,17 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     }
   }
   function onPokerOut(pid,removed){recyclePoker(pid,removed);cleanup()}
-  function activate(pid,index,selected,powerCost=null){
+  function activate(pid,index,selected,powerCost=null,paymentSlots=null){
     if(!eligible(pid,index))return;
     const s=state(pid),t=code(s.hand[index]),id=s.hand[index], [defaultPower,hc]=prices(t);
     const pc=t==='030'?Number(powerCost??selected.length):defaultPower;
     if(t==='030'&&(!Number.isInteger(pc)||pc<0||pc>2||selected.length!==pc)){ctx.toast('Cambio de Color: coste y objetivos inconsistentes.');return;}
     if(hc>s.pokerHand.filter(c=>!selected.includes(c.id)&&!protectedCard(pid,c)).length){ctx.toast('Debes conservar las Poker Cards vinculadas para pagar el coste.');return}
     if(pc>s.hand.filter((_,j)=>j!==index&&!s.activeHyper.includes(j)).length){ctx.toast('No hay Power Cards suficientes para pagar el coste elegido.');return;}
+    if(paymentSlots&&(
+      paymentSlots.length!==pc||new Set(paymentSlots).size!==pc||
+      paymentSlots.some(j=>!Number.isInteger(j)||j<0||j>=s.hand.length||j===index||s.activeHyper.includes(j))
+    )){ctx.toast('Las Power Cards elegidas como coste no están disponibles.');return;}
     if(selected.some(id=>!s.pokerHand.some(c=>c.id===id&&!virtual(c)&&!protectedCard(pid,c)))){ctx.toast('Los objetivos del encantamiento ya no están disponibles.');return;}
     ctx.pushUndo(pid,'Activar vínculo '+t);
     for(let i=0;i<hc;i++){
@@ -93,7 +97,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     }
     for(let i=0;i<pc;i++){
       const eligible=s.hand.map((cid,j)=>({cid,j})).filter(x=>x.j!==index&&!s.activeHyper.includes(x.j));
-      const choice=ctx.choosePowerPayment?[...eligible].sort((a,b)=>ctx.choosePowerPayment(pid,a.cid)-ctx.choosePowerPayment(pid,b.cid))[0]:eligible[0];
+      const choice=paymentSlots?eligible.find(x=>x.j===[...paymentSlots].sort((a,b)=>b-a)[i]):(ctx.choosePowerPayment?[...eligible].sort((a,b)=>ctx.choosePowerPayment(pid,a.cid)-ctx.choosePowerPayment(pid,b.cid))[0]:eligible[0]);
       if(!choice){ctx.toast('No hay Power Card disponible para pagar el vínculo.');return;}
       const j=choice.j,x=ctx.manual().take(pid,j);
       ctx.manual().giveBack(x.cardId,x.ownerId);if(j<index)index--;
@@ -201,7 +205,16 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
       const quantity=Number(match[1]);
       if(quantity>p.maxCost)return;
       if(quantity===0){pending=null;ctx.setModal(null);activate(p.pid,p.index,[],0);return;}
-      p.kind='hyper';p.needed=quantity;p.powerCost=quantity;p.selected=[];
+      p.kind='hyper-power';p.needed=quantity;p.powerCost=quantity;p.selected=[];p.selectedPower=[];
+      ctx.render();return;
+    }
+    if(p.kind==='hyper-power'){
+      const match=String(id).match(/^power:(\d+)$/);
+      if(!match)return;
+      const index=Number(match[1]);
+      if(index===p.index||s.activeHyper.includes(index)||!s.hand[index]||p.selectedPower.includes(index))return;
+      p.selectedPower.push(index);
+      if(p.selectedPower.length>=p.needed){p.kind='hyper';p.selected=[];}
       ctx.render();return;
     }
     if(p.kind==='sabueso'){
@@ -233,7 +246,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
    if(!p.selected.includes(id))p.selected.push(id);
     else p.selected=p.selected.filter(x=>x!==id);
     if(p.selected.length===p.needed){
-      pending=null;ctx.setModal(null);activate(p.pid,p.index,p.selected,p.powerCost);return;
+      pending=null;ctx.setModal(null);activate(p.pid,p.index,p.selected,p.powerCost,p.selectedPower);return;
     }
     ctx.render();
   }
@@ -245,6 +258,14 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
       return '<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>Cambio de Color · Coste</h2></div>'+
         '<div class="modal-content"><p>Descarta de 0 a 2 Power Cards; encantarás ese mismo número de Poker Cards para asignarles cualquier palo.</p>'+
         '<div style="display:flex;gap:10px;flex-wrap:wrap">'+options.map(i=>'<button class="btn primary" data-action="linked-option" data-id="quantity:'+i+'">'+i+' Power Cards → '+i+' Poker Cards</button>').join('')+
+        '</div></div></div></div>';
+    }
+    if(p.kind==='hyper-power'){
+      const options=state(p.pid).hand.map((cid,i)=>({id:'power:'+i,name:ctx.card(cid)?.name||cid,index:i}))
+        .filter(x=>x.index!==p.index&&!state(p.pid).activeHyper.includes(x.index)&&!p.selectedPower.includes(x.index));
+      return '<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>Cambio de Color · Descartar Power Cards</h2></div>'+
+        '<div class="modal-content"><p>Selecciona '+(p.needed-p.selectedPower.length)+' Power Card(s) para descartar.</p><div style="display:flex;flex-wrap:wrap;gap:10px">'+
+        options.map(x=>'<button class="btn primary" data-action="linked-option" data-id="'+x.id+'">'+ctx.esc(x.name)+'</button>').join('')+
         '</div></div></div></div>';
     }
     const options=
@@ -260,7 +281,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     if(virtual(c))tags.unshift(c.virtualPower.type==='SABUESO'?'As de Sabueso':'Joker comodín');
     return tags.length?'<span class="small" style="background:#fff0b8;padding:2px;border-radius:3px;font-size:10px">'+ctx.esc(tags.join(' · '))+'</span>':'';
   }
-  function choiceState(){return pending?{kind:pending.kind,pid:pending.pid,type:pending.type,needed:pending.needed,maxCost:pending.maxCost,powerCost:pending.powerCost,selected:[...(pending.selected||[])]}:null;}
+  function choiceState(){return pending?{kind:pending.kind,pid:pending.pid,type:pending.type,needed:pending.needed,maxCost:pending.maxCost,powerCost:pending.powerCost,selectedPower:[...(pending.selectedPower||[])],selected:[...(pending.selected||[])]}:null;}
   return {choiceState,supported,artifacts,eligible,open,ability,sabueso,option,modalMarkup,cardLabel,
     score,onCharge,onPokerOut,cleanup,onPowerTake,protectedCard,virtual,phase};
 };
