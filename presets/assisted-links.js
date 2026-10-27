@@ -164,7 +164,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     pending={kind:'ability',pid,index,selected:[]};ctx.setModal({type:'linked-picker'});ctx.render();
   }
   function sabueso(item){
-    pending={kind:'sabueso',item,pid:item.playerId,selected:[]};ctx.setModal({type:'linked-picker'});ctx.render();
+    pending={kind:'sabueso',item,pid:item.playerId,needed:2,selected:[]};ctx.setModal({type:'linked-picker'});ctx.render();
   }
   function option(id){
     if(!pending)return;
@@ -186,13 +186,21 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
      pending=null;ctx.setModal(null);if(offenseQueue.length)startOffense();else ctx.render();return;
     }
     if(p.kind==='sabueso'){
-     const chosen=s.pokerHand.find(c=>c.id===id&&!protectedCard(p.pid,c));if(!chosen)return;
-     chosen.originalRank??=chosen.rank;chosen.rank='A';
-     bonds(p.pid).push({token:serial(),pid:p.pid,type:'040',cardId:p.item.cardId,index:-1,targets:[chosen.id],turn:s.turnsTaken});
-     ctx.manual().giveBack(p.item.cardId,p.item.ownerId);
-     log(p.pid,'040','Sabueso de Ases: encantó una Poker Card como As conservando su símbolo.');
-     pending=null;ctx.setModal(null);ctx.afterSelection?.();ctx.render();return;
-   }
+      const chosen=s.pokerHand.find(c=>c.id===id&&!virtual(c)&&!protectedCard(p.pid,c)&&!p.selected.includes(c.id));
+      if(!chosen)return;
+      p.selected.push(chosen.id);
+      if(p.selected.length<2){ctx.render();return;}
+      const targets=p.selected.map(cid=>s.pokerHand.find(c=>c.id===cid&&!virtual(c)&&!protectedCard(p.pid,c)));
+      if(targets.some(c=>!c)){p.selected=[];ctx.toast('La selección cambió: elige dos Poker Cards de nuevo.');ctx.render();return;}
+      for(const c of targets){
+        c.originalRank??=c.rank;
+        c.rank='A'; // El palo y el símbolo original no se modifican.
+        bonds(p.pid).push({token:serial(),pid:p.pid,type:'040',cardId:p.item.cardId,index:-1,targets:[c.id],turn:s.turnsTaken});
+      }
+      ctx.manual().giveBack(p.item.cardId,p.item.ownerId);
+      log(p.pid,'040','Sabueso de Ases: encantó 2 Poker Cards como As, conservando sus respectivos palos.');
+      pending=null;ctx.setModal(null);ctx.afterSelection?.();ctx.render();return;
+    }
    const chosen=s.pokerHand.find(c=>c.id===id&&!virtual(c));if(!chosen&&!(p.kind==='ability'&&id==='__ALL__'))return;
     if(p.kind==='ability'){
      const b=bonds(p.pid).find(b=>b.index===p.index&&b.type==='001');if(b)b.turn=s.turnsTaken;
@@ -214,10 +222,10 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     if(!pending)return'';
     const p=pending,options=
       (p.kind==='offense'?game().decks.filter(x=>x.id!==p.pid).map(x=>({id:x.id,name:'Jugador '+x.playerNumber+' · '+x.name})):
-       state(p.pid).pokerHand.filter(x=>!virtual(x)&&!protectedCard(p.pid,x)).map(x=>({id:x.id,name:x.rank+' de '+x.suit})).concat(p.kind==='ability'?[{id:'__ALL__',name:'Intercambiar toda mi mano'}]:[]));
+       state(p.pid).pokerHand.filter(x=>!virtual(x)&&!protectedCard(p.pid,x)&&!(p.kind==='sabueso'&&p.selected.includes(x.id))).map(x=>({id:x.id,name:x.rank+' de '+x.suit})).concat(p.kind==='ability'?[{id:'__ALL__',name:'Intercambiar toda mi mano'}]:[]));
     return '<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>'+
-      (p.kind==='sabueso'?'Sabueso de Ases · Encantar una Poker Card':p.kind==='ability'?'Reglas Antiguas · Intercambiar':p.kind==='offense'?'Artilugio · Elegir rival':'Vincular Poker Cards')+
-      '</h2></div><div class="modal-content"><p>Selecciona '+(p.needed||1)+' opción(es).</p><div style="display:flex;flex-wrap:wrap;gap:10px">'+options.map(x=>
+      (p.kind==='sabueso'?'Sabueso de Ases · Encantar 2 Poker Cards':p.kind==='ability'?'Reglas Antiguas · Intercambiar':p.kind==='offense'?'Artilugio · Elegir rival':'Vincular Poker Cards')+
+      '</h2></div><div class="modal-content"><p>Selecciona '+Math.max(1,(p.needed||1)-(p.selected?.length||0))+' opción(es).</p><div style="display:flex;flex-wrap:wrap;gap:10px">'+options.map(x=>
       '<button class="btn '+(p.selected.includes(x.id)?'primary':'')+'" data-action="linked-option" data-id="'+ctx.esc(x.id)+'">'+ctx.esc(x.name)+'</button>').join('')+'</div></div></div></div>';
   }
   function cardLabel(pid,c){
