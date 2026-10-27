@@ -636,7 +636,7 @@ window.STARTER_CARDS = [
   const officialHyperIds=new Set((window.STARTER_CARDS||[]).filter(c=>c.accentColor==='#FFC31A').map(c=>c.id));
   const officialPowerIds=new Set([...officialCardIds].filter(id=>!officialHyperIds.has(id)));
   const starterCards = (window.STARTER_CARDS||[]).map(c => ({...c, cardBackgroundColor:'#F1F1F1', mediaMode:'IMAGE', image:c.asset, tintEnabled:false,tintColor:c.accentColor,tintStrength:0,imageScale:1,imageOffsetX:0,imageOffsetY:0,imageInsetFraction:.03,userCreated:false}));
-  const PRESET_PORTRAITS=Object.fromEntries((window.POKER_BLITZ_DEFAULT_DECKS||[]).map((d,i)=>[d.id,'assets/poker_character_'+(["sibaris","midas","vortice","fortuna","astra","nemesis","arkan","aceron","regulus","maverick"][i]||'sibaris')+'.webp']));
+  const PRESET_PORTRAITS=Object.fromEntries((window.POKER_BLITZ_DEFAULT_DECKS||[]).map((d,i)=>[d.id,(d.characterImage||(["sibaris","midas","vortice","fortuna","astra","nemesis","arkan","aceron","regulus","maverick"][i]?'assets/poker_character_'+["sibaris","midas","vortice","fortuna","astra","nemesis","arkan","aceron","regulus","maverick"][i]+'.webp':null))]));
   const PRESET_DIALOGUE_PANELS=Object.fromEntries((window.POKER_BLITZ_DEFAULT_DECKS||[]).map((d,i)=>[d.id,{col:i%2,row:Math.floor(i/2),tone:i===5?'pink':(i===7||i===8)?'gold':'cyan'}]));
   const CHARACTER_ART_VERSION=2;
   const defaultDecks = () => (window.POKER_BLITZ_DEFAULT_DECKS || []).map(d => ({
@@ -937,7 +937,7 @@ window.STARTER_CARDS = [
     render();
     try{
       const engine=makeAutoEngine();
-      const result=await trainer.train({deck:snapshot,decks:all,iterations:trainingSettings.iterations,seed,
+      const result=await trainer.train({deck:snapshot,decks:all,iterations:trainingSettings.iterations,seed,getCard,
        engine,cancel:trainingCancel,progress:data=>{
          trainingProgress=data;
          if(screen==='training'&&(data.step===data.total||data.step%Math.max(1,Math.ceil(data.total/30))===0||data.phase==='DONE'))render();
