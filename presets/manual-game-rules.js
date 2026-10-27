@@ -66,6 +66,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     const sim=get(),{d,s}=ctx.current();
     if(s.currentPhase!=='END')return ctx.toast('Todavía no estás en End Phase.');
     if(s.pokerHand.length>s.pokerLimit)return ctx.toast('Descarta '+(s.pokerHand.length-s.pokerLimit)+' Poker Cards antes de continuar.');
+    if(sim.mode==='ASSISTED')ctx.assistedPhase?.('END_COMPLETE',d.id);
      // HyperCards activas vuelven a su HyperZone, boca abajo, al final de End Phase.
      for(const i of [...(s.activeHyper||[])].sort((a,b)=>b-a)){
        const it=take(d.id,i);if(it)giveBack(it.cardId,it.ownerId);
