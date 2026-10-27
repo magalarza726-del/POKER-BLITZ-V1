@@ -10,7 +10,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   const virtual=c=>!!c?.virtualPower;
   const refs=(pid,c)=>bonds(pid).filter(b=>b.targets?.includes(c.id)||b.virtualId===c.id);
   const protectedCard=(pid,c)=>refs(pid,c).some(b=>['029','030','035','040','042','043','044'].includes(b.type));
-  function prices(t){return { '001':[0,0],'029':[1,0],'030':[1,0],'035':[0,3]}[t]||[0,0]}
+  function prices(t){return { '001':[0,0],'029':[1,0],'030':[0,0],'035':[0,3]}[t]||[0,0]}
   function eligible(pid,index){
     const s=state(pid);if(!s||s.currentPhase!=='MAIN'||s.activeHyper.includes(index)||s.activeHyper.length>=3)return false;
     const t=code(s.hand[index]);if(!supported.has(t)||['004','005','040'].includes(t))return false;
@@ -21,7 +21,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     const [pow,pok]=prices(t),free=s.hand.filter((_,i)=>i!==index&&!s.activeHyper.includes(i)).length;
     if(free<pow||s.pokerHand.filter(c=>!protectedCard(pid,c)).length<pok)return false;
     if(t==='029'&&!s.pokerHand.some(c=>!protectedCard(pid,c)))return false;
-    if(t==='030'&&!s.pokerHand.some(c=>!protectedCard(pid,c)))return false;
+    // Cambio de Color puede descartar de 0 a 2 Power Cards y encantar el mismo número de Poker Cards.
    if(t==='035'&&s.pokerHand.length<4)return false;
     if(artifacts.has(t)&&!s.pokerHand.some(c=>!virtual(c)))return false;
     return true;
@@ -29,6 +29,12 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   function open(index){
     const pid=game().decks[game().activeIndex].id,s=state(pid),t=code(s.hand[index]);
     if(!eligible(pid,index)){ctx.toast('No se cumplen costes, límite de HyperCards o requisitos del vínculo.');return}
+    if(t==='030'){
+      const power=s.hand.filter((_,i)=>i!==index&&!s.activeHyper.includes(i)).length;
+      const poker=s.pokerHand.filter(c=>!virtual(c)&&!protectedCard(pid,c)).length;
+      pending={kind:'hyper-quantity',pid,index,type:t,needed:0,selected:[],maxCost:Math.min(2,power,poker)};
+      ctx.setModal({type:'linked-picker'});ctx.render();return;
+    }
     const needed=t==='001'?0:1;
     if(!needed)return activate(pid,index,[]);
     pending={kind:'hyper',pid,index,type:t,needed,selected:[]};ctx.setModal({type:'linked-picker'});ctx.render();
@@ -71,10 +77,14 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     }
   }
   function onPokerOut(pid,removed){recyclePoker(pid,removed);cleanup()}
-  function activate(pid,index,selected){
+  function activate(pid,index,selected,powerCost=null){
     if(!eligible(pid,index))return;
-    const s=state(pid),t=code(s.hand[index]),id=s.hand[index], [pc,hc]=prices(t);
+    const s=state(pid),t=code(s.hand[index]),id=s.hand[index], [defaultPower,hc]=prices(t);
+    const pc=t==='030'?Number(powerCost??selected.length):defaultPower;
+    if(t==='030'&&(!Number.isInteger(pc)||pc<0||pc>2||selected.length!==pc)){ctx.toast('Cambio de Color: coste y objetivos inconsistentes.');return;}
     if(hc>s.pokerHand.filter(c=>!selected.includes(c.id)&&!protectedCard(pid,c)).length){ctx.toast('Debes conservar las Poker Cards vinculadas para pagar el coste.');return}
+    if(pc>s.hand.filter((_,j)=>j!==index&&!s.activeHyper.includes(j)).length){ctx.toast('No hay Power Cards suficientes para pagar el coste elegido.');return;}
+    if(selected.some(id=>!s.pokerHand.some(c=>c.id===id&&!virtual(c)&&!protectedCard(pid,c)))){ctx.toast('Los objetivos del encantamiento ya no están disponibles.');return;}
     ctx.pushUndo(pid,'Activar vínculo '+t);
     for(let i=0;i<hc;i++){
       const choices=s.pokerHand.map((c,n)=>({c,n})).filter(x=>!selected.includes(x.c.id)&&!protectedCard(pid,x.c));
@@ -124,7 +134,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     for(const b of [...bonds(pid)]){
       if(!b.targets.some(id=>hit.has(id)))continue;
       if(b.type==='042')schedule({pid,step:'MAIN_START',due:st.turnsTaken+2,type:'POKER_STEAL',owner:pid,card:b.type});
-      if(b.type==='043')schedule({pid,step:'END',due:st.turnsTaken+1,type:'CHIP_PLUS',owner:pid,card:b.type});
+      if(b.type==='043')schedule({pid,step:'END',due:st.turnsTaken+1,type:'CHIP_PLUS',amount:2,owner:pid,card:b.type});
       if(b.type==='044')schedule({pid,step:'DRAW_END',due:st.turnsTaken+2,type:'DRAW_POWER',owner:pid,card:b.type});
     }
   }
@@ -138,7 +148,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     for(const e of [...ev]){
       if(e.pid!==pid||e.step!==step||e.due!==turn)continue;
       if(e.type==='DRAW_POWER')ctx.drawPower(pid,1,true);
-       else if(e.type==='CHIP_PLUS')s.chips=(s.chips||0)+1;
+       else if(e.type==='CHIP_PLUS')s.chips=(s.chips||0)+Math.max(0,Number(e.amount)||1);
        else if(e.type==='POKER_STEAL'){
          pending={kind:'offense',pid,effect:{type:'POKER_STEAL',owner:pid,card:e.card},selected:[]};
          ctx.setModal({type:'linked-picker'});ctx.render();
@@ -185,6 +195,15 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
       }
      pending=null;ctx.setModal(null);if(offenseQueue.length)startOffense();else ctx.render();return;
     }
+    if(p.kind==='hyper-quantity'){
+      const match=String(id).match(/^quantity:([012])$/);
+      if(!match)return;
+      const quantity=Number(match[1]);
+      if(quantity>p.maxCost)return;
+      if(quantity===0){pending=null;ctx.setModal(null);activate(p.pid,p.index,[],0);return;}
+      p.kind='hyper';p.needed=quantity;p.powerCost=quantity;p.selected=[];
+      ctx.render();return;
+    }
     if(p.kind==='sabueso'){
       const chosen=s.pokerHand.find(c=>c.id===id&&!virtual(c)&&!protectedCard(p.pid,c)&&!p.selected.includes(c.id));
       if(!chosen)return;
@@ -214,13 +233,21 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
    if(!p.selected.includes(id))p.selected.push(id);
     else p.selected=p.selected.filter(x=>x!==id);
     if(p.selected.length===p.needed){
-      pending=null;ctx.setModal(null);activate(p.pid,p.index,p.selected);return;
+      pending=null;ctx.setModal(null);activate(p.pid,p.index,p.selected,p.powerCost);return;
     }
     ctx.render();
   }
   function modalMarkup(){
     if(!pending)return'';
-    const p=pending,options=
+    const p=pending;
+    if(p.kind==='hyper-quantity'){
+      const options=Array.from({length:p.maxCost+1},(_,i)=>i);
+      return '<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>Cambio de Color · Coste</h2></div>'+
+        '<div class="modal-content"><p>Descarta de 0 a 2 Power Cards; encantarás ese mismo número de Poker Cards para asignarles cualquier palo.</p>'+
+        '<div style="display:flex;gap:10px;flex-wrap:wrap">'+options.map(i=>'<button class="btn primary" data-action="linked-option" data-id="quantity:'+i+'">'+i+' Power Cards → '+i+' Poker Cards</button>').join('')+
+        '</div></div></div></div>';
+    }
+    const options=
       (p.kind==='offense'?game().decks.filter(x=>x.id!==p.pid).map(x=>({id:x.id,name:'Jugador '+x.playerNumber+' · '+x.name})):
        state(p.pid).pokerHand.filter(x=>!virtual(x)&&!protectedCard(p.pid,x)&&!(p.kind==='sabueso'&&p.selected.includes(x.id))).map(x=>({id:x.id,name:x.rank+' de '+x.suit})).concat(p.kind==='ability'?[{id:'__ALL__',name:'Intercambiar toda mi mano'}]:[]));
     return '<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>'+
@@ -233,7 +260,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     if(virtual(c))tags.unshift(c.virtualPower.type==='SABUESO'?'As de Sabueso':'Joker comodín');
     return tags.length?'<span class="small" style="background:#fff0b8;padding:2px;border-radius:3px;font-size:10px">'+ctx.esc(tags.join(' · '))+'</span>':'';
   }
-  function choiceState(){return pending?{kind:pending.kind,pid:pending.pid,type:pending.type,needed:pending.needed,selected:[...(pending.selected||[])]}:null;}
+  function choiceState(){return pending?{kind:pending.kind,pid:pending.pid,type:pending.type,needed:pending.needed,maxCost:pending.maxCost,powerCost:pending.powerCost,selected:[...(pending.selected||[])]}:null;}
   return {choiceState,supported,artifacts,eligible,open,ability,sabueso,option,modalMarkup,cardLabel,
     score,onCharge,onPokerOut,cleanup,onPowerTake,protectedCard,virtual,phase};
 };
