@@ -438,17 +438,26 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    return s.pokerHand.length>=required[1]&&s.hand.filter((_,j)=>j!==i&&!s.activeHyper.includes(j)).length>=required[0];
   }
   function selectAction(p){
-   const s=get(p.id),available=[];
+   const s=get(p.id),available=[],plan=planFor(p);
+   const ready=id=>s.hand.some((x,i)=>!s.activeHyper.includes(i)&&code(x)===id&&fx.canPlay(x,p.id));
    for(let i=0;i<s.hand.length;i++){
     if(s.activeHyper.includes(i))continue;
-    const id=s.hand[i],kind=cardType(getCard(id)),c=code(id),plan=planFor(p);
+    const id=s.hand[i],kind=cardType(getCard(id)),c=code(id);
     if(c==='003'&&kind!=='HYPER')continue; // Manipulador belongs to HyperZone.
-    if(plan.role==='relics'&&((c==='030'&&(s.pokerHand.length<5||plan.suitCount<3))||(c==='007'&&s.pokerHand.length<5)||(c==='029'&&s.pokerHand.length<4)||(c==='035'&&s.pokerHand.length<6)))continue;
+    if(c==='030'&&(s.pokerHand.length<5||plan.suitCount<3))continue;
+    if(c==='029'&&(s.pokerHand.length<5||plan.straightHits<3))continue;
+    if(c==='007'&&(s.pokerHand.length<5||!(s.hyperReserve||[]).length))continue;
+    if(c==='035'&&s.pokerHand.length<6)continue;
+    // Avoid activating a HyperCard simply because it is available; require real payoff.
+    if(c==='046'&&plan.aces<2&&!['040','045','047'].some(plan.available)&&!['040','045','047'].some(plan.inDeck))continue;
+    if(c==='062'&&plan.faces<2&&!['023','057','061','063'].some(plan.available)&&!['023','057','061','063'].some(plan.inDeck))continue;
     if(plan.role==='faces'&&c==='061'&&!s.activeHyper.some(j=>code(s.hand[j])==='062')&&s.pokerHand.length<8)continue;
-    if(c==='040'&&plan.role==='aces'&&plan.aces>=4)continue;
-    if(c==='045'&&plan.aces<2&&!(plan.aces>=1&&s.activeHyper.some(j=>code(s.hand[j])==='046')))continue;
-    if(c==='061'&&plan.faces<3&&!(plan.faces>=2&&s.activeHyper.some(j=>code(s.hand[j])==='062')))continue;
-    if(c==='062'&&plan.faces<2&&s.hand.some(x=>code(x)==='061'))continue;
+    if(c==='040'&&plan.goal==='ace-chain'&&plan.aces>=4)continue;
+    if(c==='045'&&plan.aces<2)continue;
+    if(c==='045'&&plan.goal==='ace-chain'&&(ready('040')||ready('047')||ready('016')&&plan.aces<4))continue;
+    if(c==='061'&&plan.faces<3)continue;
+    if(c==='061'&&plan.goal==='royal-chain'&&(ready('023')||ready('063')||ready('016')&&plan.faces<4))continue;
+    if(c==='062'&&plan.faces<2&&plan.goal!=='royal-chain')continue;
     if(kind==='HYPER'&&fx.supported(id)&&legalHyper(p.id,i))available.push({i,id,kind,score:scoreCard(p.id,id)});
     else if(kind==='SUPER'&&fx.supported(id)&&fx.canPlay(id,p.id))available.push({i,id,kind,score:scoreCard(p.id,id)});
    }
