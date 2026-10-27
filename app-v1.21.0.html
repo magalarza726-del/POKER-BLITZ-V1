@@ -1326,9 +1326,9 @@ function syncAutoSetup(){
     return'';
   }
   function bindInputs(){
-    $('[data-auto-deck]').forEach(el=>el.addEventListener('change',()=>{autoSetup.deckIds[Number(el.dataset.autoDeck)]=el.value}));
+    $$('[data-auto-deck]').forEach(el=>el.addEventListener('change',()=>{autoSetup.deckIds[Number(el.dataset.autoDeck)]=el.value}));
     $('#lab-deck')?.addEventListener('change',e=>{labSettings.deckId=e.target.value;labSettings.opponentIds=[];syncLabSettings();render();});
-    $('[data-lab-opponent]').forEach(el=>el.addEventListener('change',e=>{labSettings.opponentIds[Number(el.dataset.labOpponent)]=e.target.value;}));
+    $$('[data-lab-opponent]').forEach(el=>el.addEventListener('change',e=>{labSettings.opponentIds[Number(el.dataset.labOpponent)]=e.target.value;}));
     for(const [id,key,max] of [['lab-players','players',10],['lab-iterations','iterations',80],['lab-games','games',40]]){
       $('#'+id)?.addEventListener('change',e=>{
         labSettings[key]=Math.max(key==='iterations'?1:2,Math.min(max,Math.trunc(Number(e.target.value)||1)));
