@@ -37,7 +37,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    difficulty:'expert',style:Object.entries(styleKeys).sort((a,b)=>{
     const n=lst=>p.cardIds.filter(x=>lst.includes(code(x))).length;return n(b[1])-n(a[1]);
    })[0][0]}));
-  const rush=config.battleMode==='RUSH',initialPoker=7,initialPower=3,target=rush?15:30;
+  const rush=config.battleMode==='RUSH',initialPoker=7,initialPower=4,target=rush?15:30;
   const rngShuffle=a=>rng.shuffle(a),random=n=>rng.int(n);
   const game={mode:'ASSISTED',autoMode:true,decks:players,states:{},histories:{},pokerDrawPile:sourceDeck(config.pokerDeckCount||1,rng),round:1,
    turnIndex:0,activeIndex:0,goal:target,assistedPending:[],linkedEvents:[],finished:false};
@@ -54,7 +54,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    const list=rng.shuffle(p.cardIds),hand=list.splice(0,Math.min(initialPower,list.length)),
     pokerHand=game.pokerDrawPile.splice(0,Math.min(initialPoker,game.pokerDrawPile.length));
    game.states[p.id]={initialCards:p.cardIds.length,hand,handOwners:hand.map(()=>p.id),drawPile:list,drawOwners:list.map(()=>p.id),
-    pokerHand,activeHyper:[],hyperReserve:rush?[]:[...new Set((p.hyperCardIds||[]).filter(id=>cardType(getCard(id))==='HYPER'))].slice(0,3),hyperActivationsThisTurn:0,hyperActivationLimit:1,chips:0,chargeReplacement:0,turnsTaken:0,currentPhase:'MAIN',powerHandLimit:3,pokerLimit:7,dieBase:null,dieModifier:0};
+    pokerHand,activeHyper:[],hyperReserve:rush?[]:[...new Set((p.hyperCardIds||[]).filter(id=>cardType(getCard(id))==='HYPER'))].slice(0,3),hyperActivationsThisTurn:0,hyperActivationLimit:1,chips:0,chargeReplacement:0,turnsTaken:0,currentPhase:'MAIN',powerHandLimit:4,pokerLimit:7,dieBase:null,dieModifier:0};
    log(p.id,'Reparto inicial',`${initialPower} Power Cards, ${pokerHand.length} Poker Cards. IA ${difficulty[p.difficulty]||difficulty.intermediate}.`);
   }
   const get=pid=>game.states[pid],my=()=>game.decks[game.turnIndex];
@@ -210,6 +210,11 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    if(!candidates.length)return null;
    if(p.difficulty==='beginner')return candidates[random(candidates.length)];
    const pid=p.id,s=get(pid),cards=s.pokerHand,ranks=ranksOf(cards),plan=planFor(p);
+   if(linked?.kind==='hyper-quantity'){
+    const st=get(p.id),plan=planFor(p),unprotected=st.pokerHand.filter(c=>!links.protectedCard(p.id,c)),valuable=unprotected.length>=2&&(plan.role==='relics'||plan.suitCount>=3);
+    const max=Number(linked.maxCost||0),wanted=Math.max(0,Math.min(max,valuable?2:1));
+    return 'quantity:'+wanted;
+   }
    if(linked?.kind==='sabueso'){
     // Prefer two distinct non-Aces that maximize the resulting strategic hand.
     const enchanted=cards.map(c=>selected.has(c.id)?{...c,rank:'A'}:c);
