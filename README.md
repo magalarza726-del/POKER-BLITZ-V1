@@ -1,3 +1,34 @@
+## Poker Blitz V1.21.0 — Decks, Test y simulación evolutiva (26/10/2026)
+
+### Navegación agrupada
+- **Decks:** Nuevo Deck, Ver Decks, Creación de Decks y Mejora de Decks.
+- **Test:** Prueba Manual, Prueba Asistida y Simulación.
+- Se conserva el reglamento oficial, el catálogo de 50 cartas, los retratos y las ilustraciones individuales.
+
+### Nuevos límites
+- Hasta **10 jugadores** en Test; a partir de 8 jugadores se exigen **2 barajas de Poker** para repartir siete Poker Cards privadas por jugador.
+- Hasta **1000 partidas** en un lote automático. Para más de 50 partidas, cada resultado conserva estadísticas y resultados pero no todo el historial de eventos de cada turno (resumen para controlar memoria). Los lotes pequeños mantienen el historial completo.
+- Simulación usa la **misma IA experta para todos**. Desaparecen los controles de dificultad independientes.
+- El Deck Builder muestra los límites **mínimo 20+2H y máximo 30+2H** en función del número de HyperCards, con un indicador del tamaño presente.
+- Los decks incompletos se señalan y se omiten de Test, sin añadir automáticamente cartas inexistentes.
+
+### Laboratorio de mejora
+- El usuario selecciona el personaje y los rivales fijos. El algoritmo varía SuperCards, CounterCards, HyperCards y sus copias, respetando cantidades máximas y mínimos/máximos.
+- Cada versión de prueba debe retener **al menos el 70 % del deck original**, medido como número de copias compartidas (Power Cards + HyperCards) dividido entre el mayor tamaño total de los dos decks.
+- Cada candidato se evalúa en partidas completas con semillas y rotación comparables; el objetivo pondera **victorias, derrotas y diferencia de fichas**. Solo se aplica al deck el mejor resultado elegible. El historial contiene también las propuestas rechazadas y permite restaurarlas.
+- El deck original queda preservado para que sucesivas rondas de mejora sigan respetando la misma referencia. Las partidas de evaluación **no entrenan** una IA neural; usan búsqueda y simulación comparativa.
+
+### Creación de Decks
+- Parámetros de estilo: equilibrado, agresivo, defensivo, combinaciones, economía, control y dados/azar.
+- Agresividad 1 a 5 y facilidad fácil, media o avanzada.
+- Generación ponderada por descripciones, efectos y complejidad de las cartas, seguida de partidas contra los decks rivales elegidos. Se conserva el candidato mejor evaluado y se guarda su historial.
+- Los parámetros son **preferencias heurísticas**, no garantías de victorias ni una prueba de optimalidad matemática.
+
+### Pruebas
+- `android/tools/check_deck_lab.js` valida límite de diez jugadores, igualdad de IA, simetría de semillas, generación legal, 70 % de semejanza y partidas reales.
+- `android/tools/check_current_rules.js` verifica el reglamento y la lógica asistida existente.
+- Las simulaciones de muchas partidas pueden consumir bastante tiempo según dispositivo. No requieren red mientras se ejecutan en la app.
+
 # POKER BLITZ V1 — GitHub Pages
 
 ## Corrección de imágenes individuales — Web 1.20.1 (26/10/2026)
