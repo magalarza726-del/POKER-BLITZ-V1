@@ -872,7 +872,7 @@ window.STARTER_CARDS = [
       const settings={...labSettings,seed};
       if(mode==='improve'){
         const original=selected.optimizationOrigin||{cardIds:[...selected.cardIds],hyperCardIds:[...selected.hyperCardIds]};
-        const result=await window.POKER_BLITZ_DECK_LAB.improve({...selected,...original},rivals,catalog,type,settings,ctx);
+        const result=await window.POKER_BLITZ_DECK_LAB.improve(selected,rivals,catalog,type,settings,{...ctx,original});
         if(!labCancel.cancelled){
           selected.optimizationOrigin??={cardIds:[...original.cardIds],hyperCardIds:[...original.hyperCardIds]};
           selected.versionHistory??=[];
