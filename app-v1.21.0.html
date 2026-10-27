@@ -822,14 +822,32 @@ window.STARTER_CARDS = [
   }
 
   function render(){
-    const maps={home:renderHome,cards:renderCards,decks:renderDecks,cardEditor:renderCardEditor,deckEditor:renderDeckEditor,simSetup:renderSimSetup,manualChoice:renderManualChoice,autoSetup:renderAutoSetup,autoRunning:renderAutoRunning,simulator:renderSimulator,settings:renderSettings,export:renderExport,rules:renderRules};
+    const maps={home:renderHome,deckHub:renderDeckHub,testHub:renderTestHub,cards:renderCards,decks:renderDecks,cardEditor:renderCardEditor,deckEditor:renderDeckEditor,simSetup:renderSimSetup,manualChoice:renderManualChoice,autoSetup:renderAutoSetup,autoRunning:renderAutoRunning,simulator:renderSimulator,settings:renderSettings,export:renderExport,rules:renderRules};
     root.innerHTML=(maps[screen]||renderHome)()+renderModal();
     bindInputs();
   }
   function renderHome(){
-    const cards=state.cards.slice(0,8),decks=state.decks.slice(0,3);
-    return `<main class="app-shell">${appBar('POKER BLITZ',{logo:true,settings:true})}<section class="home-main"><div class="panel"><div class="panel-inner"><h2 class="welcome-title">¡Bienvenido!</h2><div class="muted small">Organiza, configura y prueba tus Power Decks.</div><hr class="divider"><h3 class="summary-title">Resumen rápido</h3>${summary('cards','Total de cartas',state.cards.length)}${summary('cards','Mis decks',state.decks.length)}${summary('game','Pruebas','Manual y asistida')}</div></div><div class="panel"><div class="panel-inner"><div class="section-head"><h2>Mis cartas</h2><button class="text-btn" data-action="all-cards">Ver todas ${icon('right')}</button></div>${cards.length?`<div class="home-cards">${cards.map(c=>`<div class="home-card" data-action="edit-card" data-id="${c.id}">${cardHTML(c)}<div class="home-card-name">${esc(c.name)}</div></div>`).join('')}</div>`:`<div class="empty">Tu biblioteca de cartas está vacía.</div>`}</div></div><div class="panel"><div class="panel-inner"><div class="section-head"><h2>Mis decks</h2><button class="text-btn" data-action="all-decks">Ver todos ${icon('right')}</button></div><div class="deck-mini-list">${decks.length?decks.map(d=>`<div class="deck-mini" data-action="open-deck" data-id="${d.id}">${deckCharacterHTML(d)}<div class="deck-info"><div class="deck-name">${esc(d.name)}</div><div class="tiny muted">${d.cardIds.length} cartas</div>${d.description?`<div class="deck-mini-desc">${esc(d.description)}</div>`:''}</div>${icon('right')}</div>`).join(''):`<div class="empty">Crea un deck para comenzar.</div>`}</div></div></div></section><section class="quick-row"><button class="quick-action" data-action="rules">${icon('cards','lg')}<div><b>Ver reglas</b><span>Reglamento oficial</span></div></button><button class="quick-action" data-action="new-deck">${icon('cards','lg')}<div><b>Nuevo deck</b><span>Crear deck vacío</span></div></button><button class="quick-action" data-action="manual-test">${icon('game','lg')}<div><b>Prueba Manual</b><span>Completo o Sencillo</span></div></button><button class="quick-action" data-action="assisted-test">${icon('game','lg')}<div><b>Prueba Asistida</b><span>Efectos compatibles automatizados</span></div></button><button class="quick-action" data-action="auto-simulation">${icon('game','lg')}<div><b>Simulación</b><span>Partidas IA · PDF</span></div></button><button class="quick-action" data-action="test-history">${icon('cards','lg')}<div><b>Historial</b><span>Pruebas anteriores</span></div></button><button class="quick-action" data-action="export">${icon('swap','lg')}<div><b>Importar / Exportar</b><span>Guardar o compartir</span></div></button></section></main>`;
+    return `<main class="app-shell">${appBar('POKER BLITZ',{logo:true,settings:true})}<section class="quick-row">
+      <button class="quick-action" data-action="deck-hub">${icon('cards','lg')}<div><b>Decks</b><span>Construcción, creación y mejoras</span></div></button>
+      <button class="quick-action" data-action="test-hub">${icon('game','lg')}<div><b>Test</b><span>Pruebas y simulación</span></div></button>
+    </section><section class="quick-row">
+      <button class="quick-action" data-action="rules">${icon('cards','lg')}<div><b>Reglamento</b><span>Reglas oficiales</span></div></button>
+      <button class="quick-action" data-action="all-cards">${icon('cards','lg')}<div><b>Catálogo</b><span>50 cartas oficiales</span></div></button>
+      <button class="quick-action" data-action="test-history">${icon('cards','lg')}<div><b>Historial</b><span>Pruebas anteriores</span></div></button>
+      <button class="quick-action" data-action="export">${icon('swap','lg')}<div><b>Importar / Exportar</b><span>Guardar o compartir</span></div></button>
+    </section></main>`;
   }
+  function renderDeckHub(){return `<main class="app-shell">${appBar('Decks',{back:true})}<section class="quick-row">
+    <button class="quick-action" data-action="new-deck">${icon('plus','lg')}<div><b>Nuevo Deck</b><span>Construcción manual</span></div></button>
+    <button class="quick-action" data-action="all-decks">${icon('cards','lg')}<div><b>Ver Decks</b><span>Explorar y editar</span></div></button>
+    <button class="quick-action" data-action="deck-generate">${icon('game','lg')}<div><b>Creación de Decks</b><span>Generar según preferencias</span></div></button>
+    <button class="quick-action" data-action="deck-improve">${icon('game','lg')}<div><b>Mejora de Decks</b><span>Optimización · 70% de esencia</span></div></button>
+  </section></main>`;}
+  function renderTestHub(){return `<main class="app-shell">${appBar('Test',{back:true})}<section class="quick-row">
+    <button class="quick-action" data-action="manual-test">${icon('game','lg')}<div><b>Prueba Manual</b><span>Completo o Sencillo</span></div></button>
+    <button class="quick-action" data-action="assisted-test">${icon('game','lg')}<div><b>Prueba Asistida</b><span>Resolución de efectos</span></div></button>
+    <button class="quick-action" data-action="auto-simulation">${icon('game','lg')}<div><b>Simulación</b><span>1–1000 partidas y hasta 10 jugadores</span></div></button>
+  </section></main>`;}
   function summary(ic,label,value){return `<div class="summary-row"><span class="summary-icon">${icon(ic,'lg')}</span><span class="summary-label">${esc(label)}</span><span class="summary-value">${esc(value)}</span></div>`}
   function renderCards(){
     const f=state.cards.filter(c=>(c.name+' '+c.description).toLowerCase().includes(libraryQuery.toLowerCase())&&typeMatches(c,libraryTypeFilter));
@@ -1708,7 +1726,9 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     if(skipTradeClick){skipTradeClick=false;e.preventDefault();return;}
     const el=e.target.closest('[data-action]');if(!el)return;const a=el.dataset.action,id=el.dataset.id;
     if(sim&&screen==='simulator'&&['use-card','activate-hyper','discard-card','discard-poker-card','draw-poker-random','draw-poker-view','draw-poker-select','draw-select','draw-random','draw-view','add-chips','roll-die','die-adjust','adjust-hand-limit','set-phase','finish-turn','charge-toggle','charge-combo'].includes(a)&&!manualRules.canAct()){toast('Debes volver al jugador del turno.');return}
-    if(a==='back'){if(screen==='cardEditor'||screen==='deckEditor'||screen==='cards'||screen==='decks'||screen==='settings'||screen==='export')go('home');else go('home')}
+    if(a==='back'){if(['deckEditor','decks','deckImprove','deckCreate'].includes(screen))go('deckHub');else if(['autoSetup','manualChoice','simSetup'].includes(screen))go('testHub');else go('home')}
+    else if(a==='deck-hub')go('deckHub');
+    else if(a==='test-hub')go('testHub');
     else if(a==='settings')go('settings'); else if(a==='rules')go('rules'); else if(a==='all-cards'){libraryTypeFilter='ALL';go('cards')} else if(a==='all-decks')go('decks'); else if(a==='export')go('export'); else if(a==='manual-test'){sim=null;go('manualChoice')}
     else if(a==='manual-full'){testMode='MANUAL_FULL';syncTestSetup();go('simSetup')}
     else if(a==='manual-simple'){testMode='MANUAL_SIMPLE';testSetup.handView='POWER';syncTestSetup();go('simSetup')}
