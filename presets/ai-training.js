@@ -70,7 +70,7 @@ window.POKER_BLITZ_TRAINING=(function(){
   const standings=result.players||[],idx=standings.findIndex(x=>x.participantId===target);
   if(idx<0)throw Error('Entrenamiento: participante no encontrado en la simulación.');
   const me=standings[idx],rivals=standings.filter(x=>x.participantId!==target),n=standings.length;
-  const top=(result.winnerIds||[]).includes(me.id);
+  const top=!!result.finished&&(result.winnerIds||[]).includes(me.id);
   const avg=rivals.length?rivals.reduce((a,b)=>a+b.chips,0)/rivals.length:0;
   const chipDiff=(me.chips-avg)/Math.max(10,avg,me.chips);
   const placement=n>1?1-idx/(n-1):1;
@@ -105,7 +105,8 @@ window.POKER_BLITZ_TRAINING=(function(){
    pool=opponentPool(deck,decks),r=random(seed),policyStart=deck.aiTraining?.fingerprint===sig?normalize(deck.aiTraining.policy):empty();
   let current=policyStart,accepts=0,comparisons=0;
   const records={I:{trials:0,improvements:0,score:0,hands:{2:0,3:0,4:0,5:0,6:0,7:0}},
-   II:{trials:0,improvements:0,score:0,wins:0},III:{trials:0,improvements:0,score:0,wins:0}};
+   II:{trials:0,improvements:0,score:0,wins:0},III:{trials:0,improvements:0,score:0,wins:0,
+    weaknesses:{lost:0,farBehind:0,lastPlaces:0,hyperUnused:0,avgChipDeficit:0}}};
   const failures=[],discovered=new Map();
   const report=(phase,step,message)=>progress?.({phase,step,total,percent:Math.round(100*((['I','II','III'].indexOf(phase)*total+step)/(total*3))),message,accepts,records});
   const interrupted=()=>{if(cancel?.cancelled)throw Object.assign(new Error('Entrenamiento cancelado.'),{cancelled:true});};
@@ -115,9 +116,9 @@ window.POKER_BLITZ_TRAINING=(function(){
     trainingScenario:{handSize:hand.length,handIds:hand,orderCodes},cancel});
    return evaluate(x,'LEARNER');
   };
-  const runAgainst=async(pol,others,seed,mirror=false)=>{
+  const runAgainst=async(pol,others,seed,mirror=false,details=false)=>{
    const seats=seating(others,deck,pol,seed,mirror?current:null);
-   const x=await trial(engine,seats,seed,{summaryOnly:true,maxRounds:25,cancel});
+   const x=await trial(engine,seats,seed,{summaryOnly:!details,maxRounds:40,cancel});
    const y=evaluate(x,'LEARNER');
    if(x.incidents?.length)failures.push(...x.incidents.slice(0,3));
    return y;
@@ -180,8 +181,14 @@ window.POKER_BLITZ_TRAINING=(function(){
    const candidate=mutate(current,deck,r),rivals=Array.from({length:4},()=>deck);
    const simSeed=(seed+0x9e3779b9+i*123457)>>>0;
    const before=await runAgainst(current,rivals,simSeed,true);
-   const after=await runAgainst(candidate,rivals,simSeed,true);
+   const after=await runAgainst(candidate,rivals,simSeed,true,true);
    records.III.score+=(after.value-before.value)/total;records.III.trials+=2;records.III.wins+=after.win?1:0;
+   const weak=records.III.weaknesses;
+   if(!after.win)weak.lost++;
+   if(after.margin<-5)weak.farBehind++;
+   if(after.position>=4)weak.lastPlaces++;
+   if((deck.hyperCardIds||[]).length&& !after.actions.some(x=>/hypercard/i.test(x)))weak.hyperUnused++;
+   weak.avgChipDeficit+=Math.max(0,-after.margin)/total;
    if(after.value>before.value+0.00001&&after.incidents<=before.incidents){
     current=candidate;accepts++;records.III.improvements++;
    }
