@@ -602,6 +602,8 @@ window.STARTER_CARDS = [
   let testSetup = {playerCount:2,deckIds:[],pokerDeckCount:1,handView:'POWER',seedInput:''};
   let testMode = 'MANUAL_FULL';
   let autoSetup={playerCount:2,deckIds:[],pokerDeckCount:1,battleMode:'BLITZ',seed:0,seedInput:'',gamesCount:1};
+  let labSettings={deckId:'',opponentIds:[],players:4,iterations:12,games:4,seedInput:'',style:'equilibrado',aggression:3,ease:'media'};
+  let labBusy=false,labCancel=null,labProgress=null,labResult=null;
   let autoStatus={round:0,maxRounds:40,events:0};
   let autoResult=null,autoBatchResults=[],autoBusy=false,autoCancel=null,autoPdfBusy=false;
   let activePdfUrl=null;
@@ -822,7 +824,7 @@ window.STARTER_CARDS = [
   }
 
   function render(){
-    const maps={home:renderHome,deckHub:renderDeckHub,testHub:renderTestHub,cards:renderCards,decks:renderDecks,cardEditor:renderCardEditor,deckEditor:renderDeckEditor,simSetup:renderSimSetup,manualChoice:renderManualChoice,autoSetup:renderAutoSetup,autoRunning:renderAutoRunning,simulator:renderSimulator,settings:renderSettings,export:renderExport,rules:renderRules};
+    const maps={home:renderHome,deckHub:renderDeckHub,testHub:renderTestHub,deckImprove:renderDeckImprove,deckCreate:renderDeckCreate,cards:renderCards,decks:renderDecks,cardEditor:renderCardEditor,deckEditor:renderDeckEditor,simSetup:renderSimSetup,manualChoice:renderManualChoice,autoSetup:renderAutoSetup,autoRunning:renderAutoRunning,simulator:renderSimulator,settings:renderSettings,export:renderExport,rules:renderRules};
     root.innerHTML=(maps[screen]||renderHome)()+renderModal();
     bindInputs();
   }
@@ -848,6 +850,69 @@ window.STARTER_CARDS = [
     <button class="quick-action" data-action="assisted-test">${icon('game','lg')}<div><b>Prueba Asistida</b><span>Resolución de efectos</span></div></button>
     <button class="quick-action" data-action="auto-simulation">${icon('game','lg')}<div><b>Simulación</b><span>1–1000 partidas y hasta 10 jugadores</span></div></button>
   </section></main>`;}
+
+  function syncLabSettings(){
+    const decks=availableTestDecks();
+    if(!decks.some(d=>d.id===labSettings.deckId))labSettings.deckId=decks[0]?.id||'';
+    labSettings.players=Math.min(10,Math.max(2,Number(labSettings.players)||4));
+    labSettings.games=Math.min(40,Math.max(2,Number(labSettings.games)||4));
+    labSettings.iterations=Math.min(80,Math.max(1,Number(labSettings.iterations)||12));
+    for(let i=0;i<labSettings.players-1;i++)
+      if(!decks.some(d=>d.id===labSettings.opponentIds[i]&&d.id!==labSettings.deckId))
+        labSettings.opponentIds[i]=decks.find(d=>d.id!==labSettings.deckId)?.id||'';
+  }
+  function labCommonHTML(){
+    syncLabSettings();const decks=availableTestDecks(),rivals=decks.filter(d=>d.id!==labSettings.deckId);
+    return `<div class="panel test-setup-card"><h3>Banco competitivo con IA experta común</h3>
+      <p class="small muted">Rivales fijos. Las versiones compiten con semillas y rotaciones de asientos equivalentes. Con 8–10 jugadores se usan dos barajas de póker.</p>
+      <label>Jugadores (2–10)</label><input id="lab-players" type="number" min="2" max="10" value="${labSettings.players}">
+      <label>Versiones de prueba (1–80)</label><input id="lab-iterations" type="number" min="1" max="80" value="${labSettings.iterations}">
+      <label>Partidas por versión (2–40)</label><input id="lab-games" type="number" min="2" max="40" value="${labSettings.games}">
+      <label>Semilla reproducible</label><input id="lab-seed" type="number" placeholder="Automática" value="${esc(labSettings.seedInput)}">
+      <h3>Rivales fijos</h3>
+      ${Array.from({length:labSettings.players-1},(_,i)=>`<div class="field"><label>Rival ${i+1}</label>
+       <select data-lab-opponent="${i}">${rivals.map(d=>`<option value="${esc(d.id)}" ${labSettings.opponentIds[i]===d.id?'selected':''}>${esc(d.name)}</option>`).join('')}</select></div>`).join('')}
+      ${!rivals.length?'<p class="small muted">Necesitas al menos un segundo deck legal.</p>':''}
+    </div>`;
+  }
+  function labResultsHTML(mode){
+    if(labResult?.mode!==mode||!labResult.metrics)return '';
+    const m=labResult.metrics;
+    return `<div class="panel-inner"><h3>Resultado competitivo</h3>
+      <p><b>${m.wins} victorias · ${m.losses} derrotas · ${m.ties} empates</b> en ${m.played} partidas.</p>
+      <p class="small muted">Victoria: ${(m.winRate*100).toFixed(1)} % · Diferencia media de fichas ${m.chipMargin.toFixed(2)}. ${mode==='improve'?'Similitud '+(labResult.similarity*100).toFixed(1)+' %.':''}</p>
+      <p class="small muted">${labResult.count} variantes evaluadas · ${labResult.saved?'Guardado en el historial.':'Sin cambios guardados.'}</p>
+      ${labResult.deckId?`<button class="btn primary" data-action="lab-open-result" data-id="${esc(labResult.deckId)}">Abrir Deck</button>`:''}
+    </div>`;
+  }
+  function renderDeckImprove(){
+    syncLabSettings();const decks=availableTestDecks();
+    return `<main class="app-shell">${appBar('Mejora de Decks',{back:true})}
+      <section class="test-setup-wrap" style="max-width:940px;margin:auto;padding-bottom:30px">
+      <div class="panel test-setup-card"><h2>Mejora de Decks</h2>
+      <p>El personaje elegido evoluciona frente a personajes fijos. Cambia cartas y copias, preservando como mínimo <b>70 % del deck original</b> por superposición de copias, incluidas las HyperCards.</p>
+      <label>Deck que evoluciona</label><select id="lab-deck">${decks.map(d=>`<option value="${esc(d.id)}" ${labSettings.deckId===d.id?'selected':''}>${esc(d.name)} · ${d.cardIds.length} + ${d.hyperCardIds.length}H</option>`).join('')}</select>
+      <p class="small muted">Cada versión probada queda en el historial del personaje y puede restaurarse después.</p></div>
+      ${labCommonHTML()}<div class="panel test-setup-card">
+      ${labProgress?`<p><strong>${esc(labProgress.message)}</strong></p>`:''}
+      <button class="btn primary" data-action="lab-run-improve" ${labBusy||decks.length<2?'disabled':''}>${labBusy?'Simulando…':'Iniciar mejoras'}</button>
+      ${labBusy?'<button class="btn" data-action="lab-cancel">Cancelar</button>':''}
+      ${labResultsHTML('improve')}</div></section></main>`;
+  }
+  function renderDeckCreate(){
+    return `<main class="app-shell">${appBar('Creación de Decks',{back:true})}
+    <section class="test-setup-wrap" style="max-width:940px;margin:auto;padding-bottom:30px">
+    <div class="panel test-setup-card"><h2>Creación de Decks</h2><p>Genera decks legales por preferencias y busca el mejor rendimiento mediante simulaciones reales. Sin garantía de victorias.</p>
+    <label>Estilo</label><select id="lab-style">${[['equilibrado','Equilibrado'],['agresivo','Agresivo'],['defensivo','Defensivo'],['combinaciones','Combinaciones'],['economia','Economía'],['control','Control'],['azar','Dados y azar']].map(([k,name])=>`<option value="${k}" ${labSettings.style===k?'selected':''}>${name}</option>`).join('')}</select>
+    <label>Agresividad</label><select id="lab-aggression">${Array.from({length:5},(_,i)=>`<option value="${i+1}" ${labSettings.aggression===i+1?'selected':''}>${i+1}/5</option>`).join('')}</select>
+    <label>Facilidad</label><select id="lab-ease">${[['facil','Fácil'],['media','Media'],['avanzada','Avanzada']].map(([k,name])=>`<option value="${k}" ${labSettings.ease===k?'selected':''}>${name}</option>`).join('')}</select>
+    </div>${labCommonHTML()}<div class="panel test-setup-card">
+    ${labProgress?`<p><strong>${esc(labProgress.message)}</strong></p>`:''}
+    <button class="btn primary" data-action="lab-run-create" ${labBusy||availableTestDecks().length<2?'disabled':''}>${labBusy?'Simulando…':'Generar y evaluar'}</button>
+    ${labBusy?'<button class="btn" data-action="lab-cancel">Cancelar</button>':''}
+    ${labResultsHTML('create')}</div></section></main>`;
+  }
+
   function summary(ic,label,value){return `<div class="summary-row"><span class="summary-icon">${icon(ic,'lg')}</span><span class="summary-label">${esc(label)}</span><span class="summary-value">${esc(value)}</span></div>`}
   function renderCards(){
     const f=state.cards.filter(c=>(c.name+' '+c.description).toLowerCase().includes(libraryQuery.toLowerCase())&&typeMatches(c,libraryTypeFilter));
@@ -1728,6 +1793,8 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     if(sim&&screen==='simulator'&&['use-card','activate-hyper','discard-card','discard-poker-card','draw-poker-random','draw-poker-view','draw-poker-select','draw-select','draw-random','draw-view','add-chips','roll-die','die-adjust','adjust-hand-limit','set-phase','finish-turn','charge-toggle','charge-combo'].includes(a)&&!manualRules.canAct()){toast('Debes volver al jugador del turno.');return}
     if(a==='back'){if(['deckEditor','decks','deckImprove','deckCreate'].includes(screen))go('deckHub');else if(['autoSetup','manualChoice','simSetup'].includes(screen))go('testHub');else go('home')}
     else if(a==='deck-hub')go('deckHub');
+    else if(a==='deck-improve'){labProgress=null;labResult=null;syncLabSettings();go('deckImprove');}
+    else if(a==='deck-generate'){labProgress=null;labResult=null;syncLabSettings();go('deckCreate');}
     else if(a==='test-hub')go('testHub');
     else if(a==='settings')go('settings'); else if(a==='rules')go('rules'); else if(a==='all-cards'){libraryTypeFilter='ALL';go('cards')} else if(a==='all-decks')go('decks'); else if(a==='export')go('export'); else if(a==='manual-test'){sim=null;go('manualChoice')}
     else if(a==='manual-full'){testMode='MANUAL_FULL';syncTestSetup();go('simSetup')}
