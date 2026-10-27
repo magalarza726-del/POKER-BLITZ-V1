@@ -74,7 +74,8 @@ window.POKER_BLITZ_TRAINING=(function(){
   const avg=rivals.length?rivals.reduce((a,b)=>a+b.chips,0)/rivals.length:0;
   const chipDiff=(me.chips-avg)/Math.max(10,avg,me.chips);
   const placement=n>1?1-idx/(n-1):1;
-  return {value:(n===1?me.chips/30+.02*result.eventsCount:top ? .72 : 0)+(n===1?0:placement*.20+chipDiff*.08),
+  const combos=(me.events||[]).filter(e=>e.action==='Cobro automático').length;
+  return {value:(n===1?me.chips/30+.04*combos:(top ? .72 : 0)+placement*.20+chipDiff*.08),
    chips:me.chips,win:!!top,position:idx+1,margin:me.chips-avg,incidents:result.incidents?.length||0,
    eventCount:result.eventsCount||0,hyperUses:(me.events||[]).filter(e=>e.action==='HyperCard activada').length,
    actions:(me.events||[]).filter(e=>e.action==='Usar Power Card'||e.action==='HyperCard activada').map(e=>e.detail),
@@ -98,11 +99,13 @@ window.POKER_BLITZ_TRAINING=(function(){
   if(result.cancelled||options.cancel?.cancelled)throw Object.assign(new Error('Entrenamiento cancelado.'),{cancelled:true});
   return result;
  };
- async function train({deck,decks=[],iterations=12,engine,seed=312347917,cancel,progress}={}){
+ async function train({deck,decks=[],iterations=12,engine,getCard,seed=312347917,cancel,progress}={}){
   if(!deck||!Array.isArray(deck.cardIds)||!Array.isArray(deck.hyperCardIds))throw Error('Selecciona un deck completo.');
   if(typeof engine?.play!=='function')throw Error('No hay motor de simulación disponible.');
   const total=clamp(Math.trunc(Number(iterations)||12),1,LIMIT),sig=fingerprint(deck),
    pool=opponentPool(deck,decks),r=random(seed),policyStart=deck.aiTraining?.fingerprint===sig?normalize(deck.aiTraining.policy):empty();
+  const nameToCode=new Map([...new Set([...(deck.cardIds||[]),...(deck.hyperCardIds||[])])]
+    .map(id=>[String(getCard?.(id)?.name||'').trim().toUpperCase(),code(id)]).filter(([name])=>name));
   let current=policyStart,accepts=0,comparisons=0;
   const records={I:{trials:0,improvements:0,score:0,hands:{2:0,3:0,4:0,5:0,6:0,7:0}},
    II:{trials:0,improvements:0,score:0,wins:0},III:{trials:0,improvements:0,score:0,wins:0,
@@ -137,10 +140,11 @@ window.POKER_BLITZ_TRAINING=(function(){
     // Distill experimentally stronger sequences into persistent *relative*
     // action-order weights. Re-check without a forced script.
     if(scripted.value>b.value+0.0001){
-     const sequence=chain.length>=2?chain:randomOrder;
+     const sequence=scripted.actions.map(name=>nameToCode.get(String(name||'').trim().toUpperCase())).filter(Boolean);
      for(let j=1;j<sequence.length;j++){
+      if(sequence[j]===sequence[j-1])continue;
       const key=sequence[j-1]+'>'+sequence[j];
-      candidate.links[key]=clamp((candidate.links[key]||0)+.65,-4,4);
+      candidate.links[key]=clamp((candidate.links[key]||0)+.85,-4,4);
      }
     }
     const c=await runSolo(candidate,sample,simSeed);
@@ -212,8 +216,10 @@ window.POKER_BLITZ_TRAINING=(function(){
    if(i%3===0){report('III',total,'Validación independiente '+(i+1)+'/'+n);await new Promise(resolve=>setTimeout(resolve,0));}
   }
   const champion=average(validated),baseline=average(control);
-  const recommend=accepts>0&&validated.length>0&&
-    champion.score>baseline.score+0.00001&&champion.incidents<=baseline.incidents;
+  const recommend=accepts>0&&validated.length>0&&champion.incidents<=baseline.incidents&&(
+    (champion.wins>=baseline.wins+Math.max(2,Math.ceil(validated.length*.03))&&champion.margin>=baseline.margin-2)||
+    (champion.score>baseline.score+.03&&champion.margin>baseline.margin+1)
+  );
   const savedPolicy=recommend?current:policyStart;
   const interval=(()=>{
    const n=validated.length,w=champion.wins,z=1.96,den=1+z*z/n,p=w/n;
