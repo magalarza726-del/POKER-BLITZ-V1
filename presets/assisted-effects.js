@@ -462,14 +462,26 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     ctx.render();
   }
   function phase(phase,pid){
+    const all=sim().assistedPending||[];
+    if(phase==='END_COMPLETE'){
+      const ghosts=all.filter(e=>e.type==='GHOST'&&e.target===pid);
+      for(const e of ghosts){
+        const discarded=popPoker(pid,2,e.actor).length;
+        log(e.actor,'037','Carta Fantasma: J'+sim().decks.find(p=>p.id===pid).playerNumber+' descartó '+discarded+' Poker Cards después de completar su End Phase.');
+        all.splice(all.indexOf(e),1);
+      }
+      return;
+    }
     links()?.phase(phase,pid);
     if(phase!=='END')return;
-    const all=sim().assistedPending||[];
-    const ghosts=all.filter(e=>e.type==='GHOST'&&e.target===pid);
-     for(const e of ghosts){log(e.actor,'037','Carta Fantasma: rival descartó '+popPoker(pid,2,e.actor).length+' Poker Cards después de End Phase.');all.splice(all.indexOf(e),1);}
-     for(const c of pile(pid).pokerHand){if(c.numberCharmOriginal!==undefined){c.rank=c.numberCharmOriginal;delete c.numberCharmOriginal;}}
-     const hits=all.filter(e=>e.actor===pid&&e.type==='END_DISCARD'&&e.round===sim().round);
-    for(const h of hits){log(pid,'039','End Phase: descartó '+popPoker(pid,h.n).length+' Poker Cards.');all.splice(all.indexOf(h),1)}
+    for(const c of pile(pid).pokerHand){
+      if(c.numberCharmOriginal!==undefined){c.rank=c.numberCharmOriginal;delete c.numberCharmOriginal;}
+    }
+    const hits=all.filter(e=>e.actor===pid&&e.type==='END_DISCARD'&&e.round===sim().round);
+    for(const h of hits){
+      log(pid,'039','End Phase: descartó '+popPoker(pid,h.n).length+' Poker Cards.');
+      all.splice(all.indexOf(h),1);
+    }
   }
   function round(){
     const all=sim().assistedPending||[];
