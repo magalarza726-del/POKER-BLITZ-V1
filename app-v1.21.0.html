@@ -843,7 +843,7 @@ window.STARTER_CARDS = [
     <button class="quick-action" data-action="new-deck">${icon('plus','lg')}<div><b>Nuevo Deck</b><span>Construcción manual</span></div></button>
     <button class="quick-action" data-action="all-decks">${icon('cards','lg')}<div><b>Ver Decks</b><span>Explorar y editar</span></div></button>
     <button class="quick-action" data-action="deck-generate">${icon('game','lg')}<div><b>Creación de Decks</b><span>Generar según preferencias</span></div></button>
-    <button class="quick-action" data-action="deck-improve">${icon('game','lg')}<div><b>Mejora de Decks</b><span>Optimización · 70% de esencia</span></div></button>
+    <button class="quick-action" data-action="deck-improve">${icon('game','lg')}<div><b>Mejoras de Decks</b><span>Optimización · 70% de esencia</span></div></button>
   </section></main>`;}
   function renderTestHub(){return `<main class="app-shell">${appBar('Test',{back:true})}<section class="quick-row">
     <button class="quick-action" data-action="manual-test">${icon('game','lg')}<div><b>Prueba Manual</b><span>Completo o Sencillo</span></div></button>
@@ -938,9 +938,9 @@ window.STARTER_CARDS = [
   }
   function renderDeckImprove(){
     syncLabSettings();const decks=availableTestDecks();
-    return `<main class="app-shell">${appBar('Mejora de Decks',{back:true})}
+    return `<main class="app-shell">${appBar('Mejoras de Decks',{back:true})}
       <section class="test-setup-wrap" style="max-width:940px;margin:auto;padding-bottom:30px">
-      <div class="panel test-setup-card"><h2>Mejora de Decks</h2>
+      <div class="panel test-setup-card"><h2>Mejoras de Decks</h2>
       <p>El personaje elegido evoluciona frente a personajes fijos. Cambia cartas y copias, preservando como mínimo <b>70 % del deck original</b> por superposición de copias, incluidas las HyperCards.</p>
       <label>Deck que evoluciona</label><select id="lab-deck">${decks.map(d=>`<option value="${esc(d.id)}" ${labSettings.deckId===d.id?'selected':''}>${esc(d.name)} · ${d.cardIds.length} + ${d.hyperCardIds.length}H</option>`).join('')}</select>
       <p class="small muted">Cada versión probada queda en el historial del personaje y puede restaurarse después.</p></div>
