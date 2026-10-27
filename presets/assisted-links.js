@@ -10,7 +10,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   const virtual=c=>!!c?.virtualPower;
   const refs=(pid,c)=>bonds(pid).filter(b=>b.targets?.includes(c.id)||b.virtualId===c.id);
   const protectedCard=(pid,c)=>refs(pid,c).some(b=>['029','030','035','040','042','043','044'].includes(b.type));
-  function prices(t){return { '001':[0,0],'029':[1,0],'030':[0,0],'035':[0,3]}[t]||[0,0]}
+  function prices(t){return { '001':[0,0],'029':[1,0],'030':[1,0],'035':[0,3]}[t]||[0,0]}
   function eligible(pid,index){
     const s=state(pid);if(!s||s.currentPhase!=='MAIN'||s.activeHyper.includes(index)||s.activeHyper.length>=3)return false;
     const t=code(s.hand[index]);if(!supported.has(t)||['004','005','040'].includes(t))return false;
@@ -21,7 +21,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     const [pow,pok]=prices(t),free=s.hand.filter((_,i)=>i!==index&&!s.activeHyper.includes(i)).length;
     if(free<pow||s.pokerHand.filter(c=>!protectedCard(pid,c)).length<pok)return false;
     if(t==='029'&&!s.pokerHand.some(c=>!protectedCard(pid,c)))return false;
-    // Cambio de Color puede descartar de 0 a 2 Power Cards y encantar el mismo número de Poker Cards.
+    if(t==='030'&&!s.pokerHand.some(c=>!virtual(c)&&!protectedCard(pid,c)))return false;
    if(t==='035'&&s.pokerHand.length<4)return false;
     if(artifacts.has(t)&&!s.pokerHand.some(c=>!virtual(c)))return false;
     return true;
@@ -30,9 +30,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
     const pid=game().decks[game().activeIndex].id,s=state(pid),t=code(s.hand[index]);
     if(!eligible(pid,index)){ctx.toast('No se cumplen costes, límite de HyperCards o requisitos del vínculo.');return}
     if(t==='030'){
-      const power=s.hand.filter((_,i)=>i!==index&&!s.activeHyper.includes(i)).length;
-      const poker=s.pokerHand.filter(c=>!virtual(c)&&!protectedCard(pid,c)).length;
-      pending={kind:'hyper-quantity',pid,index,type:t,needed:0,selected:[],maxCost:Math.min(2,power,poker)};
+      pending={kind:'hyper-power',pid,index,type:t,needed:1,powerCost:1,selected:[],selectedPower:[]};
       ctx.setModal({type:'linked-picker'});ctx.render();return;
     }
     const needed=t==='001'?0:1;
@@ -80,8 +78,8 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   function activate(pid,index,selected,powerCost=null,paymentSlots=null){
     if(!eligible(pid,index))return;
     const s=state(pid),t=code(s.hand[index]),id=s.hand[index], [defaultPower,hc]=prices(t);
-    const pc=t==='030'?Number(powerCost??selected.length):defaultPower;
-    if(t==='030'&&(!Number.isInteger(pc)||pc<0||pc>2||selected.length!==pc)){ctx.toast('Cambio de Color: coste y objetivos inconsistentes.');return;}
+    const pc=defaultPower;
+    if(t==='030'&&(selected.length!==1||powerCost!==1||!paymentSlots||paymentSlots.length!==1)){ctx.toast('Cambio de Color requiere 1 Power Card descartada y 1 Poker Card encantada.');return;}
     if(hc>s.pokerHand.filter(c=>!selected.includes(c.id)&&!protectedCard(pid,c)).length){ctx.toast('Debes conservar las Poker Cards vinculadas para pagar el coste.');return}
     if(pc>s.hand.filter((_,j)=>j!==index&&!s.activeHyper.includes(j)).length){ctx.toast('No hay Power Cards suficientes para pagar el coste elegido.');return;}
     if(paymentSlots&&(
@@ -199,15 +197,6 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
       }
      pending=null;ctx.setModal(null);if(offenseQueue.length)startOffense();else ctx.render();return;
     }
-    if(p.kind==='hyper-quantity'){
-      const match=String(id).match(/^quantity:([012])$/);
-      if(!match)return;
-      const quantity=Number(match[1]);
-      if(quantity>p.maxCost)return;
-      if(quantity===0){pending=null;ctx.setModal(null);activate(p.pid,p.index,[],0);return;}
-      p.kind='hyper-power';p.needed=quantity;p.powerCost=quantity;p.selected=[];p.selectedPower=[];
-      ctx.render();return;
-    }
     if(p.kind==='hyper-power'){
       const match=String(id).match(/^power:(\d+)$/);
       if(!match)return;
@@ -253,13 +242,6 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   function modalMarkup(){
     if(!pending)return'';
     const p=pending;
-    if(p.kind==='hyper-quantity'){
-      const options=Array.from({length:p.maxCost+1},(_,i)=>i);
-      return '<div class="modal-backdrop"><div class="modal"><div class="modal-head"><h2>Cambio de Color · Coste</h2></div>'+
-        '<div class="modal-content"><p>Descarta de 0 a 2 Power Cards; encantarás ese mismo número de Poker Cards para asignarles cualquier palo.</p>'+
-        '<div style="display:flex;gap:10px;flex-wrap:wrap">'+options.map(i=>'<button class="btn primary" data-action="linked-option" data-id="quantity:'+i+'">'+i+' Power Cards → '+i+' Poker Cards</button>').join('')+
-        '</div></div></div></div>';
-    }
     if(p.kind==='hyper-power'){
       const options=state(p.pid).hand.map((cid,i)=>({id:'power:'+i,name:ctx.card(cid)?.name||cid,index:i}))
         .filter(x=>x.index!==p.index&&!state(p.pid).activeHyper.includes(x.index)&&!p.selectedPower.includes(x.index));
