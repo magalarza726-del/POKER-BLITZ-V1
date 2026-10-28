@@ -104,6 +104,7 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
       ctx.manual().giveBack(x.cardId,x.ownerId);if(j<index)index--;
     }
     s.activeHyper.push(index);
+    if(!(s.usedHyperThisTurn??=[]).includes(id))s.usedHyperThisTurn.push(id);
     const b={token:serial(),pid,type:t,cardId:id,index,targets:[...selected],turn:-1};
     bonds(pid).push(b);
     // Joker enchants an existing Poker Card; no virtual Poker Card created.
