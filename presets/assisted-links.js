@@ -12,10 +12,8 @@ window.POKER_BLITZ_ASSISTED_LINKS=function linkedEngine(ctx){
   const protectedCard=(pid,c)=>refs(pid,c).some(b=>['029','030','035','040','042','043','044'].includes(b.type));
   function prices(t){return { '001':[0,0],'029':[0,0],'030':[0,0],'035':[0,3]}[t]||[0,0]}
   function eligible(pid,index){
-    const s=state(pid);if(!s||s.currentPhase!=='MAIN'||s.activeHyper.includes(index)||s.activeHyper.length>=3)return false;
+    const s=state(pid);if(!s||s.currentPhase!=='MAIN'||s.activeHyper.includes(index)||s.activeHyper.length>=3||(s.usedHyperThisTurn||[]).includes(s.hand[index]))return false;
     const t=code(s.hand[index]);if(!supported.has(t)||['004','005','040'].includes(t))return false;
-    // Oficial §6: el encantamiento debe activarse antes de usar la primera SuperCard.
-    if(['029','030','035','042','043','044'].includes(t)&&(s.assistedPlayedSupers||[]).length)return false;
     const count=bonds(pid).filter(b=>b.type===t).length;
     if(count>=1)return false;
     const [pow,pok]=prices(t),free=s.hand.filter((_,i)=>i!==index&&!s.activeHyper.includes(i)).length;
