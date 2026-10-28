@@ -120,3 +120,15 @@
 .draw-deck-thumb .poker-face span{font-size:18px}
 @media(max-width:900px){.blitz-table{grid-template-columns:1fr}.blitz-sidebar{display:grid;grid-template-columns:90px 1fr}.blitz-home{position:absolute}.blitz-player-switch{grid-column:1/-1}.blitz-character{grid-row:2/4;max-height:135px;min-height:135px}.blitz-dialogue{grid-column:2}.blitz-dialogue .blitz-note{height:110px}.blitz-dialogue-play{top:48px;right:3px}.blitz-sidebar-tools{grid-column:1/-1}.blitz-board-top{grid-template-columns:1fr 138px}.blitz-upper{min-height:250px}.blitz-board{overflow:visible}}
 @media(max-width:520px){.blitz-table{border-width:3px}.blitz-board{padding:5px}.blitz-board-top{grid-template-columns:minmax(0,1fr) 95px;gap:5px}.blitz-turn-controls{height:70px}.blitz-turn-controls .blitz-undo{width:26px;font-size:27px}.blitz-turn-controls .blitz-end{width:65px;font-size:10px}.blitz-effect-box{font-size:12px}.blitz-effect-box strong{font-size:14px}.blitz-upper{grid-template-columns:1fr;gap:8px}.blitz-slot{min-width:60px;max-height:175px}.blitz-icon-tools.poker-tools{width:52px;flex-basis:52px}.blitz-icon-tools.poker-tools>button{font-size:23px}.blitz-chip-adjust span{display:none}.blitz-chip-adjust button{width:20px!important}.blitz-slot .card-preview .card-desc{font-size:9px}.blitz-dialogue .blitz-note{font-size:12px}}
+
+
+/* Fichas del jugador encima de los controles de efectos. */
+.blitz-player-chips{display:flex;flex-direction:column;align-items:center;gap:3px;margin-top:2px;padding:2px 0}
+.blitz-player-chips-count{display:flex;align-items:center;justify-content:center;gap:5px;color:#fff;font:800 12px Arial,sans-serif;white-space:nowrap}
+.blitz-player-chips-count strong{font-size:20px;color:#fff}
+.blitz-chip-symbol{font-size:25px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
+.blitz-player-chips .blitz-chip-adjust{width:100%;max-width:88px;gap:5px;padding:3px 4px;justify-content:center}
+.blitz-player-chips .blitz-chip-adjust button{flex:1;max-width:34px;min-height:25px!important}
+.blitz-player-chips .blitz-chip-adjust button:disabled{opacity:.4;cursor:not-allowed}
+.blitz-dialogue .blitz-note{scroll-behavior:auto;overflow-y:auto;overscroll-behavior:contain}
+@media(max-width:520px){.blitz-player-chips-count{gap:2px;font-size:10px}.blitz-player-chips-count strong{font-size:14px}.blitz-chip-symbol{font-size:21px}.blitz-player-chips .blitz-chip-adjust{max-width:52px;gap:2px;padding:2px}.blitz-player-chips .blitz-chip-adjust button{min-height:23px!important}}
