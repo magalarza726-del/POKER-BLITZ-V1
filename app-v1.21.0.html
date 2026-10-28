@@ -1284,7 +1284,7 @@ function syncAutoSetup(){
  const charmTiles=charm.map(pc=>{const i=s.pokerHand.findIndex(x=>x.id===pc.id);return `<div class="blitz-slot poker enchanted ${sim.chargeSelection?.includes(i)?'selected':''}" ${hover(pokerEffectTitle(pc),'')} data-action="charge-toggle" data-index="${i}" title="Clic para seleccionar; doble clic para ampliar">${pokerCardHTML(pc,null)}</div>`}).join('');
  const pk=(sim.mode==='MANUAL_SIMPLE'?[]:s.pokerHand.map((card,i)=>({card,i})).filter(x=>!bound.has(x.card.id)));
  const pokerTiles=pk.map(({card,i})=>`<div class="blitz-slot poker ${sim.chargeSelection?.includes(i)?'selected':''}" ${hover(pokerEffectTitle(card),'')} data-action="charge-toggle" data-index="${i}" title="Clic para seleccionar; doble clic para ampliar">${pokerCardHTML(card,null)}</div>`).join('');
- const pokerEmpty=Array.from({length:Math.max(0,7-pk.length-charm.length)},()=>'<div class="blitz-slot poker empty-slot"></div>').join('');
+ const pokerEmpty=''; // No crear huecos que generen scroll innecesario.
  const detected=sim.mode==='MANUAL_SIMPLE'?null:manualRules.detectCharge();
  const selectedPoker=[...new Set(sim.chargeSelection||[])].filter(i=>Number.isInteger(i)&&s.pokerHand[i]);
  const canEnchant=sim.mode==='MANUAL_FULL'&&s.activeHyper.some(j=>/encanta/i.test(getCard(s.hand[j])?.description||''));
@@ -1303,7 +1303,7 @@ function syncAutoSetup(){
    <div class="blitz-dialogue"><textarea class="blitz-note" id="blitz-note" placeholder="Escribe aquí tus anotaciones durante la partida...">${esc(s.notes||'')}</textarea><button class="blitz-dialogue-play" data-action="play-blitz-note" title="Reproducir" aria-label="Reproducir anotaciones">▶</button></div>
   </aside>
   <section class="blitz-board">
-   <div class="blitz-board-top"><div class="blitz-effect-box"><strong id="blitz-effect-title">Explicador de efectos</strong><div id="blitz-effect-body">Pasa el cursor por las cartas y consulta su efecto. Pulsa para ampliarlas.</div></div>
+   <div class="blitz-board-top"><div class="blitz-effect-box"><strong id="blitz-effect-title">Explicador de efectos</strong><div id="blitz-effect-body">Power/Hyper: pulsa para ampliar. Poker: clic para seleccionar y doble clic para ampliar.</div></div>
     <div class="blitz-turn-controls">
      <button class="blitz-undo" data-action="undo-action" ${sim.activeIndex===sim.turnIndex&&(sim.undoStacks?.[turnOwner.id]||[]).length?'':'disabled'} title="Deshacer una acción de este turno">↶</button>
      <button class="blitz-end" data-action="finish-turn" ${ok&&!sim.finished?'':'disabled'}>Terminar turno</button>
@@ -2099,6 +2099,7 @@ function syncAutoSetup(){
   }
   root.addEventListener('mouseover',e=>{showBlitzEffect(e.target.closest?.('[data-card-title]'));});
   root.addEventListener('focusin',e=>{showBlitzEffect(e.target.closest?.('[data-card-title]'));});
+   root.addEventListener('keydown',e=>{const tile=e.target.closest?.('.blitz-table .blitz-slot.poker[data-index]');if(!tile||e.target!==tile)return;if(e.key==='Enter'||e.key===' '){e.preventDefault();tile.click();}else if(e.key.toLowerCase()==='z'&&sim?.states){const pc=currentSim().s.pokerHand[Number(tile.dataset.index)];if(pc){e.preventDefault();modal={type:'poker-zoom',card:structuredClone(pc)};render();}}});
   let lastPokerClick={index:-1,at:0};
    root.addEventListener('click',e=>{
     if(skipTradeClick){skipTradeClick=false;e.preventDefault();return;}
