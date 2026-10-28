@@ -49,7 +49,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     if(num==='005'&&new Set(s.activeHyper.map(i=>String(s.hand[i]).slice(-3)).filter(x=>links()?.artifacts.has(x))).size<3)return false;
     if(num==='004'&&!sim().chain?.stack?.[0])return false;
      if(['010','033','034'].includes(num)&&ctx.type?.(card(sim().chain?.stack?.[0]?.cardId))!=='SUPER')return false;
-     if(num==='052'&&ctx.type?.(card(sim().pendingHyperActivationCardId||sim().chain?.stack?.[0]?.cardId))!=='HYPER')return false;
+     if(num==='052'&&ctx.type?.(card(sim().pendingHyperActivationCardId||sim().pendingHyper?.cardId||sim().chain?.stack?.[0]?.cardId))!=='HYPER')return false;
     if(num==='041'&&s.pokerHand.length<2)return false;
 
     if(num==='045'&&!active(pid,'046')&&(freePoker<1||freePower<1))return false;
@@ -256,8 +256,8 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     if(!sim().autoMode&&!pending.shieldOffered&&id!==origin&&shieldIndex>=0){
       pending.shieldOffered=true;
       pendingShield={id,sourcePid:origin};
-      ctx.setModal({type:'shield-counter',defenderId:id,sourcePid:origin});
-      ctx.render();return;
+      sim().pendingShield={defenderId:id,sourcePid:origin};
+      ctx.setModal(null);ctx.render();return;
     }
     const f=pending.callback,sourcePid=pending.sourcePid;pending=null;ctx.setModal(null);
     // Escudo de Cartas triggers when a CounterCard is played, not on target selection.
@@ -309,7 +309,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     links()?.cleanup();drain();
   }
   function shieldRespond(use){
-    const choice=pendingShield;pendingShield=null;
+    const choice=pendingShield;pendingShield=null;if(sim())sim().pendingShield=null;
     if(!choice||!pending||pending.kind!=='target')return;
     if(use){
       const st=pile(choice.id),i=st.hand.findIndex((cid,j)=>cid==='catalog_v3_004'&&!st.activeHyper.includes(j));
