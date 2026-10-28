@@ -1,0 +1,47 @@
+
+/* Poker Blitz: mesa unificada, 2026-10-28. CSS aislado sin alterar pantallas de edición. */
+.blitz-table{height:100dvh;min-height:660px;display:grid;grid-template-columns:minmax(275px,28%) minmax(0,1fr);background:#076332;color:#fff;font-family:Georgia,"Times New Roman",serif;overflow:hidden}
+.blitz-sidebar{background:#06142e;border:3px solid #000;display:flex;flex-direction:column;padding:12px;gap:9px;overflow-y:auto;min-height:0}
+.blitz-player-switch{display:grid;grid-template-columns:30px 1fr 30px;gap:4px;align-items:center;text-align:center}
+.blitz-player-switch button{background:transparent;color:#ffbe0b;border:0;font-size:30px;cursor:pointer}
+.blitz-player-switch h2{margin:0;font:900 clamp(22px,2.7vw,34px) Arial,sans-serif;color:#fff}
+.blitz-player-switch h3{margin:0;font:900 clamp(12px,1.4vw,19px) Arial,sans-serif;line-height:1.35;color:#fff;text-transform:uppercase}
+.blitz-character{flex:1;min-height:170px;max-height:52vh;display:grid;place-items:center;background:#04112b;border:5px solid #03192c;box-shadow:0 0 14px #00bfff;overflow:hidden}
+.blitz-character .deck-character-photo,.blitz-character img{width:100%;height:100%;object-fit:cover}
+.blitz-character .deck-character-photo{position:relative;overflow:hidden}
+.blitz-note{width:100%;height:128px;min-height:85px;resize:vertical;background:#050505;color:#fff;border:2px solid #fff;border-radius:0;padding:12px;font:15px/1.35 Cambria,Georgia,serif}
+.blitz-sidebar-tools{display:flex;gap:5px;flex-wrap:wrap;align-items:center}
+.blitz-sidebar-tools .btn{min-height:34px;font:700 12px Arial,sans-serif;padding:5px 8px;border-radius:5px}
+.blitz-side-status{font:700 12px Arial,sans-serif;line-height:1.5;min-height:28px;color:#b6dfff}
+.blitz-board{position:relative;background:radial-gradient(ellipse at 40% 50%,#117a48 0%,#076238 65%,#064626 100%);border:3px solid #001a0f;display:flex;flex-direction:column;padding:10px 12px;gap:8px;min-width:0;min-height:0;overflow:auto}
+.blitz-board-top{display:grid;grid-template-columns:minmax(0,1fr) 72px;gap:12px;align-items:start}
+.blitz-effect-box{border:2px solid #fff;background:#010101;color:#fff;min-height:90px;max-height:118px;padding:9px;overflow:auto;font:17px/1.24 Cambria,Georgia,serif}
+.blitz-effect-box strong{font-size:18px}
+.blitz-die{border:0;background:transparent;color:#fff;font-size:49px;cursor:pointer}
+.blitz-die-value{font:700 13px Arial,sans-serif;text-align:center}
+.blitz-upper{flex:1;min-height:210px;display:grid;grid-template-columns:minmax(0,1.35fr) minmax(185px,.8fr);gap:12px}
+.blitz-zone{display:flex;flex-direction:column;gap:8px;min-width:0;min-height:0}
+.blitz-zone h3{font-size:22px;text-align:center;margin:1px 0 7px;text-shadow:0 1px 2px #000}
+.blitz-slot-row{display:flex;align-items:stretch;gap:6px;min-height:0;flex:1;overflow-x:auto;padding:3px 2px 5px}
+.blitz-slot{position:relative;aspect-ratio:.68;min-width:77px;max-width:150px;max-height:205px;flex:1 0 0;border:2px solid #070707;border-radius:8px;overflow:hidden;background:#65c7e9;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.blitz-slot.counter{background:#f20d0d}.blitz-slot.hyper{background:#ffbb05}.blitz-slot.poker{background:#eee;color:#101010}.blitz-slot.empty-slot{opacity:.9}
+.blitz-slot .card-preview,.blitz-slot .poker-card{width:100%;height:100%;max-height:none;min-height:0;overflow:hidden;border:0;border-radius:5px}
+.blitz-slot .card-preview{aspect-ratio:auto}.blitz-slot .poker-card{flex:1;position:relative}
+.blitz-slot .blitz-slot-actions{position:absolute;bottom:1px;left:1px;right:1px;display:flex;gap:2px;z-index:3;background:rgba(0,0,0,.86);padding:3px}
+.blitz-slot-actions button{flex:1;min-width:0;border:0;background:#fff;color:#111;font:700 10px Arial,sans-serif;padding:5px 2px;cursor:pointer}
+.blitz-slot-actions button:disabled{opacity:.45}.blitz-slot-actions button.primary{background:#35e4e6}
+.blitz-slot .poker-actions{display:none}.blitz-slot .poker-card.charge-selected{outline:4px solid #32f4ff;outline-offset:-4px}
+.blitz-icon-tools{width:48px;flex:0 0 48px;display:flex;flex-direction:column;justify-content:center;gap:10px}
+.blitz-icon-tools button{border:0;background:transparent;color:#8bd8f6;-webkit-text-stroke:1px #000;font:bold 34px Arial;cursor:pointer}
+.blitz-icon-tools.poker-tools button{color:#fff}.blitz-icon-tools button:hover{transform:scale(1.09)}
+.blitz-divider{width:100%;border-top:2px dashed #fff;margin:3px 0}
+.blitz-lower{flex:1;min-height:210px;display:flex;flex-direction:column;gap:3px}.blitz-lower h3{font-size:22px;text-align:center;margin:0 0 5px}
+.blitz-poker-row{flex:1;min-height:0;display:flex;gap:6px;align-items:stretch}.blitz-poker-row .blitz-slot{max-width:140px}
+.blitz-actionbar{display:flex;gap:5px;flex-wrap:wrap;align-items:center;justify-content:space-between;font:700 12px Arial,sans-serif}
+.blitz-actionbar button{background:#071d2b;color:#fff;border:1px solid #7cddff;padding:7px 10px;border-radius:5px;font-weight:bold}
+.blitz-actionbar button:disabled{opacity:.4}.blitz-actionbar .blitz-end{background:#ffc219;color:#050505;border-color:#fff}
+.blitz-enchanted{margin-top:4px;display:flex;gap:4px;min-height:0;align-items:center;overflow-x:auto}
+.blitz-enchanted .blitz-slot{min-width:45px;max-width:58px;max-height:85px;border-color:#ffd028;box-shadow:0 0 5px #ffcd0f}
+.blitz-enchanted-label{font:700 11px Arial,sans-serif;color:#fff2a4}
+@media(max-width:900px){.blitz-table{height:auto;min-height:100dvh;grid-template-columns:1fr;overflow:visible}.blitz-sidebar{display:grid;grid-template-columns:90px 1fr;align-items:start;gap:8px}.blitz-player-switch{grid-column:1/-1}.blitz-character{max-height:130px;min-height:130px;grid-row:2/4}.blitz-note{height:95px;min-height:75px}.blitz-side-status{grid-column:1/-1}.blitz-board{min-height:710px;overflow:visible}.blitz-upper{min-height:240px}.blitz-effect-box{font-size:14px}.blitz-zone h3{font-size:17px}}
+@media(max-width:520px){.blitz-board{padding:6px;min-height:700px}.blitz-upper{grid-template-columns:1fr;gap:5px}.blitz-zone h3,.blitz-lower h3{font-size:17px}.blitz-slot{min-width:57px;max-height:150px}.blitz-poker-row .blitz-slot{min-width:53px}.blitz-icon-tools{flex-basis:38px;width:38px}.blitz-icon-tools button{font-size:27px}.blitz-effect-box{min-height:80px}.blitz-board-top{grid-template-columns:1fr 48px}}
