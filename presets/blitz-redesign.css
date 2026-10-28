@@ -422,3 +422,59 @@
   .blitz-board .blitz-bulk-actions button {padding:6px 7px;font-size:11px;}
   .blitz-selected-summary {flex-basis:100%;}
 }
+
+
+/* 2026-10-28 — dado con rotación breve y diálogo por párrafos. */
+.blitz-board .blitz-icon-tools.poker-tools .blitz-die {
+  display:grid;
+  place-items:center;
+  transform-origin:50% 50%;
+  will-change:transform;
+  font-variant-numeric:tabular-nums;
+  user-select:none;
+}
+.blitz-board .blitz-icon-tools.poker-tools .blitz-die.is-rolling {
+  animation:blitz-die-roll .8s ease-in-out 1 both;
+  opacity:1;
+  color:#fff5ba;
+  text-shadow:0 0 10px rgba(255,245,160,.7);
+}
+.blitz-board .blitz-icon-tools.poker-tools .blitz-die.is-rolling:disabled {
+  opacity:1;cursor:wait;
+}
+@keyframes blitz-die-roll {
+  0% {transform:rotate(0deg) scale(1);}
+  25% {transform:rotate(125deg) scale(.91);}
+  55% {transform:rotate(290deg) scale(1.08);}
+  80% {transform:rotate(445deg) scale(.95);}
+  100% {transform:rotate(540deg) scale(1);}
+}
+.blitz-sidebar .blitz-dialogue .blitz-note[readonly]{
+  cursor:default; padding-bottom:45px;
+}
+.blitz-dialogue .blitz-dialogue-step {
+  position:absolute;
+  right:11px;
+  bottom:9px;
+  z-index:5;
+  max-width:calc(100% - 22px);
+  border:1px solid #f6c459;
+  border-radius:5px;
+  padding:5px 9px;
+  background:#10151c;
+  color:#ffcc66;
+  font:700 11px/1.2 Arial,sans-serif;
+  cursor:pointer;
+  box-shadow:0 1px 4px #000;
+  white-space:nowrap;
+}
+.blitz-dialogue .blitz-dialogue-step[hidden] {display:none!important;}
+.blitz-dialogue .blitz-dialogue-step:hover,
+.blitz-dialogue .blitz-dialogue-step:focus-visible {
+  background:#283b42;outline:1px solid #f6c459;
+}
+@media (prefers-reduced-motion:reduce) {
+  .blitz-board .blitz-icon-tools.poker-tools .blitz-die.is-rolling {
+    animation:none;
+  }
+}
