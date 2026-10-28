@@ -151,8 +151,8 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     const c=ctx.card(sim.states[p.id].hand[index]);
     if(ctx.type(c)!=='COUNTER'||ctx.canCounter&&!ctx.canCounter(p.id,c.id))return false;
     if(sim.mode==='ASSISTED'&&((ctx.canAssist&&!ctx.canAssist(c?.id))||(ctx.canPlayAssisted&&!ctx.canPlayAssisted(c?.id,p.id))))return false;
-    if(sim.mode==='ASSISTED')ctx.assistedCardUsed?.(c.id,p.id);
     ctx.pushUndo(sim.decks[sim.turnIndex].id,'CounterCard de J'+p.playerNumber);
+    if(sim.mode==='ASSISTED')ctx.assistedCardUsed?.(c.id,p.id);
     const item=take(p.id,index);if(!item)return false;
     chain.stack.push(item);
     ctx.log(p.id,'CounterCard anunciada','J'+p.playerNumber+' respondió a la SuperCard con '+c.name+'. Solo se permite una respuesta.',c);
