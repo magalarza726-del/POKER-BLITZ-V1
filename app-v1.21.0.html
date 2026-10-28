@@ -1962,7 +1962,8 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
         s.hyperReserve.splice(at,0,cid);toast('No se cumplen los costes de la HyperCard.');render();return;
       }
     }else{s.activeHyper.push(ix);logSim(d.id,'Activar HyperCard','Activada desde HyperZone.',getCard(cid));}
-    s.hyperActivationsThisTurn=(s.hyperActivationsThisTurn||0)+1;(s.usedHyperThisTurn??=[]).push(cid);render();
+    if(s.activeHyper.some(i=>s.hand[i]===cid)&&!(s.usedHyperThisTurn??=[]).includes(cid))s.usedHyperThisTurn.push(cid);
+    render();
   }
   function resolveHyperCounter(choiceIndex){
     if(modal?.type!=='hyper-counter')return;
