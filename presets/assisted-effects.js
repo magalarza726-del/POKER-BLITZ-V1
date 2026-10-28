@@ -44,8 +44,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     if(num==='055'&&(s.pokerHand.filter(c=>!links()?.protectedCard(pid,c)).length<2||!opponents(pid).some(p=>pile(p.id).chips>=1)))return false;
     if((num==='057'||num==='063')&&!active(pid,'062')&&freePoker<2)return false;
     if(num==='017'&&!copyCandidates(pid).length)return false;
-    // Reglamento oficial §6: todo efecto que Encanta debe preceder a la primera SuperCard de ese turno.
-    if(ctx.type?.(card(id))==='SUPER'&&/\bencanta\b/i.test(String(card(id)?.description||''))&&(s.assistedPlayedSupers||[]).length)return false;
+
     if(num==='040'&&freePoker<(!active(pid,'046')?5:2))return false;
     if(num==='005'&&new Set(s.activeHyper.map(i=>String(s.hand[i]).slice(-3)).filter(x=>links()?.artifacts.has(x))).size<3)return false;
     if(num==='004'&&!sim().chain?.stack?.[0])return false;
@@ -445,7 +444,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     const simState=sim(),player=simState.decks[simState.activeIndex],pid=player.id,s=pile(pid),id=s.hand[index],key=String(id||'').replace('catalog_v3_','');
     if(links()?.supported.has(key)&&key!=='040'){links().open(index);return;}
     if(!hypers.has(key)){ctx.toast('Este efecto Hyper todavía no dispone de resolución asistida; no se consumió la carta.');return}
-    if(s.currentPhase!=='MAIN'||s.activeHyper.length>=3||s.activeHyper.includes(index))return;
+    if(s.currentPhase!=='MAIN'||s.activeHyper.length>=3||s.activeHyper.includes(index)||(s.usedHyperThisTurn||[]).includes(id))return;
     const allowedCopies={};const copies=s.activeHyper.filter(i=>s.hand[i]===id).length;
     if(copies>=(allowedCopies[key]||1)){ctx.toast('Se alcanzó el máximo de copias activas de esa HyperCard.');return;}
     const requirements={'003':[0,1],'049':[0,1]};
