@@ -837,8 +837,22 @@ window.STARTER_CARDS = [
   }
 
   function render(){
-    const maps={home:renderHome,deckHub:renderDeckHub,testHub:renderTestHub,training:renderTraining,deckImprove:renderDeckImprove,deckCreate:renderDeckCreate,cards:renderCards,decks:renderDecks,cardEditor:renderCardEditor,deckEditor:renderDeckEditor,simSetup:renderSimSetup,manualChoice:renderManualChoice,autoSetup:renderAutoSetup,autoRunning:renderAutoRunning,simulator:renderSimulator,settings:renderSettings,export:renderExport,rules:renderRules};
+    // Al jugar o seleccionar cartas se reconstruye el DOM; preservar el scroll
+    // horizontal de cada zona y de cada jugador evita saltos al principio.
+    if(screen==='simulator'&&sim){
+      sim.uiHandScroll??={};
+      root.querySelectorAll('[data-blitz-scroll][data-scroll-owner]').forEach(el=>{
+        const owner=el.dataset.scrollOwner,zone=el.dataset.blitzScroll;
+        (sim.uiHandScroll[owner]??={})[zone]=el.scrollLeft;
+      });
+    }
+    const maps={home:renderHome,deckHub:renderDeckHub,testHub:renderTestHub,training:renderTraining,deckImprove:renderDeckImprove,deckCreate:renderDeckCreate,cards:renderCards,decks:renderDecks,cardEditor:renderCardEditor,simSetup:renderSimSetup,manualChoice:renderManualChoice,autoSetup:renderAutoSetup,autoRunning:renderAutoRunning,simulator:renderSimulator,settings:renderSettings,export:renderExport,rules:renderRules};
     root.innerHTML=(maps[screen]||renderHome)()+renderModal();
+    if(screen==='simulator'&&sim){
+      root.querySelectorAll('[data-blitz-scroll][data-scroll-owner]').forEach(el=>{
+        el.scrollLeft=Math.max(0,sim.uiHandScroll?.[el.dataset.scrollOwner]?.[el.dataset.blitzScroll]||0);
+      });
+    }
     bindInputs();
   }
   function renderHome(){
@@ -1262,7 +1276,7 @@ function syncAutoSetup(){
   const type=cardType(c),isHyper=type==='HYPER',isCounter=type==='COUNTER',response=isCounter&&counterEligible(d.id,id),can=response&&counterUsable(d.id,id)||ok&&(isHyper?!s.usedHyperThisTurn.includes(id):type==='SUPER'&&(sim.mode!=='ASSISTED'||assistedEffects.canPlay(id,d.id)));
   return `<div class="blitz-slot ${type==='COUNTER'?'counter':''}" ${hover(c.name,c.description)}><div data-action="zoom-card" data-id="${id}" style="width:100%;height:100%">${cardHTML(c)}</div><div class="blitz-slot-actions"><button class="primary" data-action="${isCounter?'counter-response':isHyper?'activate-hyper':'use-card'}" data-index="${i}" data-player="${d.id}" ${can?'':'disabled'}>${isCounter?'Responder':isHyper?'Activar':'Jugar'}</button><button data-action="discard-card" data-index="${i}" ${ok?'':'disabled'}>✕</button></div></div>`;
  }).join('');
- const powerEmpty=Array.from({length:Math.max(0,4-power.length)},()=>'<div class="blitz-slot empty-slot"></div>').join('');
+ const powerEmpty=power.length===0?'<div class="blitz-slot empty-slot" aria-label="Espacio vacío de Power Card"></div>':'';
  const hyperAct=(s.activeHyper||[]).map(i=>({id:s.hand[i],i})).filter(o=>getCard(o.id)).map(({id,i})=>`<div class="blitz-slot hyper" ${hover(getCard(id)?.name,getCard(id)?.description)}><div data-action="zoom-card" data-id="${id}" style="width:100%;height:100%">${cardHTML(getCard(id))}</div><div class="blitz-slot-actions"><button disabled>ACTIVA</button></div></div>`).join('');
  const hyperReserve=(s.hyperReserve||[]).map((id,i)=>`<div class="blitz-slot hyper hyper-facedown" ${hover('HyperCard boca abajo','')}><img class="blitz-hyper-back" src="assets/hyper-card-back.svg" alt="Reverso dorado de HyperCard"><div class="blitz-slot-actions"><button class="primary" data-action="activate-hyper-reserve" data-index="${i}" ${ok&&!s.usedHyperThisTurn.includes(id)&&s.activeHyper.length<3?'':'disabled'}>Activar</button><button data-action="zoom-card" data-id="${id}">⌕</button></div></div>`).join('');
  const hyperEmpty=Array.from({length:Math.max(0,3-(s.activeHyper||[]).length-(s.hyperReserve||[]).length)},()=>'<div class="blitz-slot hyper empty-slot"></div>').join('');
@@ -1284,8 +1298,6 @@ function syncAutoSetup(){
    </div>
    <div class="blitz-character">${d.characterImage?deckCharacterPhoto(d):`<span style="font-size:70px;color:#27dfff">♠</span>`}</div>
    <div class="blitz-dialogue"><textarea class="blitz-note" id="blitz-note" placeholder="Escribe aquí tus anotaciones durante la partida...">${esc(s.notes||'')}</textarea><button class="blitz-dialogue-play" data-action="play-blitz-note" title="Reproducir" aria-label="Reproducir anotaciones">▶</button></div>
-   <div class="blitz-side-status">${sim.mode==='ASSISTED'?'Prueba asistida':sim.mode==='MANUAL_SIMPLE'?'Manual sencillo':'Manual completo'} · Ronda ${sim.round||1} · Turno J${(sim.turnIndex??0)+1}<div>${s.chips||0} fichas · ${num} PWC · ${s.pokerHand.length} PKC · ${s.activeHyper.length} Hyper activas</div></div>
-   <div class="blitz-sidebar-tools"><button class="btn" data-action="test-history">Historial</button></div>
   </aside>
   <section class="blitz-board">
    <div class="blitz-board-top"><div class="blitz-effect-box"><strong id="blitz-effect-title">Explicador de efectos</strong><div id="blitz-effect-body">Pasa el cursor por las cartas y consulta su efecto. Pulsa para ampliarlas.</div></div>
@@ -1294,11 +1306,14 @@ function syncAutoSetup(){
      <button class="blitz-end" data-action="finish-turn" ${ok&&!sim.finished?'':'disabled'}>Terminar turno</button>
     </div></div>
    <div class="blitz-upper">
-    <section class="blitz-zone"><h3>Power Hand</h3><div class="blitz-slot-row">${powerTiles}${powerEmpty}<div class="blitz-icon-tools"><button data-action="draw-random" title="Robar Power Card" ${!s.drawPile.length||num>=4?'disabled':''}>＋</button><button data-action="draw-view" title="Buscar en Power Deck" ${!s.drawPile.length?'disabled':''}>⌕</button></div></div></section>
-    <section class="blitz-zone"><h3>Hyper Zone</h3><div class="blitz-slot-row">${hyperAct}${hyperReserve}${hyperEmpty}</div>${charmTiles?`<div class="blitz-enchanted-label">Poker Cards encantadas (${charm.length})</div><div class="blitz-enchanted">${charmTiles}</div>`:''}</section>
+    <section class="blitz-zone"><h3>Power Hand</h3><div class="blitz-hand-track">
+      <div class="blitz-slot-row" data-blitz-scroll="power" data-scroll-owner="${d.id}" role="region" aria-label="Power Hand: desliza para ver las cartas" tabindex="0">${powerTiles}${powerEmpty}</div>
+      <div class="blitz-icon-tools"><button data-action="draw-random" title="Robar Power Card" ${!s.drawPile.length||num>=4?'disabled':''}>＋</button><button data-action="draw-view" title="Buscar en Power Deck" ${!s.drawPile.length?'disabled':''}>⌕</button></div>
+    </div></section>
+    <section class="blitz-zone"><h3>Hyper Zone</h3><div class="blitz-slot-row" data-blitz-scroll="hyper" data-scroll-owner="${d.id}" role="region" aria-label="Hyper Zone: desliza para ver las cartas" tabindex="0">${hyperAct}${hyperReserve}${hyperEmpty}</div>${charmTiles?`<div class="blitz-enchanted-label">Poker Cards encantadas (${charm.length})</div><div class="blitz-enchanted" data-blitz-scroll="enchanted" data-scroll-owner="${d.id}" role="region" aria-label="Poker Cards encantadas" tabindex="0">${charmTiles}</div>`:''}</section>
    </div>
    <div class="blitz-divider"></div>
-   <section class="blitz-lower"><h3>Poker Hand</h3><div class="blitz-poker-row"><div class="blitz-slot-row">${sim.mode==='MANUAL_SIMPLE'?`<div style="margin:auto;font:700 16px Arial">Poker Cards físicas: cobros manuales</div>`:pokerTiles+pokerEmpty}</div><div class="blitz-icon-tools poker-tools">
+   <section class="blitz-lower"><h3>Poker Hand</h3><div class="blitz-poker-row"><div class="blitz-slot-row" data-blitz-scroll="poker" data-scroll-owner="${d.id}" role="region" aria-label="Poker Hand: desliza para ver las cartas" tabindex="0">${sim.mode==='MANUAL_SIMPLE'?`<div style="margin:auto;font:700 16px Arial">Poker Cards físicas: cobros manuales</div>`:pokerTiles+pokerEmpty}</div><div class="blitz-icon-tools poker-tools">
      <button data-action="draw-poker-random" title="Robar Poker Card" ${!sim.pokerDrawPile?.length?'disabled':''}>＋</button>
      <button data-action="draw-poker-view" title="Buscar en Poker Deck" ${!sim.pokerDrawPile?.length?'disabled':''}>⌕</button>
      <button class="blitz-cash" data-action="${sim.mode==='MANUAL_SIMPLE'?'add-chips':'charge-combo'}" ${sim.mode==='MANUAL_SIMPLE'?'data-value="1" data-reason="Cobro manual"':'data-combo="AUTO"'} title="${detected?'COBRAR '+detected.type:'Selecciona Poker Cards para cobrar'}" ${!ok||(sim.mode!=='MANUAL_SIMPLE'&&!detected)?'disabled':''} aria-label="COBRAR Poker Cards">$</button>
