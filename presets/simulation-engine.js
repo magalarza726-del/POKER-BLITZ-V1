@@ -68,7 +68,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    }else hand=list.splice(0,Math.min(initialPower,list.length));
    const pokerHand=game.pokerDrawPile.splice(0,Math.min(initialPoker,game.pokerDrawPile.length));
    game.states[p.id]={initialCards:p.cardIds.length,hand,handOwners:hand.map(()=>p.id),drawPile:list,drawOwners:list.map(()=>p.id),
-    pokerHand,activeHyper:[],hyperReserve:rush?[]:[...new Set((p.hyperCardIds||[]).filter(id=>cardType(getCard(id))==='HYPER'))].slice(0,3),hyperActivationsThisTurn:0,usedHyperThisTurn:[],chips:0,chargeReplacement:0,turnsTaken:0,currentPhase:'MAIN',powerHandLimit:soloTraining?7:4,pokerLimit:7,dieBase:null,dieModifier:0};
+    pokerHand,activeHyper:[],hyperReserve:rush?[]:[...new Set((p.hyperCardIds||[]).filter(id=>cardType(getCard(id))==='HYPER'))].slice(0,3),hyperActivationsThisTurn:0,usedHyperThisTurn:[],chips:0,chargeReplacement:0,turnsTaken:0,currentPhase:'MAIN',powerHandLimit:Infinity,pokerLimit:7,dieBase:null,dieModifier:0};
    log(p.id,'Reparto inicial',`${initialPower} Power Cards, ${pokerHand.length} Poker Cards. IA ${difficulty[p.difficulty]||difficulty.intermediate}.`);
   }
   const get=pid=>game.states[pid],my=()=>game.decks[game.turnIndex];
@@ -96,7 +96,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
   function drawPower(pid,n=1,ignore=false){
    const s=get(pid);let done=0;
    for(let i=0;i<n&&s.drawPile.length;i++){
-    if(!ignore&&s.hand.length-s.activeHyper.length>=s.powerHandLimit)break;
+    
     const j=random(s.drawPile.length),id=s.drawPile.splice(j,1)[0],own=s.drawOwners.splice(j,1)[0]||pid;
     s.hand.push(id);s.handOwners.push(own);done++;
     log(pid,'Robar Power Card',getCard(id)?.name||id,getCard(id));
@@ -661,12 +661,12 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    const out=[];
    // Los efectos pueden superar 7 PKC y 4 PWC: no existe descarte obligatorio al finalizar.
    // Las cartas extra se conservan; la reposición solamente completa la cantidad mínima.
-   if(s.turnsTaken>0&&s.drawPile.length&&s.hand.length-s.activeHyper.length>=s.powerHandLimit){
+   if(s.turnsTaken>0&&s.drawPile.length&&s.hand.length-s.activeHyper.length>=4){
     const slots=s.hand.map((id,i)=>({id,i})).filter(x=>!s.activeHyper.includes(x.i));
     slots.sort((a,b)=>scoreCard(p.id,a.id)-scoreCard(p.id,b.id));
     if(slots.length&&scoreCard(p.id,slots[0].id)<(p.difficulty==='expert'?2.5:p.difficulty==='intermediate'?2.1:1.45)){
      const it=manual.take(p.id,slots[0].i);
-     if(it){manual.giveBack(it.cardId,it.ownerId);log(p.id,'Descarte táctico voluntario','Liberó 1 espacio para futuros robos; conservó el resto del plan '+plan.goal+'.');}
+     if(it){manual.giveBack(it.cardId,it.ownerId);log(p.id,'Descarte táctico voluntario','Descartó voluntariamente una Power Card poco útil; conservó el resto del plan '+plan.goal+'.');}
     }
    }
   }
@@ -697,7 +697,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     if(config.cancel?.cancelled){outcome='Cancelada';break}
     game.turnIndex=game.activeIndex=i;
     const p=players[i],s=get(p.id);s.currentPhase='MAIN';if(s.turnsTaken>0){
-       drawPower(p.id,Math.max(0,s.powerHandLimit-(s.hand.length-s.activeHyper.length)));
+       drawPower(p.id,Math.max(0,4-(s.hand.length-s.activeHyper.length)));
        if(s.nextDrawBonus){drawPower(p.id,s.nextDrawBonus,true);s.nextDrawBonus=0;}
        links.phase('DRAW_END',p.id);
      }
