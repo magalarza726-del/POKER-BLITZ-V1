@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 270" role="img" aria-label="Reverso de HyperCard dorado geométrico">
+<defs><pattern id="mesh" width="29" height="29" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="29" height="29" fill="#fffdf4"/><path d="M0 0H29V29H0Z" fill="none" stroke="#f0b11a" stroke-width="2.5"/><path d="M14.5 2V27M2 14.5H27" stroke="#f4ba20" stroke-width="1.7"/><path d="M14.5 4 25 14.5 14.5 25 4 14.5Z" stroke="#e9a50a" stroke-width="1.2" fill="none"/></pattern></defs>
+<rect width="180" height="270" rx="9" fill="#ffffff"/><rect x="5" y="5" width="170" height="260" rx="6" fill="#fff" stroke="#eab01c" stroke-width="2.7"/>
+<rect x="11" y="11" width="158" height="248" rx="3" fill="url(#mesh)" stroke="#ebb32a" stroke-width="3.3"/>
+<rect x="18" y="18" width="144" height="234" rx="2" fill="none" stroke="#f8d360" stroke-width="2"/>
+<path d="M90 69 141 135 90 201 39 135Z" fill="#fffdf6" stroke="#e9aa13" stroke-width="3.2"/>
+<path d="M90 80 132 135 90 190 48 135Z" fill="#fff" stroke="#f5c846" stroke-width="1.5"/>
+<path d="M90 28 100 40 90 52 80 40Z M90 218 100 230 90 242 80 230Z M27 135 34 142 27 149 20 142Z M153 135 160 142 153 149 146 142Z" fill="#fffdf4" stroke="#e9a50c" stroke-width="1.5"/>
+<path d="M20 20H48L20 48ZM160 20H132L160 48ZM20 250H48L20 222ZM160 250H132L160 222Z" fill="#fff" stroke="#f1b91f" stroke-width="1.7"/>
+</svg>
