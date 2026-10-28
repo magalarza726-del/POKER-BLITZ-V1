@@ -237,7 +237,7 @@ window.STARTER_CARDS = [
   {
     "id": "catalog_v3_045",
     "name": "ARTIMAÑA DEL AS",
-    "description": "Solo puede usarse teniendo activo «Maldición de los Ases» o descartando una Poker Card y una Power Card.\n\nCobra 3 fichas por cada As en tu mano, descartándolos y robando la misma cantidad de Poker Cards del mazo en tu End Phase.",
+    "description": "Solo puede usarse teniendo activo «Maldición de los Ases» o descartando una Poker Card y una Power Card.\n\nCobra 3 fichas por cada As en tu mano, descartándolos y robando la misma cantidad de Poker Cards del mazo al final de tu turno.",
     "accentColor": "#18E0E5",
     "asset": ""
   },
@@ -279,7 +279,7 @@ window.STARTER_CARDS = [
   {
     "id": "catalog_v3_056",
     "name": "FALSO LIMITADOR",
-    "description": "Obliga a un jugador a descartar 3 Poker Cards, pero a cambio recibe una Power Card adicional en su próxima Draw Phase.",
+    "description": "Obliga a un jugador a descartar 3 Poker Cards, pero a cambio recibe una Power Card adicional en su inicio de su próximo turno.",
     "accentColor": "#18E0E5",
     "asset": ""
   },
@@ -314,7 +314,7 @@ window.STARTER_CARDS = [
   {
     "id": "catalog_v3_037",
     "name": "CARTA FANTASMA",
-    "description": "Haz que todos los jugadores (excepto tú) roben 2 Poker Cards del mazo esta ronda. Después de la End Phase de cada uno, obliga a cada uno a descartar 2.",
+    "description": "Haz que todos los jugadores (excepto tú) roben 2 Poker Cards del mazo esta ronda. Después de el final del turno de cada uno, obliga a cada uno a descartar 2.",
     "accentColor": "#18E0E5",
     "asset": ""
   },
@@ -328,7 +328,7 @@ window.STARTER_CARDS = [
   {
     "id": "catalog_v3_039",
     "name": "SIN REGLAS",
-    "description": "Roba 3 Poker Cards y en tu End Phase descarta 2.",
+    "description": "Roba 3 Poker Cards y al final de tu turno descarta 2.",
     "accentColor": "#18E0E5",
     "asset": ""
   },
@@ -433,7 +433,7 @@ window.STARTER_CARDS = [
   {
     "id": "catalog_v3_061",
     "name": "CABALLERO REAL",
-    "description": "Solo puede usarse teniendo activo «Vínculo Noble» o descartando 5 Poker Cards.\n\nCobra 1 ficha por cada J, Q y K de tu mano, descartándolas y robando la misma cantidad de Poker Cards del mazo en tu End Phase.",
+    "description": "Solo puede usarse teniendo activo «Vínculo Noble» o descartando 5 Poker Cards.\n\nCobra 1 ficha por cada J, Q y K de tu mano, descartándolas y robando la misma cantidad de Poker Cards del mazo al final de tu turno.",
     "accentColor": "#18E0E5",
     "asset": ""
   },
@@ -454,7 +454,7 @@ window.STARTER_CARDS = [
   {
     "id": "catalog_v3_049",
     "name": "GRAN INVERSOR",
-    "description": "Descarta 1 Poker Card.\n\nDurante este turno, cada vez que obtengas fichas por el efecto de una Power Card durante tu Main Phase, obtén 1 ficha adicional. Este bono no aumenta las fichas robadas al rival.",
+    "description": "Descarta 1 Poker Card.\n\nDurante este turno, cada vez que obtengas fichas por el efecto de una Power Card durante tu turno, obtén 1 ficha adicional. Este bono no aumenta las fichas robadas al rival.",
     "accentColor": "#FFC31A",
     "asset": ""
   },
@@ -468,28 +468,28 @@ window.STARTER_CARDS = [
   {
     "id": "catalog_v3_042",
     "name": "SINCRONÍA DEL FUEGO",
-    "description": "Encanta una Poker Card de tu mano. Si la carta encantada forma parte de una de tus combinaciones en tu Charge Phase, roba 1 Poker Card a un jugador seleccionado durante tu próxima Main Phase.",
+    "description": "Encanta una Poker Card de tu mano. Si la carta encantada forma parte de una de tus combinaciones cuando cobres durante tu turno, roba 1 Poker Card a un jugador seleccionado durante tu próxima turno.",
     "accentColor": "#FFC31A",
     "asset": ""
   },
   {
     "id": "catalog_v3_043",
     "name": "SINCRONÍA DE LA TIERRA",
-    "description": "Encanta una Poker Card de tu mano. Si la carta encantada forma parte de una de tus combinaciones en tu Charge Phase, activa el siguiente efecto:\n\n+2 fichas en tu End Phase.",
+    "description": "Encanta una Poker Card de tu mano. Si la carta encantada forma parte de una de tus combinaciones cuando cobres durante tu turno, activa el siguiente efecto:\n\n+2 fichas al final de tu turno.",
     "accentColor": "#FFC31A",
     "asset": ""
   },
   {
     "id": "catalog_v3_044",
     "name": "SINCRONÍA DEL RAYO",
-    "description": "Encanta una Poker Card de tu mano. Si la carta encantada forma parte de una de tus combinaciones en tu Charge Phase, roba +1 Power Card adicional durante tu próxima Draw Phase.",
+    "description": "Encanta una Poker Card de tu mano. Si la carta encantada forma parte de una de tus combinaciones cuando cobres durante tu turno, roba +1 Power Card adicional durante tu inicio de su próximo turno.",
     "accentColor": "#FFC31A",
     "asset": ""
   },
   {
     "id": "catalog_v3_046",
     "name": "MALDICIÓN DE LOS ASES",
-    "description": "Durante este turno solo puedes cobrar si hay al menos un As en tu combinación. Caso contrario, 0.\n\nPermite activar sin costo las cartas que mencionen «Maldición de los Ases».\n\nObtén 1 ficha en la End Phase en la que activaste esta carta.",
+    "description": "Durante este turno solo puedes cobrar si hay al menos un As en tu combinación. Caso contrario, 0.\n\nPermite activar sin costo las cartas que mencionen «Maldición de los Ases».\n\nObtén 1 ficha en el final del turno en la que activaste esta carta.",
     "accentColor": "#FFC31A",
     "asset": ""
   },
@@ -517,7 +517,7 @@ window.STARTER_CARDS = [
   {
     "id": "catalog_v3_062",
     "name": "VÍNCULO NOBLE",
-    "description": "Durante este turno solo puedes cobrar si hay al menos una J, Q o K en tu combinación. Caso contrario, 0.\n\nPermite activar sin costo las cartas que mencionen «Vínculo Noble».\n\nObtén 1 ficha en la End Phase en la que activaste esta carta.",
+    "description": "Durante este turno solo puedes cobrar si hay al menos una J, Q o K en tu combinación. Caso contrario, 0.\n\nPermite activar sin costo las cartas que mencionen «Vínculo Noble».\n\nObtén 1 ficha en el final del turno en la que activaste esta carta.",
     "accentColor": "#FFC31A",
     "asset": ""
   },
