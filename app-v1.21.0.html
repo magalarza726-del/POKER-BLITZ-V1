@@ -1272,21 +1272,43 @@ function syncAutoSetup(){
  const payouts={Par:1,'Trío':3,Escalera:5,Color:5,'Póker':7},manualPayouts=sim.mode==='MANUAL_SIMPLE'?Object.entries(payouts).map(([k,v])=>`<button data-action="add-chips" data-value="${v}" data-reason="${k}">${k} +${v}</button>`).join(''):'';
  return `<main class="blitz-table" aria-label="Mesa de Poker Blitz">
   <aside class="blitz-sidebar">
-   <div class="blitz-player-switch"><button data-action="prev-sim" title="Jugador anterior">◀</button><div><h2>J${d.playerNumber}</h2><h3>${name}</h3></div><button data-action="next-sim" title="Jugador siguiente">▶</button></div>
+   <button class="blitz-home" data-action="exit-sim" title="Inicio" aria-label="Volver a inicio">⌂</button>
+   <div class="blitz-player-switch">
+    <button class="blitz-nav ${navWarning==='prev'?'has-counter':''}" data-action="prev-sim" title="Jugador anterior">◀${navWarning==='prev'?'<span class="counter-exclamation">!</span>':''}</button>
+    <div><h2>J${d.playerNumber}</h2><h3>${esc((d.name||'').split(',')[0])}</h3><small>${esc((d.name||'').includes(',')?(d.name||'').split(',').slice(1).join(',').trim():'')}</small></div>
+    <button class="blitz-nav ${navWarning==='next'?'has-counter':''}" data-action="next-sim" title="Jugador siguiente">▶${navWarning==='next'?'<span class="counter-exclamation">!</span>':''}</button>
+   </div>
    <div class="blitz-character">${d.characterImage?deckCharacterPhoto(d):`<span style="font-size:70px;color:#27dfff">♠</span>`}</div>
-   <textarea class="blitz-note" id="blitz-note" placeholder="Escribe aquí tus anotaciones durante la partida...">${esc(s.notes||'')}</textarea><button class="btn" data-action="play-blitz-note" title="Reproducir las anotaciones con efecto máquina de escribir">▶ Reproducir anotaciones</button>
+   <div class="blitz-dialogue"><textarea class="blitz-note" id="blitz-note" placeholder="Escribe aquí tus anotaciones durante la partida...">${esc(s.notes||'')}</textarea><button class="blitz-dialogue-play" data-action="play-blitz-note" title="Reproducir" aria-label="Reproducir anotaciones">▶</button></div>
    <div class="blitz-side-status">${sim.mode==='ASSISTED'?'Prueba asistida':sim.mode==='MANUAL_SIMPLE'?'Manual sencillo':'Manual completo'} · Ronda ${sim.round||1} · Turno J${(sim.turnIndex??0)+1}<div>${s.chips||0} fichas · ${num} PWC · ${s.pokerHand.length} PKC · ${s.activeHyper.length} Hyper activas</div></div>
-   <div class="blitz-sidebar-tools"><button class="btn" data-action="exit-sim">← Salir</button><button class="btn" data-action="undo-action" ${(sim.undoStacks?.[d.id]||[]).length?'':'disabled'}>↶ Deshacer</button><button class="btn" data-action="test-history">Historial</button>${sim.mode==='MANUAL_SIMPLE'?'':`<button class="btn" data-action="open-trade">⚙ Acciones</button>`}</div>
+   <div class="blitz-sidebar-tools"><button class="btn" data-action="test-history">Historial</button></div>
   </aside>
   <section class="blitz-board">
-   <div class="blitz-board-top"><div class="blitz-effect-box"><strong>Explicador de efectos</strong><div id="blitz-effect-body">Pasa el cursor por una carta para consultar su nombre y efecto. Pulsa una carta para ampliar su imagen. En Poker Cards verás su número y símbolo.</div></div><div style="text-align:center"><button class="blitz-die" data-action="roll-die" title="Lanzar dado">⚄</button><div class="blitz-die-value">${s.dieBase?Number(s.dieBase)+Number(s.dieModifier||0):'Dado'}</div><div><button data-action="die-adjust" data-delta="-1">−</button><button data-action="die-adjust" data-delta="1">+</button></div></div></div>
+   <div class="blitz-board-top"><div class="blitz-effect-box"><strong id="blitz-effect-title">Explicador de efectos</strong><div id="blitz-effect-body">Pasa el cursor por las cartas y consulta su efecto. Pulsa para ampliarlas.</div></div>
+    <div class="blitz-turn-controls">
+     <button class="blitz-undo" data-action="undo-action" ${sim.activeIndex===sim.turnIndex&&(sim.undoStacks?.[turnOwner.id]||[]).length?'':'disabled'} title="Deshacer una acción de este turno">↶</button>
+     <button class="blitz-end" data-action="finish-turn" ${ok&&!sim.finished?'':'disabled'}>Terminar turno</button>
+    </div></div>
    <div class="blitz-upper">
     <section class="blitz-zone"><h3>Power Hand</h3><div class="blitz-slot-row">${powerTiles}${powerEmpty}<div class="blitz-icon-tools"><button data-action="draw-random" title="Robar Power Card" ${!s.drawPile.length||num>=4?'disabled':''}>＋</button><button data-action="draw-view" title="Buscar en Power Deck" ${!s.drawPile.length?'disabled':''}>⌕</button></div></div></section>
     <section class="blitz-zone"><h3>Hyper Zone</h3><div class="blitz-slot-row">${hyperAct}${hyperReserve}${hyperEmpty}</div>${charmTiles?`<div class="blitz-enchanted-label">Poker Cards encantadas (${charm.length})</div><div class="blitz-enchanted">${charmTiles}</div>`:''}</section>
    </div>
    <div class="blitz-divider"></div>
-   <section class="blitz-lower"><h3>Poker Hand</h3><div class="blitz-poker-row"><div class="blitz-slot-row">${sim.mode==='MANUAL_SIMPLE'?`<div style="margin:auto;font:700 16px Arial">Poker Cards físicas: cobros manuales</div>`:pokerTiles+pokerEmpty}</div><div class="blitz-icon-tools poker-tools"><button data-action="draw-poker-random" title="Robar Poker Card" ${!sim.pokerDrawPile?.length?'disabled':''}>＋</button><button data-action="draw-poker-view" title="Buscar Poker Card" ${!sim.pokerDrawPile?.length?'disabled':''}>⌕</button><button data-action="${sim.mode==='MANUAL_SIMPLE'?'add-chips':'charge-combo'}" ${sim.mode==='MANUAL_SIMPLE'?'data-value="1" data-reason="Cobro manual"':'data-combo="AUTO"'} title="${detected?'COBRAR '+detected.type:'Selecciona Poker Cards para cobrar'}" ${!ok||(sim.mode!=='MANUAL_SIMPLE'&&!detected)?'disabled':''} aria-label="COBRAR Poker Cards">＄</button></div></div></section>
-   <div class="blitz-actionbar"><div>Cobro · ${sim.chargeSelection?.length||0} PKC seleccionadas · <strong>${comboLabel}</strong> ${manualPayouts}</div><div><button data-action="add-chips" data-value="-1" data-reason="Corrección manual">−1 ficha</button><button data-action="add-chips" data-value="1" data-reason="Efecto manual">+1 ficha</button><button class="blitz-end" data-action="finish-turn" ${ok&&!sim.finished?'':'disabled'}>Finalizar turno ▶</button></div></div>
+   <section class="blitz-lower"><h3>Poker Hand</h3><div class="blitz-poker-row"><div class="blitz-slot-row">${sim.mode==='MANUAL_SIMPLE'?`<div style="margin:auto;font:700 16px Arial">Poker Cards físicas: cobros manuales</div>`:pokerTiles+pokerEmpty}</div><div class="blitz-icon-tools poker-tools">
+     <button data-action="draw-poker-random" title="Robar Poker Card" ${!sim.pokerDrawPile?.length?'disabled':''}>＋</button>
+     <button data-action="draw-poker-view" title="Buscar en Poker Deck" ${!sim.pokerDrawPile?.length?'disabled':''}>⌕</button>
+     <button class="blitz-cash" data-action="${sim.mode==='MANUAL_SIMPLE'?'add-chips':'charge-combo'}" ${sim.mode==='MANUAL_SIMPLE'?'data-value="1" data-reason="Cobro manual"':'data-combo="AUTO"'} title="${detected?'COBRAR '+detected.type:'Selecciona Poker Cards para cobrar'}" ${!ok||(sim.mode!=='MANUAL_SIMPLE'&&!detected)?'disabled':''} aria-label="COBRAR Poker Cards">$</button>
+     <button class="blitz-die" data-action="roll-die" title="Lanzar dado">⚄</button>
+     <span class="blitz-die-value">${s.dieBase?Number(s.dieBase)+Number(s.dieModifier||0):'Dado'}</span>
+     ${sim.mode==='MANUAL_SIMPLE'?'':`<button class="blitz-bolt" data-action="open-trade" title="Acciones manuales">⚡</button>`}
+     <div class="blitz-chip-adjust">
+       <button data-action="add-chips" data-value="-1" data-reason="Corrección manual" title="Restar fichas">−</button>
+       <span>${s.chips||0} fichas</span>
+       <button data-action="add-chips" data-value="1" data-reason="Efecto manual" title="Sumar fichas">＋</button>
+     </div>
+    </div></div></section>
+   <div class="blitz-actionbar"><div>Cobro · ${sim.chargeSelection?.length||0} PKC seleccionadas · <strong>${comboLabel}</strong> ${manualPayouts}</div></div>
+   ${responding?`<div class="blitz-pending">J${turnOwner.playerNumber}: respuesta de CounterCards pendiente. ${playableCounterPlayers().length?'Cambia al rival indicado con ! para responder.':'Ningún rival tiene una CounterCard elegible.'}<button data-action="counter-pass">Nadie responde · Continuar</button></div>`:''}
    ${sim.finished?`<div style="background:#111;padding:8px;color:#fff">${esc(sim.result||'Fin de partida')}</div>`:''}
   </section>
  </main>`;
