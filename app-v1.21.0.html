@@ -1230,17 +1230,20 @@ function syncAutoSetup(){
     if(sim.pendingShield)return sim.pendingShield.defenderId===playerId&&id==='004';
     return false;
   }
+  function counterUsable(pid,id){
+    return sim.mode!=='ASSISTED'||sim.pendingShield&&id==='catalog_v3_004'||assistedEffects.supported(id)&&assistedEffects.canPlay(id,pid);
+  }
   function playableCounterPlayers(){
     if(!sim?.decks?.length)return [];
     return sim.decks.map((d,i)=>({...d,seatIndex:i})).filter(d=>d.id!==sim.decks[sim.turnIndex]?.id&&
       sim.states[d.id]?.hand?.some((id,j)=>!sim.states[d.id].activeHyper?.includes(j)&&counterEligible(d.id,id)&&
-      (sim.mode!=='ASSISTED'||assistedEffects.supported(id)&&assistedEffects.canPlay(id,d.id))));
+      counterUsable(d.id,id)));
   }
   function closestCounterDirection(){
     const ready=playableCounterPlayers();
     if(!ready.length)return null;
     const n=sim.decks.length,here=sim.activeIndex;
-    return ready.map(p=>{const right=(p.seatIndex-here+n)%n,left=(here-p.seatIndex+n)%n;
+    return ready.filter(p=>p.seatIndex!==here).map(p=>{const right=(p.seatIndex-here+n)%n,left=(here-p.seatIndex+n)%n;
       return {direction:left<=right?'prev':'next',distance:Math.min(left,right),seat:p.seatIndex};
     }).sort((a,b)=>a.distance-b.distance||a.seat-b.seat)[0]?.direction||null;
   }
@@ -1256,7 +1259,7 @@ function syncAutoSetup(){
  const bound=new Set([...(s.manualEnchantedIds||[]),...(s.assistedBindings||[]).flatMap(b=>b.targets||[])]);
  const hover=(title,description)=>`data-card-title="${esc(title||'Carta')}" data-card-desc="${esc(description||'')}" tabindex="0"`;
  const powerTiles=power.map(({id,i,c})=>{
-  const type=cardType(c),isHyper=type==='HYPER',isCounter=type==='COUNTER',response=isCounter&&counterEligible(d.id,id),can=response&&(sim.mode!=='ASSISTED'||assistedEffects.supported(id)&&assistedEffects.canPlay(id,d.id))||ok&&(isHyper?!s.usedHyperThisTurn.includes(id):type==='SUPER'&&(sim.mode!=='ASSISTED'||assistedEffects.canPlay(id,d.id)));
+  const type=cardType(c),isHyper=type==='HYPER',isCounter=type==='COUNTER',response=isCounter&&counterEligible(d.id,id),can=response&&counterUsable(d.id,id)||ok&&(isHyper?!s.usedHyperThisTurn.includes(id):type==='SUPER'&&(sim.mode!=='ASSISTED'||assistedEffects.canPlay(id,d.id)));
   return `<div class="blitz-slot ${type==='COUNTER'?'counter':''}" ${hover(c.name,c.description)}><div data-action="zoom-card" data-id="${id}" style="width:100%;height:100%">${cardHTML(c)}</div><div class="blitz-slot-actions"><button class="primary" data-action="${isCounter?'counter-response':isHyper?'activate-hyper':'use-card'}" data-index="${i}" data-player="${d.id}" ${can?'':'disabled'}>${isCounter?'Responder':isHyper?'Activar':'Jugar'}</button><button data-action="discard-card" data-index="${i}" ${ok?'':'disabled'}>✕</button></div></div>`;
  }).join('');
  const powerEmpty=Array.from({length:Math.max(0,4-power.length)},()=>'<div class="blitz-slot empty-slot"></div>').join('');
@@ -2226,7 +2229,7 @@ function syncAutoSetup(){
     else if(a==='assist-option'){assistedEffects.chooseOption(el.dataset.value)}
     else if(a==='counter-response'){
       const respondingId=el.dataset.player||currentSim().d.id,index=Number(el.dataset.index);
-      if(!counterEligible(respondingId,sim?.states[respondingId]?.hand[index]))return;
+      if(!counterEligible(respondingId,sim?.states[respondingId]?.hand[index])||!counterUsable(respondingId,sim.states[respondingId].hand[index]))return;
       if(sim.chain){manualRules.counterPlay(index,respondingId);}
       else if(sim.pendingHyper){resolvePendingHyper(respondingId,index);}
       else if(sim.pendingShield){pushUndo(sim.decks[sim.turnIndex].id,'Escudo Resplandeciente');assistedEffects.shieldRespond(true);sim.activeIndex=sim.turnIndex;render();}
