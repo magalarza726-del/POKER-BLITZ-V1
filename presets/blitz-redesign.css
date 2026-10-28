@@ -287,3 +287,138 @@
   .blitz-board .blitz-icon-tools.poker-tools {flex-basis:58px;}
   .blitz-hand-track > .blitz-icon-tools {flex-basis:40px;}
 }
+
+
+/* 2026-10-28: barra Poker compartida, Hyper Zone integrada y herramientas compactas. */
+@media (min-width:901px) {
+  .blitz-board {
+    justify-content:flex-start;
+    overflow-x:hidden;
+    overflow-y:auto;
+  }
+  /* Evitar que las dos manos estiren su altura por flex:1 y empujen las herramientas. */
+  .blitz-board .blitz-upper {
+    flex:0 0 auto;
+    min-height:calc(var(--blitz-card-height) + 45px);
+  }
+  .blitz-board .blitz-lower {
+    flex:0 0 auto;
+    min-height:0;
+    gap:5px;
+  }
+}
+.blitz-board .blitz-upper {align-items:start;}
+.blitz-board .blitz-poker-row {
+  flex:0 0 auto;
+  min-height:235px;
+  height:max(235px,calc(var(--blitz-card-height) + 18px));
+  align-items:flex-start;
+}
+.blitz-board .blitz-lower {gap:4px;}
+.blitz-board .blitz-lower > h3 {margin-bottom:2px;}
+.blitz-board .blitz-icon-tools.poker-tools {
+  align-self:flex-start;
+  width:76px; flex:0 0 76px;
+  padding-top:1px; gap:1px;
+  display:flex; flex-direction:column; align-items:stretch;
+  justify-content:flex-start; overflow:visible;
+}
+.blitz-board .blitz-icon-tools.poker-tools > button {
+  flex:0 0 auto; min-height:25px; line-height:1; padding:0;
+}
+.blitz-board .blitz-icon-tools.poker-tools > .blitz-die {
+  height:35px; font-size:31px;
+}
+.blitz-board .blitz-icon-tools.poker-tools > .blitz-bolt {
+  height:30px; font-size:27px;
+}
+.blitz-board .blitz-icon-tools.poker-tools .blitz-die-value {
+  min-height:14px; font-size:10px;
+}
+.blitz-die-modifier {
+  display:flex; align-items:center; justify-content:center;
+  width:100%; height:32px; flex:0 0 32px;
+  gap:2px; border-radius:5px; background:rgba(0,0,0,.20);
+  border:1px solid rgba(255,255,255,.65);
+  font:800 12px Arial,sans-serif; color:#fff;
+}
+.blitz-icon-tools.poker-tools .blitz-die-modifier button {
+  border:1px solid #d3e4db; background:#f6fff8; color:#06412e;
+  -webkit-text-stroke:0; font:900 19px Arial,sans-serif;
+  width:23px; height:26px; flex:0 0 23px; padding:0;
+  cursor:pointer;
+}
+.blitz-icon-tools.poker-tools .blitz-die-modifier button:disabled {opacity:.4;cursor:not-allowed;}
+.blitz-die-modifier span {
+  flex:1 1 0; text-align:center; min-width:0;
+  font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.blitz-board .blitz-player-chips {
+  gap:1px; margin-top:1px; padding:0; flex:0 0 auto;
+}
+.blitz-board .blitz-player-chips-count {
+  gap:2px; font-size:11px;
+}
+.blitz-board .blitz-chip-symbol {font-size:20px;}
+.blitz-board .blitz-player-chips-count strong {font-size:17px;}
+.blitz-board .blitz-player-chips .blitz-chip-adjust {
+  max-width:76px; width:100%; padding:2px; gap:2px;
+}
+.blitz-board .blitz-player-chips .blitz-chip-adjust button {min-height:23px!important;}
+/* Las Poker Cards ya no reservan 26px debajo para botones individuales. */
+.blitz-board .blitz-slot-row > .blitz-slot.poker .poker-card {
+  padding:6px 5px; height:100%; width:100%;
+}
+.blitz-board .blitz-slot-row > .blitz-slot.poker .poker-pips {bottom:28px;}
+.blitz-board .blitz-slot-row > .blitz-slot.poker {
+  cursor:pointer; touch-action:manipulation;
+}
+.blitz-board .blitz-slot-row > .blitz-slot.poker.enchanted {
+  border:2px solid #edb72b;
+  box-shadow:0 0 0 1px rgba(255,206,63,.65);
+}
+/* Las encantadas comparten la MISMA fila, dimensiones y scroll de HyperCards. */
+.blitz-board .blitz-upper > .blitz-zone:last-child > .blitz-slot-row {
+  overflow-x:auto; overflow-y:hidden; flex:0 0 auto;
+  min-width:0; scrollbar-gutter:stable;
+}
+/* Una sola barra de acciones para la selección de Poker Cards. */
+.blitz-board .blitz-actionbar {
+  display:flex; align-items:center; flex-wrap:wrap;
+  justify-content:space-between; gap:7px;
+  min-height:43px; padding:5px 7px;
+  border:1px solid rgba(240,255,245,.6);
+  border-radius:6px; background:rgba(1,34,22,.5);
+  font:700 12px Arial,sans-serif;
+}
+.blitz-selected-summary {flex:1 1 220px; line-height:1.35;}
+.blitz-bulk-actions {
+  display:flex; justify-content:flex-end; flex-wrap:wrap;
+  align-items:center; gap:5px;
+}
+.blitz-board .blitz-bulk-actions button {
+  background:#f3faf6; color:#042b1b; padding:7px 11px;
+  border:1px solid #063824; border-radius:4px;
+  font:800 12px Arial,sans-serif; cursor:pointer;
+  white-space:nowrap; min-height:30px;
+}
+.blitz-board .blitz-bulk-actions button.primary {
+  background:#2be3d7; color:#072923;
+}
+.blitz-board .blitz-bulk-actions button:disabled {opacity:.42;cursor:not-allowed;}
+/* Pantallas estrechas permiten scroll general y mantienen controles compactos. */
+@media(max-width:900px) {
+  .blitz-board .blitz-upper {flex:0 0 auto;}
+  .blitz-board .blitz-lower {flex:0 0 auto;}
+  .blitz-board .blitz-poker-row {min-height:235px;}
+}
+@media(max-width:520px) {
+  .blitz-board .blitz-poker-row {min-height:228px;}
+  .blitz-board .blitz-icon-tools.poker-tools {width:57px; flex-basis:57px;}
+  .blitz-icon-tools.poker-tools .blitz-die-modifier button {
+    width:19px; height:24px; flex-basis:19px; font-size:16px;
+  }
+  .blitz-die-modifier {font-size:10px;}
+  .blitz-board .blitz-bulk-actions button {padding:6px 7px;font-size:11px;}
+  .blitz-selected-summary {flex-basis:100%;}
+}
