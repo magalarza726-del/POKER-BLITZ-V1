@@ -34,7 +34,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
   }
   function charge(type){
     if(!canAct())return ctx.toast('Acción permitida solo en el turno actual.');
-    const sim=get(),{d,s}=ctx.current();if(s.currentPhase!=='CHARGE')return ctx.toast('Solo puedes cobrar durante Charge Phase.');
+    const sim=get(),{d,s}=ctx.current();if(s.currentPhase!=='MAIN')return ctx.toast('Solo puedes cobrar durante tu turno.');
     const indices=[...new Set(sim.chargeSelection||[])].sort((a,b)=>a-b),cards=indices.map(i=>s.pokerHand[i]);
     const hyper=(s.activeHyper||[]).map(i=>s.hand[i]),points=sim.mode==='ASSISTED'&&ctx.assistedScore?ctx.assistedScore(d.id,type,cards,hyper):scoreCombo(type,cards,hyper);
     if(!points)return ctx.toast('La selección no constituye una combinación válida o incumple una restricción activa.');
@@ -43,35 +43,26 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     if(sim.mode==='ASSISTED')ctx.assistedPokerOut?.(d.id,cards);
     else sim.pokerDrawPile=ctx.shuffle([...sim.pokerDrawPile,...cards]);
     s.chips=(s.chips||0)+points;s.chargeReplacement=(s.chargeReplacement||0)+cards.length;
-    ctx.log(d.id,'Cobro validado',type+' +'+points+' fichas con '+cards.map(c=>c.rank+' de '+c.suit).join(', ')+'. Reposición End Phase: '+cards.length+'.');
+    ctx.log(d.id,'Cobro validado',type+' +'+points+' fichas con '+cards.map(c=>c.rank+' de '+c.suit).join(', ')+'. Sin reposición inmediata: '+cards.length+'.');
     sim.result=type+': +'+points+' fichas. Total '+s.chips;sim.chargeSelection=[];ctx.render();
   }
   function changePhase(to){
-    if(!canAct())return ctx.toast('Primero vuelve al jugador del turno.');
-    const sim=get(),{d,s}=ctx.current(),from=s.currentPhase;
-    if(to===from)return;
-    if(!(from==='MAIN'&&to==='CHARGE'||from==='CHARGE'&&to==='END'))return ctx.toast('Secuencia obligatoria: Main → Charge → End → Finalizar turno.');
-    ctx.pushUndo(d.id,'Fase '+to);s.currentPhase=to;sim.chargeSelection=[];
-    if(to==='END'){
-      const qty=get()?.mode==='MANUAL_SIMPLE'?0:Math.max(0,7-s.pokerHand.length);s.chargeReplacement=0;let drawn=0;
-      for(let i=0;i<qty&&sim.pokerDrawPile.length;i++){if(ctx.drawPoker(d.id,s,'Reposición de Charge'))drawn++}
-      ctx.log(d.id,'Inicio End Phase','Reposición aleatoria hasta 7 Poker Cards: '+drawn+'/'+qty+'. Resuelve los efectos de End Phase.');
-    }
-    ctx.log(d.id,'Cambiar fase',ctx.phaseLabel(from)+' → '+ctx.phaseLabel(to)+'.');
-    if(sim.mode==='ASSISTED')ctx.assistedPhase?.(to,d.id);
-    sim.result=ctx.phaseLabel(to);ctx.render();
+    if(to!=='MAIN')return ctx.toast('El turno es una única Main Phase. Cobra y juega cartas libremente.');
   }
   function finishTurn(){
     if(!canAct())return;
     const sim=get(),{d,s}=ctx.current();
-    if(s.currentPhase!=='END')return ctx.toast('Todavía no estás en End Phase.');
-    if(s.pokerHand.length>s.pokerLimit)return ctx.toast('Descarta '+(s.pokerHand.length-s.pokerLimit)+' Poker Cards antes de continuar.');
-    if(sim.mode==='ASSISTED')ctx.assistedPhase?.('END_COMPLETE',d.id);
+    if(s.currentPhase!=='MAIN')return ctx.toast('Solo puedes finalizar tu turno.');
+    ctx.pushUndo(d.id,'Cierre del turno');
+    const missing=sim.mode==='MANUAL_SIMPLE'?0:Math.max(0,7-s.pokerHand.length);let replenished=0;
+    for(let k=0;k<missing&&sim.pokerDrawPile.length;k++)if(ctx.drawPoker(d.id,s,'Reposición al final del turno'))replenished++;
+    ctx.log(d.id,'Reposición final','Robó '+replenished+' Poker Cards para completar 7, incluidas las encantadas.');
+    if(sim.mode==='ASSISTED'){ctx.assistedPhase?.('END',d.id);ctx.assistedPhase?.('END_COMPLETE',d.id);}
      // HyperCards activas vuelven a su HyperZone, boca abajo, al final de End Phase.
      for(const i of [...(s.activeHyper||[])].sort((a,b)=>b-a)){
        const it=take(d.id,i);if(it)giveBack(it.cardId,it.ownerId);
      }
-     s.hyperActivationsThisTurn=0;s.hyperActivationLimit=1;s.hyperDeniedThisTurn=[];s.shieldCardsTriggered=false;s.destinyDieUsed=false;s.usedSuperThisTurn=false;
+     s.hyperActivationsThisTurn=0;s.usedHyperThisTurn=[];s.hyperDeniedThisTurn=[];s.manualEnchantedIds=[];s.shieldCardsTriggered=false;s.destinyDieUsed=false;s.usedSuperThisTurn=false;
     s.turnsTaken=(s.turnsTaken||0)+1;ctx.log(d.id,'Fin de turno','Turno '+s.turnsTaken+' completado. Fichas: '+s.chips+'.');
     sim.chargeSelection=[];
     const active=()=>sim.decks.filter(p=>!sim.tieContenders||sim.tieContenders.includes(p.id));
@@ -105,7 +96,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     sim.turnIndex=sim.decks.findIndex(p=>p.id===following.id);sim.activeIndex=sim.turnIndex;
     const p=sim.decks[sim.turnIndex],next=sim.states[p.id];
     if((next.turnsTaken||0)>0)ctx.drawPhase(p,next);
-    else{next.currentPhase='MAIN';ctx.log(p.id,'Primer turno','Se omite la Draw Phase del primer turno.');}
+    else{next.currentPhase='MAIN';ctx.log(p.id,'Primer turno','La mano inicial ya contiene 4 Power Cards.');}
     if(sim.mode==='ASSISTED')ctx.assistedPhase?.('MAIN_START',p.id);
     sim.result='Ronda '+sim.round+' · Turno de J'+p.playerNumber;ctx.render();
   }
@@ -115,8 +106,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     if(!card||type==='HYPER')return;
     if(type==='SUPER'&&s.currentPhase!=='MAIN')return ctx.toast('La SuperCard debe jugarse en Main Phase.');
     if(type==='COUNTER')return ctx.toast('Reglamento oficial: una CounterCard solo puede jugarse como respuesta durante la Main Phase rival, desde la ventana de reacción.');
-    if(type==='SUPER'&&/\bencanta\b/i.test(String(card.description||''))&&s.usedSuperThisTurn)
-      return ctx.toast('Reglamento oficial: debes Encantar antes de haber jugado cualquier SuperCard en ese turno.');
+    
     if(sim.mode==='MANUAL_SIMPLE'){
       ctx.pushUndo(playerId,'Power Card física: uso manual');const item=take(playerId,index);
       if(!item)return;giveBack(item.cardId,item.ownerId);s.usedSuperThisTurn=true;
