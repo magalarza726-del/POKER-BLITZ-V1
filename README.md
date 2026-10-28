@@ -1,3 +1,12 @@
+## Ajustes de mesa: selección común y Hyper Zone (28/10/2026)
+
+- **Poker Hand:** un clic selecciona, un segundo clic rápido amplía; teclado: Intro/Espacio para seleccionar y Z para ampliar. Los botones de cada naipe se sustituyen por una barra común de **Cobrar, Descartar, Encantar y Cancelar**; al seleccionar naipes encantados manualmente también aparece **Desencantar**. Las acciones múltiples mantienen el historial y deshacer.
+- **Hyper Zone:** las Poker Cards encantadas se muestran a continuación de las HyperCards en **la misma fila desplazable**, con las mismas dimensiones y diseño que las cartas de Poker Hand. Mantienen su condición de encantadas y siguen contando en la mano. El máximo de HyperCards activas continúa siendo tres.
+- **Power Hand sin límite máximo:** todas las formas de robo manual y asistido, así como las simulaciones, permiten conservar más de cuatro Power Cards. La Draw Phase solo repone hasta **cuatro como mínimo** si la mano está por debajo; no roba automáticamente todo el deck.
+- **Herramientas:** se elimina el icono de dólar y se muestra un modificador de dado +/- visible. El modificador se conserva al lanzar; la columna de controles se compacta arriba para evitar desplazamiento vertical innecesario.
+- **Presentación:** se conservan las proporciones de todas las cartas y la vista completa de los personajes; se eliminan huecos vacíos de Poker Hand que causaban desplazamiento horizontal sin utilidad.
+- **Comprobación:** los archivos JavaScript compilan; cinco simulaciones de tres jugadores y HyperCards con semillas reproducibles finalizaron sin incidentes de integridad. La comprobación visual en navegador sigue siendo necesaria.
+
 ## Poker Blitz V1.21.0 — Decks, Test y simulación evolutiva (26/10/2026)
 
 ### Navegación agrupada
