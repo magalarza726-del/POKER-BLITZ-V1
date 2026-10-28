@@ -659,32 +659,14 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
   function endPhaseDiscard(p){
    const s=get(p.id),plan=planFor(p);
    const out=[];
-   while(s.pokerHand.length>s.pokerLimit){
-    const index=chooseDiscardPoker(p.id);
-    if(index<0){issue('No hay Poker Cards descartables pese a superar el límite.');break}
-    out.push(s.pokerHand.splice(index,1)[0]);
-   }
-   if(out.length){
-    links.onPokerOut(p.id,out);
-    log(p.id,'Descarte estratégico End Phase','Descartó '+out.length+' Poker Cards con menor valor proyectado; plan: '+plan.goal+'.');
-   }
-   while(s.hand.length-s.activeHyper.length>s.powerHandLimit){
-    const slots=s.hand.map((id,i)=>({id,i})).filter(x=>!s.activeHyper.includes(x.i));
-    if(!slots.length)break;
-    slots.sort((a,b)=>scoreCard(p.id,a.id)-scoreCard(p.id,b.id));
-    const it=manual.take(p.id,slots[0].i);
-    if(!it)break;
-    manual.giveBack(it.cardId,it.ownerId);
-    log(p.id,'Descarte estratégico End Phase','Power Card menos útil '+(getCard(it.cardId)?.name||it.cardId)+'. Plan: '+plan.goal+'.');
-   }
-   // Optional discard is legal for the digital Power Hand, and it frees one
-   // future draw slot while preserving cards that serve a longer-term plan.
+   // Los efectos pueden superar 7 PKC y 4 PWC: no existe descarte obligatorio al finalizar.
+   // Las cartas extra se conservan; la reposición solamente completa la cantidad mínima.
    if(s.turnsTaken>0&&s.drawPile.length&&s.hand.length-s.activeHyper.length>=s.powerHandLimit){
     const slots=s.hand.map((id,i)=>({id,i})).filter(x=>!s.activeHyper.includes(x.i));
     slots.sort((a,b)=>scoreCard(p.id,a.id)-scoreCard(p.id,b.id));
     if(slots.length&&scoreCard(p.id,slots[0].id)<(p.difficulty==='expert'?2.5:p.difficulty==='intermediate'?2.1:1.45)){
      const it=manual.take(p.id,slots[0].i);
-     if(it){manual.giveBack(it.cardId,it.ownerId);log(p.id,'Descarte táctico End Phase','Liberó 1 espacio para futuros robos; conservó el resto del plan '+plan.goal+'.');}
+     if(it){manual.giveBack(it.cardId,it.ownerId);log(p.id,'Descarte táctico voluntario','Liberó 1 espacio para futuros robos; conservó el resto del plan '+plan.goal+'.');}
     }
    }
   }
@@ -765,7 +747,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
      }
      charge(p);s.currentPhase='MAIN';
     const qty=Math.max(0,7-s.pokerHand.length);s.chargeReplacement=0;
-    for(let k=0;k<qty;k++)drawPoker(p.id,s,'Reposición aleatoria End Phase');
+    for(let k=0;k<qty;k++)drawPoker(p.id,s,'Reposición al cerrar turno');
     fx.phase('END',p.id);
     endPhaseDiscard(p);
     fx.phase('END_COMPLETE',p.id);
