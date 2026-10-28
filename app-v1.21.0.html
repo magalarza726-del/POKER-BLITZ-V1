@@ -830,7 +830,7 @@ window.STARTER_CARDS = [
   function restoreAddScroll(top){requestAnimationFrame(()=>{const list=$('.add-list');if(list)list.scrollTop=Number(top||0);});}
   function renderAddPreservingScroll(top){render();restoreAddScroll(top);}
   function closeModal(){
-    if(['counter-window','reference-reaction','assisted-target','assisted-choice','linked-picker','shield-counter'].includes(modal?.type)){toast('Termina la resolución pendiente antes de continuar.');return;}
+    if(['reference-reaction','assisted-target','assisted-choice','linked-picker'].includes(modal?.type)){toast('Termina la resolución pendiente antes de continuar.');return;}
     if(modal?.type==='zoom'&&modal.returnTo){const back=modal.returnTo,top=back.scrollTop||0;modal=back;render();restoreAddScroll(top);return;}
     if(modal?.type==='character-edit')characterDraft=null;
     modal=null;render();
@@ -1454,21 +1454,8 @@ function syncAutoSetup(){
 
   function renderModal(){
     if(modal?.type==='linked-picker')return assistedLinks.modalMarkup();
-    if(modal?.type==='shield-counter'){
-      const defender=sim?.decks?.find(p=>p.id===modal.defenderId);
-      return `<div class="modal-backdrop"><div class="modal" style="max-width:610px">
-        <div class="modal-head"><h2>Escudo Resplandeciente · J${defender?.playerNumber||'?'}</h2></div>
-        <div class="modal-content"><p>Acabas de ser seleccionado como objetivo. ¿Quieres activar Escudo Resplandeciente para redirigir el efecto?</p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn primary" data-action="shield-counter-use">Activar CounterCard</button>
-        <button class="btn soft" data-action="shield-counter-pass">No reaccionar</button></div></div></div></div>`;
-    }
-    if(modal?.type==='hyper-counter'){
-      const c=getCard(modal.cardId);
-      return `<div class="modal-backdrop"><div class="modal" style="max-width:650px"><div class="modal-head"><h2>Respuesta a HyperCard · ${esc(c?.name||'')}</h2></div><div class="modal-content"><p>Una CounterCard puede responder antes de activar esta HyperCard. Agujero Negro bloquea; Tiro por la Culata obliga a descartar una Poker Card.</p><div style="display:flex;flex-wrap:wrap;gap:8px">${modal.counters.map((x,j)=>`<button class="btn primary" data-action="hyper-counter-play" data-index="${j}">J${x.number} · ${esc(getCard(x.cardId)?.name||'CounterCard')}</button>`).join('')}<button class="btn soft" data-action="hyper-counter-pass">No reaccionar</button></div></div></div></div>`;
-    }
     if(['assisted-target','assisted-choice'].includes(modal?.type))return assistedEffects.modalMarkup();
-    if(['counter-window','reference-reaction'].includes(modal?.type))return manualRules.modalMarkup();
+    if(modal?.type==='reference-reaction')return manualRules.modalMarkup();
     if(modal?.type==='trade')return tradeModalMarkup();
     if(!modal)return'';
     if(modal.type==='poker-zoom'){return `<div class="modal-backdrop" data-action="modal-backdrop"><div class="zoom-shell"><button class="icon-btn zoom-close" data-action="close-modal" title="Cerrar">${icon('close')}</button><div class="zoom-card" style="aspect-ratio:.72">${pokerCardHTML(modal.card,null)}</div></div></div>`;}
@@ -2210,10 +2197,6 @@ function syncAutoSetup(){
     else if(a==='discard-card'){const {d,s}=currentSim(),i=+el.dataset.index,c=getCard(s.hand[i]);if(!c||!['MAIN','END'].includes(s.currentPhase))return;pushUndo(d.id,'Descartar '+cardTypeLabel(c));const wasActive=cardType(c)==='HYPER'&&s.activeHyper.includes(i),item=manualRules.take(d.id,i);if(!item)return;manualRules.giveBack(item.cardId,item.ownerId);logSim(d.id,'Descartar '+cardTypeLabel(c),(wasActive?'HyperCard activa':'Power Card')+' devuelta al deck de su propietario.',c);render()}
     else if(a==='assist-old-rules'){assistedLinks.ability(+el.dataset.index)}
     else if(a==='activate-hyper-reserve'){activateReservedHyper(Number(el.dataset.index));}
-    else if(a==='shield-counter-use'){assistedEffects.shieldRespond(true);}
-    else if(a==='shield-counter-pass'){assistedEffects.shieldRespond(false);}
-    else if(a==='hyper-counter-pass'){resolveHyperCounter(null);}
-    else if(a==='hyper-counter-play'){resolveHyperCounter(Number(el.dataset.index));}
     else if(a==='activate-hyper'&&sim?.mode==='ASSISTED'){assistedEffects.activate(+el.dataset.index)}
     else if(a==='activate-hyper'){const {d,s}=currentSim(),i=+el.dataset.index,c=getCard(s.hand[i]);if(!c||cardType(c)!=='HYPER'||s.activeHyper.includes(i)||s.currentPhase!=='MAIN')return;if((s.usedHyperThisTurn||[]).includes(c.id))return toast('Esta HyperCard ya se activó durante el turno.');if(s.activeHyper.length>=3){const msg='Límite máximo de 3 HyperCards activas alcanzado.';sim.result=msg;toast(msg);render();return}pushUndo(d.id,'Activar HyperCard');s.activeHyper.push(i);(s.usedHyperThisTurn??=[]).push(c.id);logSim(d.id,'Activar HyperCard','La HyperCard fue activada y permanece visible con borde dorado resplandeciente.',c);render()}
     else if(a==='roll-die'){const {d,s}=currentSim();if(s.dieRolling)return;pushUndo(d.id,'Lanzar dado');const deckId=d.id;s.dieBase=1+randomInt(6);s.dieModifier=0;s.dieRolling=true;sim.result='Lanzando dado…';render();setTimeout(()=>{const st=sim?.states?.[deckId];if(!st)return;st.dieRolling=false;const result=Number(st.dieBase||0)+Number(st.dieModifier||0);sim.result='Resultado del dado: '+result;logSim(deckId,'Lanzamiento de dado','Resultado del dado: '+result);render();},1250)}
