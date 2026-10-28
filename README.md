@@ -1,3 +1,10 @@
+### Corrección definitiva de catálogo de decks — V1.21.1 (28/10/2026)
+- Se creó `app-v1.21.1.html` y se actualizó la entrada `index.html` para evitar reutilizar una página HTML antigua.
+- Se renovó explícitamente la caché del script `presets/default-decks.js`: ahora debe cargar **11 decks predeterminados**, incluidos Arkan, Regulus y Maverick.
+- La migración `defaultPresetVersion:3` recupera los presets faltantes incluso si el perfil estaba marcado como versión 2. La reparación se guarda automáticamente en `localStorage` sin sustituir los decks personalizados ni sus modificaciones.
+- Si un perfil ya alcanzó v3 con una lista incompleta, hay un botón **Recuperar decks predeterminados faltantes** tanto en Prueba como en Simulación. Un catálogo en caché con menos de 11 no se marca como migrado.
+- Prueba de regresión: `node android/tools/check_preset_migration.js`, además de la comprobación de sintaxis de la nueva página.
+
 ### Recuperación de decks predeterminados (28/10/2026)
 - Las sesiones antiguas que guardaron 8 decks ahora recuperan los 11 predeterminados, incluyendo Arkan, Regulus y Maverick, sin sobrescribir personalizaciones ni inventar cartas.
 - El correctivo se aplica una sola vez mediante `defaultPresetVersion: 2`; los decks eliminados intencionadamente después de esta versión no se restauran automáticamente.
