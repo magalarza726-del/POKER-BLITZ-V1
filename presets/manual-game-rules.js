@@ -32,14 +32,30 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     if(hyper.includes('catalog_v3_062')&&!ranks.some(r=>['J','Q','K'].includes(r)))return 0;
     return score;
   }
+  // La selección, no un botón por tipo, determina la combinación cobrable.
+  function detectCharge(){
+    const game=get();if(!game||!canAct())return null;
+    const {d,s}=ctx.current();
+    const indices=[...new Set(game.chargeSelection||[])].sort((a,b)=>a-b);
+    const cards=indices.map(i=>s.pokerHand[i]);
+    if(cards.length<2||cards.length>5||cards.some(c=>!c))return null;
+    const hyper=(s.activeHyper||[]).map(i=>s.hand[i]);
+    for(const type of ['Par','Trío','Póker','Escalera','Color']){
+      const points=game.mode==='ASSISTED'&&ctx.assistedScore?ctx.assistedScore(d.id,type,cards,hyper):scoreCombo(type,cards,hyper);
+      if(points>0)return {type,points,indices,cards};
+    }
+    return null;
+  }
   function charge(type){
     if(!canAct())return ctx.toast('Acción permitida solo en el turno actual.');
     const sim=get(),{d,s}=ctx.current();if(s.currentPhase!=='MAIN')return ctx.toast('Solo puedes cobrar durante tu turno.');
+    if(type==='AUTO'){const match=detectCharge();if(!match)return ctx.toast('Selecciona una combinación válida para cobrar.');type=match.type;}
     const indices=[...new Set(sim.chargeSelection||[])].sort((a,b)=>a-b),cards=indices.map(i=>s.pokerHand[i]);
     const hyper=(s.activeHyper||[]).map(i=>s.hand[i]),points=sim.mode==='ASSISTED'&&ctx.assistedScore?ctx.assistedScore(d.id,type,cards,hyper):scoreCombo(type,cards,hyper);
     if(!points)return ctx.toast('La selección no constituye una combinación válida o incumple una restricción activa.');
     ctx.pushUndo(d.id,'Cobro '+type);if(sim.mode==='ASSISTED')ctx.assistedChargeBonus?.(d.id,cards,type,points);
     for(const i of [...indices].reverse())s.pokerHand.splice(i,1);
+    if(Array.isArray(s.manualEnchantedIds))s.manualEnchantedIds=s.manualEnchantedIds.filter(id=>!cards.some(card=>card.id===id));
     if(sim.mode==='ASSISTED')ctx.assistedPokerOut?.(d.id,cards);
     else sim.pokerDrawPile=ctx.shuffle([...sim.pokerDrawPile,...cards]);
     s.chips=(s.chips||0)+points;s.chargeReplacement=(s.chargeReplacement||0)+cards.length;
@@ -205,5 +221,5 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     }
     return'';
   }
-  return {own,take,giveBack,canAct,charge,changePhase,finishTurn,useCard,counterPlay,counterPass,pressReference,discardReference,modalMarkup};
+  return {own,take,giveBack,canAct,detectCharge,charge,changePhase,finishTurn,useCard,counterPlay,counterPass,pressReference,discardReference,modalMarkup};
 };
