@@ -20,7 +20,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     const combined=s.drawPile.map((cid,i)=>({cid,owner:s.drawOwners[i]||id}));combined.push({cid:cardId,owner:id});
     const shuffled=ctx.shuffle(combined);s.drawPile=shuffled.map(x=>x.cid);s.drawOwners=shuffled.map(x=>x.owner);
   };
-  const canAct=()=>!!get()&&!get().finished&&!get().chain&&!get().pendingHyper&&get().activeIndex===(get().turnIndex??0);
+  const canAct=()=>!!get()&&!get().finished&&!get().chain&&!get().pendingHyper&&!get().pendingShield&&get().activeIndex===(get().turnIndex??0);
   function scoreCombo(type,cards,hyper){
     const score={Par:1,'Trío':3,Escalera:5,Color:5,'Póker':7}[type]||0,needed={Par:2,'Trío':3,Escalera:5,Color:5,'Póker':4}[type];
     if(!score||cards.length!==needed||cards.some(c=>!c))return 0;
@@ -68,7 +68,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
   function finishTurn(){
     if(!canAct())return;
     const sim=get(),{d,s}=ctx.current();
-    if(sim.chain||sim.pendingHyper)return ctx.toast('Resuelve la respuesta pendiente antes de terminar el turno.');
+    if(sim.chain||sim.pendingHyper||sim.pendingShield)return ctx.toast('Resuelve la respuesta pendiente antes de terminar el turno.');
     if(s.currentPhase!=='MAIN')return ctx.toast('Solo puedes finalizar tu turno.');
     ctx.pushUndo(d.id,'Cierre del turno');
     const missing=sim.mode==='MANUAL_SIMPLE'?0:Math.max(0,7-s.pokerHand.length);let replenished=0;
@@ -140,7 +140,8 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     if(sim.mode==='ASSISTED')ctx.assistedCardUsed?.(item.cardId,playerId);
     sim.chain={stack:[item],chooser:(sim.turnIndex+1)%sim.decks.length,passes:0};
     ctx.log(playerId,'Activación anunciada','La SuperCard espera respuestas desde las manos de los rivales.',card);
-    if(sim.decks.length===1)resolveChain();else{sim.result='SuperCard anunciada: '+card.name+' · Los rivales pueden responder con sus CounterCards.';ctx.render();}
+    if(sim.decks.length===1||ctx.hasCounterResponders&&!ctx.hasCounterResponders())resolveChain();
+    else{sim.result='SuperCard anunciada: '+card.name+' · Los rivales pueden responder con sus CounterCards.';ctx.render();}
   }
   function counterPlay(index,playerId){
     const sim=get(),chain=sim?.chain;if(!chain||chain.stack.length>1)return false;
@@ -151,6 +152,7 @@ window.POKER_BLITZ_MANUAL_RULES = function createManualRules(ctx){
     if(ctx.type(c)!=='COUNTER'||ctx.canCounter&&!ctx.canCounter(p.id,c.id))return false;
     if(sim.mode==='ASSISTED'&&((ctx.canAssist&&!ctx.canAssist(c?.id))||(ctx.canPlayAssisted&&!ctx.canPlayAssisted(c?.id,p.id))))return false;
     if(sim.mode==='ASSISTED')ctx.assistedCardUsed?.(c.id,p.id);
+    ctx.pushUndo(sim.decks[sim.turnIndex].id,'CounterCard de J'+p.playerNumber);
     const item=take(p.id,index);if(!item)return false;
     chain.stack.push(item);
     ctx.log(p.id,'CounterCard anunciada','J'+p.playerNumber+' respondió a la SuperCard con '+c.name+'. Solo se permite una respuesta.',c);
