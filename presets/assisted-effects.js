@@ -456,6 +456,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     const removed=popPower(pid,power),discarded=popPoker(pid,poker);
     s.hand.push(entry.cardId);s.handOwners.push(entry.ownerId);s.activeHyper.push(s.hand.length-1);
     recalc(pid);
+    if(!(s.usedHyperThisTurn??=[]).includes(id))s.usedHyperThisTurn.push(id);
     log(pid,id,'HyperCard activada realmente. Coste: '+removed.length+' Power Cards y '+discarded.length+' Poker Cards. Se actualizan efectos persistentes.');
     if(key==='003')s.destinyDieUsed=false;
     if(['046','062'].includes(key)){
