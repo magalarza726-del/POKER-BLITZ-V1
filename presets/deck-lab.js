@@ -6,7 +6,7 @@ function code(id){return String(id||'').slice(-3)}
 function counts(ids){const out={};for(const id of ids||[])out[id]=(out[id]||0)+1;return out}
 function legal(deck,type){
  const power=deck.cardIds||[],hyper=deck.hyperCardIds||[],h=hyper.length,n=power.length,c=counts(power);
- return h<=3&&new Set(hyper).size===h&&n>=20+2*h&&n<=30+2*h&&Object.values(c).every(x=>x<=3)
+ return h<=3&&new Set(hyper).size===h&&n>=20&&n<=35&&Object.values(c).every(x=>x<=3)
  &&power.every(id=>TYPES.includes(type(id))&&type(id)!=='HYPER')
  &&hyper.every(id=>type(id)==='HYPER');
 }
@@ -82,9 +82,9 @@ function mutate(parent,original,catalog,type,random){
   const from=Math.floor(random()*candidate.cardIds.length),options=pool.power.filter(c=>candidate.cardIds.filter(x=>x===c.id).length<3&&c.id!==candidate.cardIds[from]);
   if(options.length)candidate.cardIds[from]=select(options,random).id;
  }else if(mutation===2){
-  if(random()<.5&&candidate.cardIds.length>20+2*candidate.hyperCardIds.length){
+  if(random()<.5&&candidate.cardIds.length>20){
    candidate.cardIds.splice(Math.floor(random()*candidate.cardIds.length),1);
-  }else if(candidate.cardIds.length<30+2*candidate.hyperCardIds.length){
+  }else if(candidate.cardIds.length<35){
    const options=pool.power.filter(c=>candidate.cardIds.filter(x=>x===c.id).length<3);
    if(options.length)candidate.cardIds.push(select(options,random).id);
   }
@@ -93,7 +93,7 @@ function mutate(parent,original,catalog,type,random){
   if(candidate.hyperCardIds.length&&options.length)candidate.hyperCardIds[pos]=select(options,random).id;
   else if(!candidate.hyperCardIds.length&&options.length){
    candidate.hyperCardIds.push(select(options,random).id);
-   while(candidate.cardIds.length<20+2*candidate.hyperCardIds.length){
+   while(candidate.cardIds.length<20){
     const extras=pool.power.filter(c=>candidate.cardIds.filter(id=>id===c.id).length<3);if(!extras.length)break;candidate.cardIds.push(select(extras,random).id)
    }
   }
@@ -101,12 +101,12 @@ function mutate(parent,original,catalog,type,random){
   if(candidate.hyperCardIds.length<3&&random()<.5){
    const options=pool.hyper.filter(c=>!candidate.hyperCardIds.includes(c.id));
    if(options.length){candidate.hyperCardIds.push(select(options,random).id);
-    while(candidate.cardIds.length<20+2*candidate.hyperCardIds.length){
+    while(candidate.cardIds.length<20){
      const extras=pool.power.filter(c=>candidate.cardIds.filter(id=>id===c.id).length<3);if(!extras.length)break;candidate.cardIds.push(select(extras,random).id)}
    }
   }else if(candidate.hyperCardIds.length){
    candidate.hyperCardIds.splice(Math.floor(random()*candidate.hyperCardIds.length),1);
-   while(candidate.cardIds.length>30+2*candidate.hyperCardIds.length)candidate.cardIds.splice(Math.floor(random()*candidate.cardIds.length),1);
+   while(candidate.cardIds.length>35)candidate.cardIds.splice(Math.floor(random()*candidate.cardIds.length),1);
   }
  }
  if(!legal(candidate,type)||similarity(original,candidate)<.7)return null;
