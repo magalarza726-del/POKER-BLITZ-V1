@@ -1,3 +1,9 @@
+### Recuperación de decks predeterminados (28/10/2026)
+- Las sesiones antiguas que guardaron 8 decks ahora recuperan los 11 predeterminados, incluyendo Arkan, Regulus y Maverick, sin sobrescribir personalizaciones ni inventar cartas.
+- El correctivo se aplica una sola vez mediante `defaultPresetVersion: 2`; los decks eliminados intencionadamente después de esta versión no se restauran automáticamente.
+- Se aplica también a importaciones JSON de versiones antiguas. La pantalla de configuración muestra el total de decks seleccionables.
+- Regresión: `node android/tools/check_preset_migration.js` (migración 8 → 11, preservación de cambios, idempotencia e importación).
+
 ### Dado animado y diálogo por párrafos (28/10/2026)
 - Dado: giro corto de 800 ms; el resultado se fija antes del giro, usa `crypto.getRandomValues` con rechazo de módulo para evitar sesgos cuando no se introdujo una semilla manual, y conserva la secuencia reproducible si se indicó una semilla. El modificador +/- sigue aplicándose y se registra el valor de la cara y el total.
 - Diálogo: ▶ escribe un solo párrafo a ritmo moderado. **Enter** termina el párrafo si aún se está escribiendo y, una vez terminado, muestra el siguiente desde un cuadro limpio. Al pulsar Enter después del último se restaura el texto original completo, listo para editar. El botón **Enter ↵** permite avanzar también en pantallas táctiles. Se conservan las notas originales al cambiar de jugador, al abrir cartas y durante los refrescos de la mesa.
