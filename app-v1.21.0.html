@@ -601,6 +601,8 @@ window.STARTER_CARDS = [
   let deckTypeFilter = 'ALL';
   let addTypeFilter = 'ALL';
   let sim = null;
+  let dialoguePlayback = null;
+  let dieRollSerial = 0;
   let testSetup = {playerCount:2,deckIds:[],pokerDeckCount:1,handView:'POWER',seedInput:''};
   let testMode = 'MANUAL_FULL';
   let autoSetup={playerCount:2,deckIds:[],pokerDeckCount:1,battleMode:'BLITZ',seed:0,seedInput:'',gamesCount:1};
@@ -848,6 +850,7 @@ window.STARTER_CARDS = [
     }
     const maps={home:renderHome,deckHub:renderDeckHub,testHub:renderTestHub,training:renderTraining,deckImprove:renderDeckImprove,deckCreate:renderDeckCreate,cards:renderCards,decks:renderDecks,cardEditor:renderCardEditor,simSetup:renderSimSetup,manualChoice:renderManualChoice,autoSetup:renderAutoSetup,autoRunning:renderAutoRunning,simulator:renderSimulator,settings:renderSettings,export:renderExport,rules:renderRules};
     root.innerHTML=(maps[screen]||renderHome)()+renderModal();
+    syncDialoguePlaybackView();
     if(screen==='simulator'&&sim){
       root.querySelectorAll('[data-blitz-scroll][data-scroll-owner]').forEach(el=>{
         el.scrollLeft=Math.max(0,sim.uiHandScroll?.[el.dataset.scrollOwner]?.[el.dataset.blitzScroll]||0);
@@ -855,6 +858,82 @@ window.STARTER_CARDS = [
     }
     bindInputs();
   }
+
+  // El texto original de las notas nunca se sobrescribe con los fotogramas.
+  // Enter avanza párrafo a párrafo; el último Enter restaura todo el guion.
+  function splitDialogueParagraphs(text){
+    return String(text??'').replace(/\r\n?/g,'\n').split(/\n+/).map(p=>p.trim()).filter(Boolean);
+  }
+  function stopDialoguePlayback(restore=true){
+    const session=dialoguePlayback;if(!session)return;
+    if(session.timer!=null)clearTimeout(session.timer);
+    dialoguePlayback=null;
+    const area=$('#blitz-note'),next=$('.blitz-dialogue-step');
+    if(area&&restore&&screen==='simulator'&&sim?.decks?.[sim.activeIndex]?.id===session.ownerId){
+      area.value=session.original;area.readOnly=false;area.scrollTop=0;
+    }
+    if(next)next.hidden=true;
+  }
+  function syncDialoguePlaybackView(){
+    const p=dialoguePlayback;if(!p)return;
+    if(screen!=='simulator'||!sim?.decks?.length||sim.decks[sim.activeIndex].id!==p.ownerId){
+      stopDialoguePlayback(false);return;
+    }
+    const area=$('#blitz-note'),next=$('.blitz-dialogue-step');if(!area)return;
+    area.readOnly=true;area.value=p.display;area.scrollTop=area.scrollHeight;
+    if(next){
+      next.hidden=false;
+      next.textContent=p.typing?'Enter ↵ · Completar':p.index<p.paragraphs.length-1
+        ?'Enter ↵ · Siguiente '+(p.index+2)+'/'+p.paragraphs.length:'Enter ↵ · Texto completo';
+    }
+  }
+  function tickDialoguePlayback(p){
+    if(dialoguePlayback!==p||!p.typing)return;
+    const chars=p.chars;
+    p.offset=Math.min(chars.length,p.offset+1);
+    p.display=chars.slice(0,p.offset).join('');
+    if(p.offset>=chars.length)p.typing=false;
+    syncDialoguePlaybackView();
+    if(p.typing)p.timer=setTimeout(()=>tickDialoguePlayback(p),28);
+    else p.timer=null;
+  }
+  function advanceDialoguePlayback(){
+    const p=dialoguePlayback;if(!p)return;
+    if(p.timer!=null){clearTimeout(p.timer);p.timer=null;}
+    if(p.typing){
+      p.offset=p.chars.length;p.display=p.chars.join('');p.typing=false;
+      syncDialoguePlaybackView();return;
+    }
+    if(p.index+1>=p.paragraphs.length){
+      stopDialoguePlayback(true);return;
+    }
+    p.index++;p.chars=Array.from(p.paragraphs[p.index]);p.offset=0;
+    p.display='';p.typing=true;syncDialoguePlaybackView();
+    p.timer=setTimeout(()=>tickDialoguePlayback(p),28);
+  }
+  function startDialoguePlayback(){
+    const area=$('#blitz-note');if(!area||!sim?.decks?.length)return;
+    const d=sim.decks[sim.activeIndex],text=String(sim.states[d.id]?.notes??area.value);
+    stopDialoguePlayback(false);
+    const paragraphs=splitDialogueParagraphs(text);if(!paragraphs.length)return;
+    const p={ownerId:d.id,original:text,paragraphs,index:0,
+      chars:Array.from(paragraphs[0]),offset:0,display:'',typing:true,timer:null};
+    dialoguePlayback=p;syncDialoguePlaybackView();
+    area.focus({preventScroll:true});
+    p.timer=setTimeout(()=>tickDialoguePlayback(p),28);
+  }
+  function fairDieFace(){
+    // Una semilla introducida manualmente mantiene la reproducibilidad.
+    // Sin semilla fijada, usar un entero criptográfico sin sesgo de módulo.
+    if(sim?.diceSeeded)return 1+randomInt(6);
+    if(typeof crypto!=='undefined'&&crypto.getRandomValues){
+      const bits=new Uint32Array(1),limit=Math.floor(0x100000000/6)*6;
+      do{crypto.getRandomValues(bits)}while(bits[0]>=limit);
+      return 1+(bits[0]%6);
+    }
+    return 1+randomInt(6);
+  }
+  const DIE_FACES=['','⚀','⚁','⚂','⚃','⚄','⚅'];
   function renderHome(){
     return `<main class="app-shell">${appBar('POKER BLITZ',{logo:true,settings:true})}<section class="quick-row">
       <button class="quick-action" data-action="deck-hub">${icon('cards','lg')}<div><b>Decks</b><span>Construcción, creación y mejoras</span></div></button>
@@ -1300,7 +1379,7 @@ function syncAutoSetup(){
     <button class="blitz-nav ${navWarning==='next'?'has-counter':''}" data-action="next-sim" title="Jugador siguiente">▶${navWarning==='next'?'<span class="counter-exclamation">!</span>':''}</button>
    </div>
    <div class="blitz-character">${d.characterImage?deckCharacterPhoto(d):`<span style="font-size:70px;color:#27dfff">♠</span>`}</div>
-   <div class="blitz-dialogue"><textarea class="blitz-note" id="blitz-note" placeholder="Escribe aquí tus anotaciones durante la partida...">${esc(s.notes||'')}</textarea><button class="blitz-dialogue-play" data-action="play-blitz-note" title="Reproducir" aria-label="Reproducir anotaciones">▶</button></div>
+   <div class="blitz-dialogue"><textarea class="blitz-note" id="blitz-note" placeholder="Escribe aquí tus anotaciones durante la partida..." aria-label="Notas del personaje; durante la animación pulsa Enter para avanzar de párrafo">${esc(s.notes||'')}</textarea><button class="blitz-dialogue-play" data-action="play-blitz-note" title="Reproducir diálogo desde el comienzo" aria-label="Reproducir anotaciones">▶</button><button type="button" class="blitz-dialogue-step" data-action="next-blitz-note" title="Avanzar párrafo; también puedes pulsar Enter" hidden>Enter ↵</button></div>
   </aside>
   <section class="blitz-board">
    <div class="blitz-board-top"><div class="blitz-effect-box"><strong id="blitz-effect-title">Explicador de efectos</strong><div id="blitz-effect-body">Power/Hyper: pulsa para ampliar. Poker: clic para seleccionar y doble clic para ampliar.</div></div>
@@ -1320,8 +1399,8 @@ function syncAutoSetup(){
      <button data-action="draw-poker-random" title="Robar Poker Card" ${!sim.pokerDrawPile?.length?'disabled':''}>＋</button>
      <button data-action="draw-poker-view" title="Buscar en Poker Deck" ${!sim.pokerDrawPile?.length?'disabled':''}>⌕</button>
      <div class="blitz-die-modifier" aria-label="Modificador del dado"><button data-action="die-adjust" data-delta="-1" title="Restar 1 al modificador" ${!ok?'disabled':''}>−</button><span title="Modificador del dado">${Number(s.dieModifier||0)>0?'+':''}${Number(s.dieModifier||0)}</span><button data-action="die-adjust" data-delta="1" title="Sumar 1 al modificador" ${!ok?'disabled':''}>＋</button></div>
-     <button class="blitz-die" data-action="roll-die" title="Lanzar dado">⚄</button>
-     <span class="blitz-die-value">${s.dieBase?Number(s.dieBase)+Number(s.dieModifier||0):'Dado'}</span>
+     <button class="blitz-die ${s.dieRolling?'is-rolling':''}" data-action="roll-die" title="Lanzar dado de seis caras" aria-label="${s.dieRolling?'Dado girando': 'Lanzar dado'}" ${s.dieRolling?'disabled':''}>${DIE_FACES[Number(s.dieBase)||5]||'⚄'}</button>
+     <span class="blitz-die-value" aria-live="polite">${s.dieRolling?'Girando…':s.dieBase?Number(s.dieBase)+Number(s.dieModifier||0):'Dado'}</span>
      ${sim.mode==='MANUAL_SIMPLE'?'':`<button class="blitz-bolt" data-action="open-trade" title="Acciones manuales">⚡</button>`}
      <div class="blitz-player-chips" aria-label="Fichas del jugador">
        <div class="blitz-player-chips-count"><span class="blitz-chip-symbol" aria-hidden="true">🪙</span><strong>${s.chips||0}</strong><span>fichas</span></div>
@@ -1508,7 +1587,7 @@ function syncAutoSetup(){
     return'';
   }
   function bindInputs(){
-    $('#blitz-note')?.addEventListener('input',e=>{if(sim?.decks?.length){const id=sim.decks[sim.activeIndex].id;sim.states[id].notes=e.target.value;}});
+    $('#blitz-note')?.addEventListener('input',e=>{if(dialoguePlayback)return;if(sim?.decks?.length){const id=sim.decks[sim.activeIndex].id;sim.states[id].notes=e.target.value;}});
     $$('[data-auto-deck]').forEach(el=>el.addEventListener('change',()=>{autoSetup.deckIds[Number(el.dataset.autoDeck)]=el.value}));
     $('#training-deck')?.addEventListener('change',e=>{trainingSettings.deckId=e.target.value;trainingResult=null;render();});
     $('#training-iterations')?.addEventListener('input',e=>{const n=Number(e.target.value);if(Number.isInteger(n)&&n>=1&&n<=200)trainingSettings.iterations=n;});
@@ -1609,7 +1688,7 @@ function syncAutoSetup(){
       const d=sources.find(x=>x.id===sourceId);return d?{...d,id:'test-player-'+(i+1),sourceDeckId:d.id,playerNumber:i+1}:null;
     }).filter(Boolean);
     let chosenSeed;try{chosenSeed=parseSeed(testSetup.seedInput)}catch(err){toast(String(err.message||err));return false}const seed=chosenSeed??generateSeed();
-    sim={mode:testMode,decks:valid,activeIndex:0,result:'Listo para jugar',states:{},histories:{},undoStacks:{},startedAt:Date.now(),handView:testSetup.handView||'POWER',pokerDeckCount:testSetup.pokerDeckCount,seed,seededRng:makeSeededRandom(seed),pokerDrawPile:[],turnIndex:0,round:1,goal:30,chargeSelection:[],finished:false,chain:null,pendingHyper:null,pendingShield:null};
+    sim={mode:testMode,decks:valid,activeIndex:0,result:'Listo para jugar',states:{},histories:{},undoStacks:{},startedAt:Date.now(),handView:testSetup.handView||'POWER',pokerDeckCount:testSetup.pokerDeckCount,seed,diceSeeded:chosenSeed!==null,seededRng:makeSeededRandom(seed),pokerDrawPile:[],turnIndex:0,round:1,goal:30,chargeSelection:[],finished:false,chain:null,pendingHyper:null,pendingShield:null};
     sim.pokerDrawPile=testMode==='MANUAL_SIMPLE'?[]:shuffle(buildPokerDeck(testSetup.pokerDeckCount));
     for(const d of valid){const sh=shuffle(d.cardIds),n=Math.min(state.handSize,sh.length),hand=sh.slice(0,n),pokerHand=testMode==='MANUAL_SIMPLE'?[]:sim.pokerDrawPile.splice(0,Math.min(7,sim.pokerDrawPile.length));sim.states[d.id]={initialCards:d.cardIds.length,drawPile:sh.slice(n),hand,handOwners:hand.map(()=>d.id),drawOwners:sh.slice(n).map(()=>d.id),pokerHand,pokerLimit:7,activeHyper:[],hyperReserve:[...(d.hyperCardIds||[])],hyperActivationsThisTurn:0,usedHyperThisTurn:[],manualEnchantedIds:[],notes:'',chips:0,chargeReplacement:0,turnsTaken:0,dieBase:null,dieModifier:0,dieRolling:false,currentPhase:'MAIN',powerHandLimit:Infinity};sim.histories[d.id]=hand.map(cid=>{const c=getCard(cid);return {at:Date.now(),action:'Carta inicial',detail:'Carta repartida en la mano inicial.',cardName:c?.name||'',cardDescription:c?.description||''}});if(pokerHand.length)sim.histories[d.id].push({at:Date.now(),action:'Poker Hand inicial',detail:`${pokerHand.length} Poker Cards repartidas.`,cardName:'',cardDescription:''});sim.undoStacks[d.id]=[]}
     for(const d of valid)logSim(d.id,'Semilla inicial','Semilla '+seed+'; barajado '+state.randomizationSettings.mode+'; modo '+testMode+'.');
@@ -2099,6 +2178,11 @@ function syncAutoSetup(){
   }
   root.addEventListener('mouseover',e=>{showBlitzEffect(e.target.closest?.('[data-card-title]'));});
   root.addEventListener('focusin',e=>{showBlitzEffect(e.target.closest?.('[data-card-title]'));});
+  root.addEventListener('keydown',e=>{if(e.key!=='Enter'||e.isComposing||!dialoguePlayback)return;
+    if(e.target?.id==='blitz-note'||e.target?.classList?.contains('blitz-dialogue-play')){
+      e.preventDefault();advanceDialoguePlayback();
+    }
+  });
    root.addEventListener('keydown',e=>{const tile=e.target.closest?.('.blitz-table .blitz-slot.poker[data-index]');if(!tile||e.target!==tile)return;if(e.key==='Enter'||e.key===' '){e.preventDefault();tile.click();}else if(e.key.toLowerCase()==='z'&&sim?.states){const pc=currentSim().s.pokerHand[Number(tile.dataset.index)];if(pc){e.preventDefault();modal={type:'poker-zoom',card:structuredClone(pc)};render();}}});
   let lastPokerClick={index:-1,at:0};
    root.addEventListener('click',e=>{
@@ -2143,14 +2227,8 @@ function syncAutoSetup(){
     else if(a==='select-card'){selectedCardId=id;render()}
     else if(a==='zoom-card'){const ret=modal?structuredClone(modal):null;if(ret?.type==='add')ret.scrollTop=$('.add-list')?.scrollTop||0;modal={type:'zoom',id,returnTo:ret};render()}
     else if(a==='zoom-poker'){const {s}=currentSim();const pc=s.pokerHand[Number(el.dataset.index)];if(pc){modal={type:'poker-zoom',card:structuredClone(pc)};render()}}
-    else if(a==='play-blitz-note'){const area=$('#blitz-note');if(area){const text=area.value;
-      const token=Symbol('blitz-dialogue');area._playbackToken=token;area.value='';area.scrollTop=0;
-      let i=0;const step=()=>{if(screen!=='simulator'||!area.isConnected||area._playbackToken!==token)return;
-        area.value=text.slice(0,++i);
-        // Mantener siempre visible la última línea revelada, incluso si el texto supera el área del diálogo.
-        area.scrollTop=area.scrollHeight;
-        if(i<text.length)setTimeout(step,28);
-      };if(text)step();}}
+    else if(a==='play-blitz-note'){startDialoguePlayback()}
+    else if(a==='next-blitz-note'){advanceDialoguePlayback()}
     else if(a==='close-modal'||a==='modal-backdrop'){closeModal()}
     else if(a==='delete-card'){if(confirm('¿Eliminar esta carta? También se quitará de los decks.')){state.cards=state.cards.filter(c=>c.id!==id);state.decks=state.decks.map(d=>({...d,cardIds:d.cardIds.filter(x=>x!==id),hyperCardIds:(d.hyperCardIds||[]).filter(x=>x!==id),iconCardId:d.iconCardId===id?null:d.iconCardId}));saveState();render()}}
     else if(a==='set-color'){editingCard.accentColor=el.dataset.color;editingCard.tintColor=el.dataset.color;render()}
@@ -2227,7 +2305,24 @@ function syncAutoSetup(){
     else if(a==='activate-hyper-reserve'){activateReservedHyper(Number(el.dataset.index));}
     else if(a==='activate-hyper'&&sim?.mode==='ASSISTED'){assistedEffects.activate(+el.dataset.index)}
     else if(a==='activate-hyper'){const {d,s}=currentSim(),i=+el.dataset.index,c=getCard(s.hand[i]);if(!c||cardType(c)!=='HYPER'||s.activeHyper.includes(i)||s.currentPhase!=='MAIN')return;if((s.usedHyperThisTurn||[]).includes(c.id))return toast('Esta HyperCard ya se activó durante el turno.');if(s.activeHyper.length>=3){const msg='Límite máximo de 3 HyperCards activas alcanzado.';sim.result=msg;toast(msg);render();return}pushUndo(d.id,'Activar HyperCard');s.activeHyper.push(i);(s.usedHyperThisTurn??=[]).push(c.id);logSim(d.id,'Activar HyperCard','La HyperCard fue activada y permanece visible con borde dorado resplandeciente.',c);render()}
-    else if(a==='roll-die'){const {d,s}=currentSim();if(s.dieRolling)return;pushUndo(d.id,'Lanzar dado');const deckId=d.id;s.dieBase=1+randomInt(6);s.dieRolling=true;sim.result='Lanzando dado…';render();setTimeout(()=>{const st=sim?.states?.[deckId];if(!st)return;st.dieRolling=false;const result=Number(st.dieBase||0)+Number(st.dieModifier||0);sim.result='Resultado del dado: '+result;logSim(deckId,'Lanzamiento de dado','Resultado del dado: '+result);render();},1250)}
+    else if(a==='roll-die'){
+      const {d,s}=currentSim();if(s.dieRolling)return;
+      pushUndo(d.id,'Lanzar dado');
+      const game=sim,deckId=d.id,face=fairDieFace(),serial=++dieRollSerial;
+      s.dieRolling=true;s.dieRollSerial=serial;
+      sim.result='Lanzando dado…';render();
+      // La cara ganadora se decide antes de animar, no durante el giro.
+      setTimeout(()=>{
+        if(sim!==game||!game?.states?.[deckId])return;
+        const st=game.states[deckId];
+        if(!st.dieRolling||st.dieRollSerial!==serial)return; // Undo / otra partida
+        st.dieBase=face;st.dieRolling=false;delete st.dieRollSerial;
+        const result=face+Number(st.dieModifier||0);
+        sim.result='Resultado del dado: '+result;
+        logSim(deckId,'Lanzamiento de dado','Dado '+face+'; modificador '+(st.dieModifier||0)+'; resultado '+result+'.');
+        render();
+      },800);
+    }
     else if(a==='die-adjust'){const {d,s}=currentSim();pushUndo(d.id,'Ajustar dado');const delta=Number(el.dataset.delta||0),before=Number(s.dieModifier||0);s.dieModifier=before+delta;const after=s.dieModifier;sim.result='Modificador del dado: '+(after>=0?'+':'')+after+(s.dieBase?' · Total '+(Number(s.dieBase)+after):'');logSim(d.id,'Ajustar modificador del dado',`Modificador ${before} → ${after} (${delta>0?'+':''}${delta}).`);render()}
     else if(a==='set-phase'){manualRules.changePhase(el.dataset.phase||'MAIN')}
     else if(a==='finish-turn'){manualRules.finishTurn()}
