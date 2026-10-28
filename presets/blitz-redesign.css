@@ -139,7 +139,7 @@
    En ventanas estrechas se mantiene el desplazamiento horizontal. */
 .blitz-table {
   grid-template-columns:minmax(250px,24%) minmax(0,1fr);
-  --blitz-card-width:clamp(78px,8.2vw,134px);
+  --blitz-card-width:clamp(73px,7.8vw,134px);
   --blitz-card-height:calc(var(--blitz-card-width) * 1.39);
 }
 .blitz-sidebar {
