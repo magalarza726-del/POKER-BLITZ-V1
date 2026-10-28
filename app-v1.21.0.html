@@ -205,12 +205,13 @@ button,input,textarea,select{font:inherit;color:inherit}button{cursor:pointer}bu
 }
 
 </style>
+<link rel="stylesheet" href="presets/blitz-redesign.css?v=tabletop-20261028">
 <script src="presets/default-decks.js?v=training-suite-final-20261027"></script>
-<script src="presets/manual-game-rules.js?v=card-rules-20261027"></script>
-<script src="presets/assisted-effects.js?v=hyper-4hand-20261027"></script>
-<script src="presets/assisted-links.js?v=distinct-dual-enchants-20261027"></script>
-<script src="presets/simulation-engine.js?v=training-suite-final-20261027"></script>
-<script src="presets/deck-lab.js?v=lab-1210-20261026"></script>
+<script src="presets/manual-game-rules.js?v=tabletop-20261028"></script>
+<script src="presets/assisted-effects.js?v=tabletop-20261028"></script>
+<script src="presets/assisted-links.js?v=tabletop-20261028"></script>
+<script src="presets/simulation-engine.js?v=tabletop-20261028"></script>
+<script src="presets/deck-lab.js?v=tabletop-20261028"></script>
 <script src="presets/ai-training.js?v=training-suite-final-20261027"></script>
 </head>
 <body>
@@ -614,16 +615,15 @@ window.STARTER_CARDS = [
 
   const APP_VERSION = '1.21.0';
   const RULES_SECTIONS = [
-    {title:"1. Objetivo",html:`<p>Alcanza la meta de fichas y termina la ronda con más fichas que tus rivales para reclamar la Mano Imposible.</p>`},
-    {title:"2. Preparación",html:`<p>Cada jugador arma un Power Deck de 20 + 2H a 30 + 2H cartas, formado por SuperCards y CounterCards. H es la cantidad de HyperCards seleccionadas (0–3): las HyperCards se colocan boca abajo en la HyperZone y no forman parte del Power Deck. Mano inicial: 4 Power Cards y 7 Poker Cards. Límites normales: 4 y 7, respectivamente.</p>`},
-    {title:"3. Fases del turno",html:`<p>Draw Phase: roba Power Cards al azar hasta tener 4 en mano. Main Phase: juega SuperCards y activa HyperCards según sus condiciones. Charge Phase: cobra todas las combinaciones válidas, sin reutilizar Poker Cards. End Phase: repón al azar tu Poker Hand hasta 7 cartas, aplica los efectos de End Phase y desactiva las HyperCards usadas en ese turno.</p>`},
-    {title:"4. Combinaciones y cobro",html:`<p>Par: 1 ficha. Trío: 3 fichas. Escalera de 5: 5 fichas. Color de 5: 5 fichas. Póker de 4: 7 fichas. No hay premios independientes de doble pareja ni full house; cada combinación se cobra por separado sin compartir Poker Cards. Las cartas usadas regresan a sus respectivas barajas.</p>`},
-    {title:"5. Power Cards",html:`<p>SuperCards (celestes): efectos de Main Phase. CounterCards (magenta): respuestas durante la Main Phase rival cuando se cumple la condición; no existen cadenas de CounterCards. HyperCards (amarillas): normalmente puedes activar una por turno, excepto que otra carta permita una adicional. Se desactivan al final de la End Phase y regresan boca abajo a la HyperZone. Los efectos programados permanecen pendientes aunque su carta ya no esté activa.</p>`},
-    {title:"6. Encantar",html:`<p>Solo puedes comenzar un Encantar si todavía no has jugado una SuperCard este turno. La Poker Card encantada se coloca boca arriba en HyperZone, sigue contando como parte de la mano y puede formar combinaciones; mientras esté encantada no puede seleccionarse, intercambiarse ni modificarse mediante efectos. Puedes jugar SuperCards después. Termina al abandonar la mano o al final de tu End Phase.</p>`},
-    {title:"7. Límites de mano",html:`<p>Límites normales: 4 Power Cards y 7 Poker Cards. Los efectos pueden sobrepasarlos temporalmente: si con 7 Poker Cards robas 3, tendrás 10 durante el turno. En End Phase se repone al azar la mano de Poker hasta 7 si está por debajo de ese valor. El intercambio no implica aumentar la cantidad de cartas.</p>`},
-    {title:"8. Modos de juego",html:`<p>Blitz Battle: 30 fichas y HyperCards permitidas. Bullet Battle: 15 fichas y HyperCards no permitidas. Solo se consideran las fichas que cada jugador conserva, no las gastadas.</p>`},
-    {title:"9. Fin del juego",html:`<p>Cuando alguien alcanza la meta, se completa la ronda hasta que todos hayan jugado igual número de turnos. Gana quien conserve más fichas entre quienes alcanzaron la meta. Si hay empate en el primer puesto, solo los empatados juegan hasta 3 rondas extra; si persiste, se declara empate.</p>`},
-    {title:"10. Catálogo oficial vigente",html:`<p>Hay exactamente 50 cartas: 32 SuperCards, 12 HyperCards y 6 CounterCards. Dos SuperCards distintas se llaman MAESTRO DE FICHAS y SECUAZ DE LAS FICHAS. Las cartas que ya no formen parte del catálogo se eliminan de los decks, conservando las demás copias sin sustitución. Los diseños del catálogo no incorporan ilustraciones.</p>`}
+    {title:"1. Objetivo",html:`<p>Alcanza la meta de fichas y termina la ronda con más fichas que tus rivales.</p>`},
+    {title:"2. Preparación",html:`<p>Construye un Power Deck de 20 a 35 SuperCards o CounterCards (máximo tres copias de cada carta). Elige hasta tres HyperCards diferentes, con una copia de cada una; no afectan al tamaño del Power Deck. Mano inicial: cuatro Power Cards y siete Poker Cards.</p>`},
+    {title:"3. Turno único",html:`<p>Al comienzo, roba Power Cards hasta cuatro, además de las adicionales por efectos. Durante el turno, juega o descarta Power Cards, activa HyperCards y cobra combinaciones libremente, sin reposición inmediata. Al terminar, repón Poker Cards hasta siete en total, incluidas las encantadas, y aplica efectos de fin de turno.</p>`},
+    {title:"4. Cobros",html:`<p>Par: 1 ficha. Trío: 3. Escalera de cinco: 5. Color de cinco: 5. Póker de cuatro: 7. Cada combinación se cobra separadamente; ninguna Poker Card puede cobrarse dos veces.</p>`},
+    {title:"5. Power Cards",html:`<p>Las SuperCards se juegan durante tu turno. Las CounterCards responden al rival, sin cadenas de CounterCards. Puedes activar varias HyperCards diferentes por turno, pero cada HyperCard una sola vez. Se desactivan al cerrar el turno y regresan a Hyper Zone; los efectos programados permanecen pendientes.</p>`},
+    {title:"6. Encantamientos",html:`<p>Paga el costo indicado por la HyperCard. La PKC encantada pasa a Hyper Zone y queda protegida de otros efectos. Cuenta como parte de tu mano y puede cobrarse. Al desencantarse vuelve a Poker Hand si no fue cobrada. Puedes encantar incluso después de jugar SuperCards.</p>`},
+    {title:"7. Reposición",html:`<p>Valores normales: 4 Power Cards y 7 Poker Cards. Los efectos pueden superarlos temporalmente. Robas Power Cards al principio del turno y Poker Cards al final; las encantadas cuentan entre las siete.</p>`},
+    {title:"8. Modos",html:`<p>Blitz Battle: 30 fichas, HyperCards permitidas. Bullet Battle: 15 fichas, sin HyperCards. Las fichas gastadas no cuentan para ganar.</p>`},
+    {title:"9. Victoria",html:`<p>Cuando alguien llega a la meta, termina la ronda con igual número de turnos para todos. Gana quien tiene más fichas entre quienes alcanzaron la meta. Si empatan, juegan hasta tres rondas más y después se declara empate total.</p>`}
   ];
 
   const defaultCard = () => ({
@@ -1088,7 +1088,7 @@ ${characterDialogueHTML(d,'','deck-row-dialogue')}</div><button class="icon-btn"
   function renderDeckEditor(){
     const d=getDeck(editingDeckId);if(!d){screen='home';return renderHome();}
     const counts=countIds([...d.cardIds,...(d.hyperCardIds||[])]); const unique=Object.keys(counts).map(getCard).filter(Boolean).filter(c=>c.name.toLowerCase().includes(deckQuery.toLowerCase())&&typeMatches(c,deckTypeFilter));
-    return `<main class="app-shell">${appBar('Deck: '+d.name,{back:true})}<section class="deck-editor-layout"><aside class="panel deck-side"><div class="field"><label>Nombre del deck</label><input id="deckName" value="${esc(d.name)}" maxlength="50"></div><div class="deck-stats" style="margin-top:12px"><div class="stat-box"><strong>${d.cardIds.length}</strong><span>Super/Counter</span></div><div class="stat-box"><strong>${(d.hyperCardIds||[]).length}/3</strong><span>HyperZone: únicas</span></div></div><p class="small muted">Power Deck actual: <strong>${20+2*(d.hyperCardIds||[]).length} mínimo</strong> y <strong>${30+2*(d.hyperCardIds||[]).length} máximo</strong> (${d.cardIds.length} presentes). Máximo 3 copias de cada SuperCard o CounterCard y 1 de cada HyperCard. Sin sustituciones de cartas retiradas.</p><div class="deck-profile"><div class="deck-character-column"><div class="deck-character-preview ${d.characterImage?'':'empty'}">${d.characterImage?deckCharacterPhoto(d):'<span>Sin imagen de personaje</span>'}</div><div class="character-controls"><button class="btn primary" data-action="open-character-picker">${icon('upload')} ${d.characterImage?'Cambiar imagen':'Añadir imagen'}</button>${d.characterImage?`<button class="btn" data-action="edit-character-image">${icon('edit')} Editar encuadre</button><button class="btn danger" data-action="remove-character-image">${icon('trash')} Quitar</button>`:''}</div></div><div class="deck-profile-fields"><div><label class="small" style="font-weight:900;display:block;margin-bottom:4px">Personaje del deck</label><div class="small muted">Sube una imagen y encuádrala arrastrando, como en un editor de perfil.</div></div><div><label class="small" style="font-weight:900;display:block;margin-bottom:4px">Descripción breve</label><textarea id="deckDescription" maxlength="180" placeholder="Describe la idea o estilo del deck...">${esc(d.description||'')}</textarea><div class="field-help">${(d.description||'').length}/180</div></div></div></div>${PRESET_DIALOGUE_PANELS[d.id]?`<div class="deck-dialogue-section"><label>Panel de diálogo (adicional al retrato)</label>${characterDialogueHTML(d,'','preview')}<div class="small muted">También aparece junto al personaje en partida; su foto se conserva.</div></div>`:''}<div style="flex:1"></div><button class="btn primary" data-action="test-deck" ${deckIsLegal(d)?'':'disabled'}>${icon('play')} Probar deck</button><div class="small muted" style="margin-top:10px">Controla las copias con - / +. La imagen de personaje aparecerá junto a tu mano en el modo de prueba.</div>
+    return `<main class="app-shell">${appBar('Deck: '+d.name,{back:true})}<section class="deck-editor-layout"><aside class="panel deck-side"><div class="field"><label>Nombre del deck</label><input id="deckName" value="${esc(d.name)}" maxlength="50"></div><div class="deck-stats" style="margin-top:12px"><div class="stat-box"><strong>${d.cardIds.length}</strong><span>Super/Counter</span></div><div class="stat-box"><strong>${(d.hyperCardIds||[]).length}/3</strong><span>HyperZone: únicas</span></div></div><p class="small muted">Power Deck actual: <strong>20 mínimo</strong> y <strong>${35} máximo</strong> (${d.cardIds.length} presentes). Máximo 3 copias de cada SuperCard o CounterCard y 1 de cada HyperCard. Sin sustituciones de cartas retiradas.</p><div class="deck-profile"><div class="deck-character-column"><div class="deck-character-preview ${d.characterImage?'':'empty'}">${d.characterImage?deckCharacterPhoto(d):'<span>Sin imagen de personaje</span>'}</div><div class="character-controls"><button class="btn primary" data-action="open-character-picker">${icon('upload')} ${d.characterImage?'Cambiar imagen':'Añadir imagen'}</button>${d.characterImage?`<button class="btn" data-action="edit-character-image">${icon('edit')} Editar encuadre</button><button class="btn danger" data-action="remove-character-image">${icon('trash')} Quitar</button>`:''}</div></div><div class="deck-profile-fields"><div><label class="small" style="font-weight:900;display:block;margin-bottom:4px">Personaje del deck</label><div class="small muted">Sube una imagen y encuádrala arrastrando, como en un editor de perfil.</div></div><div><label class="small" style="font-weight:900;display:block;margin-bottom:4px">Descripción breve</label><textarea id="deckDescription" maxlength="180" placeholder="Describe la idea o estilo del deck...">${esc(d.description||'')}</textarea><div class="field-help">${(d.description||'').length}/180</div></div></div></div>${PRESET_DIALOGUE_PANELS[d.id]?`<div class="deck-dialogue-section"><label>Panel de diálogo (adicional al retrato)</label>${characterDialogueHTML(d,'','preview')}<div class="small muted">También aparece junto al personaje en partida; su foto se conserva.</div></div>`:''}<div style="flex:1"></div><button class="btn primary" data-action="test-deck" ${deckIsLegal(d)?'':'disabled'}>${icon('play')} Probar deck</button><div class="small muted" style="margin-top:10px">Controla las copias con - / +. La imagen de personaje aparecerá junto a tu mano en el modo de prueba.</div>
     ${(d.versionHistory||[]).length?`<div class="deck-dialogue-section"><h3>Historial de versiones (${d.versionHistory.length})</h3>
       <div style="max-height:300px;overflow-y:auto">${d.versionHistory.map((v,i)=>`<div class="summary-row">
        <span>v${v.version||i+1} · ${v.metrics?.wins??0} V / ${v.metrics?.losses??0} D ${v.similarity==null?'':('· '+Math.round(v.similarity*100)+' % semejanza')}</span>
@@ -1098,7 +1098,7 @@ ${characterDialogueHTML(d,'','deck-row-dialogue')}</div><button class="icon-btn"
   function availableTestDecks(){return state.decks.filter(d=>Array.isArray(d.cardIds)&&d.cardIds.length>0&&deckIsLegal(d))}
   function deckIsLegal(d){const h=(d.hyperCardIds||[]).length,n=d.cardIds.length;
     if(h>3||new Set(d.hyperCardIds||[]).size!==h)return false;
-    const c=countIds(d.cardIds);return n>=20+2*h&&n<=30+2*h&&Object.values(c).every(v=>v<=3)&&d.cardIds.every(id=>officialPowerIds.has(id))&&(d.hyperCardIds||[]).every(id=>officialHyperIds.has(id));
+    const c=countIds(d.cardIds);return n>=20&&n<=35&&Object.values(c).every(v=>v<=3)&&d.cardIds.every(id=>officialPowerIds.has(id))&&(d.hyperCardIds||[]).every(id=>officialHyperIds.has(id));
   }
   function addOfficialDeckCard(d,id){
     if(!d||!officialCardIds.has(id)){toast('Carta retirada: no puede añadirse.');return false;}
@@ -1109,7 +1109,7 @@ ${characterDialogueHTML(d,'','deck-row-dialogue')}</div><button class="icon-btn"
       d.hyperCardIds.push(id);
     }else{
       if(d.cardIds.filter(x=>x===id).length>=3){toast('Máximo 3 copias por SuperCard o CounterCard.');return false;}
-      if(d.cardIds.length>=30+2*(d.hyperCardIds||[]).length){toast('Tamaño máximo del Power Deck alcanzado.');return false;}
+      if(d.cardIds.length>=35){toast('Tamaño máximo del Power Deck alcanzado.');return false;}
       d.cardIds.push(id);
     }
     saveState();return true;
@@ -1233,7 +1233,7 @@ function syncAutoSetup(){
     const dieFaces=[1,2,3,4,5,6].map(n=>`<div class="die-face f${n}">${n}</div>`).join('');
     const phaseButtons=[['DRAW','Draw Phase'],['MAIN','Main Phase'],['CHARGE','Charge Phase'],['END','End Phase']].map(([v,label])=>`<button class="phase-btn ${s.currentPhase===v?'active':''}" data-action="set-phase" data-phase="${v}" ${(!manualRules.canAct()||!(s.currentPhase===v||s.currentPhase==='MAIN'&&v==='CHARGE'||s.currentPhase==='CHARGE'&&v==='END'))?'disabled':''}>${label}</button>`).join('');
     const comboReasons=new Set(['Par','Trío','Escalera','Color','Póker']);
-    const chipButtons=(sim.mode==='MANUAL_SIMPLE'?[[-1,'−1 ajuste','Corrección manual'],[1,'+1 efecto','Efecto manual'],[2,'+2 efecto','Efecto manual'],[1,'+1 par','Par'],[3,'+3 trío','Trío'],[5,'+5 escalera','Escalera'],[5,'+5 color','Color'],[7,'+7 póker','Póker']]:[[-1,'−1 ajuste','Corrección manual'],[1,'+1 efecto','Efecto manual'],[2,'+2 efecto','Efecto manual']]).map(([v,label,reason])=>`<button class="${Number(v)<0?'negative':''}" data-action="add-chips" data-value="${v}" data-reason="${reason}" ${comboReasons.has(reason)&&s.currentPhase!=='CHARGE'?'disabled title="Disponible solo durante Charge Phase"':''}>${label}</button>`).join('');
+    const chipButtons=(sim.mode==='MANUAL_SIMPLE'?[[-1,'−1 ajuste','Corrección manual'],[1,'+1 efecto','Efecto manual'],[2,'+2 efecto','Efecto manual'],[1,'+1 par','Par'],[3,'+3 trío','Trío'],[5,'+5 escalera','Escalera'],[5,'+5 color','Color'],[7,'+7 póker','Póker']]:[[-1,'−1 ajuste','Corrección manual'],[1,'+1 efecto','Efecto manual'],[2,'+2 efecto','Efecto manual']]).map(([v,label,reason])=>`<button class="${Number(v)<0?'negative':''}" data-action="add-chips" data-value="${v}" data-reason="${reason}" ${comboReasons.has(reason)&&s.currentPhase!=='MAIN'?'disabled title="Disponible solo durante Charge Phase"':''}>${label}</button>`).join('');
     const canUsePowerCard=c=>cardType(c)==='SUPER'&&s.currentPhase==='MAIN';
     const canDiscard=s.currentPhase==='MAIN'||s.currentPhase==='END',canActivate=s.currentPhase==='MAIN';
     const undoCount=(sim.undoStacks?.[d.id]||[]).length;
@@ -1434,6 +1434,7 @@ function syncAutoSetup(){
     return'';
   }
   function bindInputs(){
+    $('#blitz-note')?.addEventListener('input',e=>{if(sim?.decks?.length){const id=sim.decks[sim.activeIndex].id;sim.states[id].notes=e.target.value;}});
     $$('[data-auto-deck]').forEach(el=>el.addEventListener('change',()=>{autoSetup.deckIds[Number(el.dataset.autoDeck)]=el.value}));
     $('#training-deck')?.addEventListener('change',e=>{trainingSettings.deckId=e.target.value;trainingResult=null;render();});
     $('#training-iterations')?.addEventListener('input',e=>{const n=Number(e.target.value);if(Number.isInteger(n)&&n>=1&&n<=200)trainingSettings.iterations=n;});
@@ -1536,7 +1537,7 @@ function syncAutoSetup(){
     let chosenSeed;try{chosenSeed=parseSeed(testSetup.seedInput)}catch(err){toast(String(err.message||err));return false}const seed=chosenSeed??generateSeed();
     sim={mode:testMode,decks:valid,activeIndex:0,result:'Listo para jugar',states:{},histories:{},undoStacks:{},startedAt:Date.now(),handView:testSetup.handView||'POWER',pokerDeckCount:testSetup.pokerDeckCount,seed,seededRng:makeSeededRandom(seed),pokerDrawPile:[],turnIndex:0,round:1,goal:30,chargeSelection:[],finished:false,chain:null};
     sim.pokerDrawPile=testMode==='MANUAL_SIMPLE'?[]:shuffle(buildPokerDeck(testSetup.pokerDeckCount));
-    for(const d of valid){const sh=shuffle(d.cardIds),n=Math.min(state.handSize,sh.length),hand=sh.slice(0,n),pokerHand=testMode==='MANUAL_SIMPLE'?[]:sim.pokerDrawPile.splice(0,Math.min(7,sim.pokerDrawPile.length));sim.states[d.id]={initialCards:d.cardIds.length,drawPile:sh.slice(n),hand,handOwners:hand.map(()=>d.id),drawOwners:sh.slice(n).map(()=>d.id),pokerHand,pokerLimit:7,activeHyper:[],hyperReserve:[...(d.hyperCardIds||[])],hyperActivationsThisTurn:0,hyperActivationLimit:1,chips:0,chargeReplacement:0,turnsTaken:0,dieBase:null,dieModifier:0,dieRolling:false,currentPhase:'MAIN',powerHandLimit:4};sim.histories[d.id]=hand.map(cid=>{const c=getCard(cid);return {at:Date.now(),action:'Carta inicial',detail:'Carta repartida en la mano inicial.',cardName:c?.name||'',cardDescription:c?.description||''}});if(pokerHand.length)sim.histories[d.id].push({at:Date.now(),action:'Poker Hand inicial',detail:`${pokerHand.length} Poker Cards repartidas.`,cardName:'',cardDescription:''});sim.undoStacks[d.id]=[]}
+    for(const d of valid){const sh=shuffle(d.cardIds),n=Math.min(state.handSize,sh.length),hand=sh.slice(0,n),pokerHand=testMode==='MANUAL_SIMPLE'?[]:sim.pokerDrawPile.splice(0,Math.min(7,sim.pokerDrawPile.length));sim.states[d.id]={initialCards:d.cardIds.length,drawPile:sh.slice(n),hand,handOwners:hand.map(()=>d.id),drawOwners:sh.slice(n).map(()=>d.id),pokerHand,pokerLimit:7,activeHyper:[],hyperReserve:[...(d.hyperCardIds||[])],hyperActivationsThisTurn:0,usedHyperThisTurn:[],manualEnchantedIds:[],notes:'',chips:0,chargeReplacement:0,turnsTaken:0,dieBase:null,dieModifier:0,dieRolling:false,currentPhase:'MAIN',powerHandLimit:4};sim.histories[d.id]=hand.map(cid=>{const c=getCard(cid);return {at:Date.now(),action:'Carta inicial',detail:'Carta repartida en la mano inicial.',cardName:c?.name||'',cardDescription:c?.description||''}});if(pokerHand.length)sim.histories[d.id].push({at:Date.now(),action:'Poker Hand inicial',detail:`${pokerHand.length} Poker Cards repartidas.`,cardName:'',cardDescription:''});sim.undoStacks[d.id]=[]}
     for(const d of valid)logSim(d.id,'Semilla inicial','Semilla '+seed+'; barajado '+state.randomizationSettings.mode+'; modo '+testMode+'.');
     return true;
   }
@@ -1930,10 +1931,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
   function activateReservedHyper(at,responded=false){
     const {d,s}=currentSim(),cid=s.hyperReserve?.[at];
     if(!cid||s.currentPhase!=='MAIN'||(s.hyperDeniedThisTurn||[]).includes(cid))return;
-    const enchanting=['029','030','035','042','043','044'].includes(cid.slice(-3));
-    if(enchanting&&(s.usedSuperThisTurn||(s.assistedPlayedSupers||[]).length))
-      return toast('Reglamento oficial: Encantar debe ocurrir antes de jugar la primera SuperCard del turno.');
-    if((s.hyperActivationsThisTurn||0)>=(s.hyperActivationLimit||1)||s.activeHyper.length>=3)return;
+    if((s.usedHyperThisTurn||[]).includes(cid)||s.activeHyper.length>=3)return;
     if(sim.mode==='ASSISTED'&&!assistedEffects.supported(cid))return toast('Este efecto no está implementado.');
     if(sim.mode==='ASSISTED'&&!responded){
       const counters=sim.decks.filter(p=>p.id!==d.id).flatMap(p=>sim.states[p.id].hand.map((id,i)=>({playerId:p.id,number:p.playerNumber,cardId:id,index:i})).filter(x=>['catalog_v3_052','catalog_v3_006'].includes(x.cardId)&&!sim.states[p.id].activeHyper.includes(x.index)));
@@ -1949,7 +1947,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
         s.hyperReserve.splice(at,0,cid);toast('No se cumplen los costes de la HyperCard.');render();return;
       }
     }else{s.activeHyper.push(ix);logSim(d.id,'Activar HyperCard','Activada desde HyperZone.',getCard(cid));}
-    s.hyperActivationsThisTurn=(s.hyperActivationsThisTurn||0)+1;render();
+    s.hyperActivationsThisTurn=(s.hyperActivationsThisTurn||0)+1;(s.usedHyperThisTurn??=[]).push(cid);render();
   }
   function resolveHyperCounter(choiceIndex){
     if(modal?.type!=='hyper-counter')return;
@@ -1976,6 +1974,8 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     }
     activateReservedHyper(at,true);
   }
+  root.addEventListener('mouseover',e=>{const el=e.target.closest?.('[data-card-title]');if(!el)return;const box=document.getElementById('blitz-effect-body');if(box)box.textContent=(el.dataset.cardTitle||'Carta')+' — '+(el.dataset.cardDesc||'Sin descripción');});
+  root.addEventListener('focusin',e=>{const el=e.target.closest?.('[data-card-title]');if(!el)return;const box=document.getElementById('blitz-effect-body');if(box)box.textContent=(el.dataset.cardTitle||'Carta')+' — '+(el.dataset.cardDesc||'Sin descripción');});
   root.addEventListener('click',e=>{
     if(skipTradeClick){skipTradeClick=false;e.preventDefault();return;}
     const el=e.target.closest('[data-action]');if(!el)return;const a=el.dataset.action,id=el.dataset.id;
@@ -2036,7 +2036,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='deck-minus-modal'){const top=$('.add-list')?.scrollTop||0;removeOfficialDeckCard(getDeck(editingDeckId),id);renderAddPreservingScroll(top)}
     else if(a==='add-card-modal'){addQuery='';addTypeFilter='ALL';modal={type:'add'};render()}
     else if(a==='add-card-to-deck'){const top=$('.add-list')?.scrollTop||0;addOfficialDeckCard(getDeck(editingDeckId),id);renderAddPreservingScroll(top)}
-    else if(a==='test-deck'){if(!deckIsLegal(getDeck(editingDeckId))){toast('Completa el Power Deck hasta 20+2H–30+2H cartas para jugar.');return;}sim=null;testMode='MANUAL_FULL';syncTestSetup(editingDeckId);go('simSetup')}
+    else if(a==='test-deck'){if(!deckIsLegal(getDeck(editingDeckId))){toast('Completa el Power Deck hasta 20–35 cartas para jugar.');return;}sim=null;testMode='MANUAL_FULL';syncTestSetup(editingDeckId);go('simSetup')}
     else if(a==='set-test-players'){testSetup.playerCount=Math.max(1,Math.min(10,Number(el.dataset.value)||2));syncTestSetup();render()}
     else if(a==='set-poker-decks'){testSetup.pokerDeckCount=[1,2].includes(Number(el.dataset.value))?Number(el.dataset.value):1;syncTestSetup();render()}
     else if(a==='start-sim'){if(!availableTestDecks().length){toast('No hay decks disponibles');return}if(initSim())go('simulator')}
@@ -2096,11 +2096,12 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='hyper-counter-pass'){resolveHyperCounter(null);}
     else if(a==='hyper-counter-play'){resolveHyperCounter(Number(el.dataset.index));}
     else if(a==='activate-hyper'&&sim?.mode==='ASSISTED'){assistedEffects.activate(+el.dataset.index)}
-    else if(a==='activate-hyper'){const {d,s}=currentSim(),i=+el.dataset.index,c=getCard(s.hand[i]);if(!c||cardType(c)!=='HYPER'||s.activeHyper.includes(i)||s.currentPhase!=='MAIN')return;if(s.activeHyper.length>=3){const msg='Límite máximo de 3 HyperCards activas alcanzado.';sim.result=msg;toast(msg);render();return}pushUndo(d.id,'Activar HyperCard');s.activeHyper.push(i);logSim(d.id,'Activar HyperCard','La HyperCard fue activada y permanece visible con borde dorado resplandeciente.',c);render()}
+    else if(a==='activate-hyper'){const {d,s}=currentSim(),i=+el.dataset.index,c=getCard(s.hand[i]);if(!c||cardType(c)!=='HYPER'||s.activeHyper.includes(i)||s.currentPhase!=='MAIN')return;if((s.usedHyperThisTurn||[]).includes(c.id))return toast('Esta HyperCard ya se activó durante el turno.');if(s.activeHyper.length>=3){const msg='Límite máximo de 3 HyperCards activas alcanzado.';sim.result=msg;toast(msg);render();return}pushUndo(d.id,'Activar HyperCard');s.activeHyper.push(i);(s.usedHyperThisTurn??=[]).push(c.id);logSim(d.id,'Activar HyperCard','La HyperCard fue activada y permanece visible con borde dorado resplandeciente.',c);render()}
     else if(a==='roll-die'){const {d,s}=currentSim();if(s.dieRolling)return;pushUndo(d.id,'Lanzar dado');const deckId=d.id;s.dieBase=1+randomInt(6);s.dieModifier=0;s.dieRolling=true;sim.result='Lanzando dado…';render();setTimeout(()=>{const st=sim?.states?.[deckId];if(!st)return;st.dieRolling=false;const result=Number(st.dieBase||0)+Number(st.dieModifier||0);sim.result='Resultado del dado: '+result;logSim(deckId,'Lanzamiento de dado','Resultado del dado: '+result);render();},1250)}
     else if(a==='die-adjust'){const {d,s}=currentSim();if(!s.dieBase)return;pushUndo(d.id,'Ajustar dado');const delta=Number(el.dataset.delta||0),before=Number(s.dieBase)+Number(s.dieModifier||0);s.dieModifier=Number(s.dieModifier||0)+delta;const after=Number(s.dieBase)+Number(s.dieModifier||0);sim.result='Resultado ajustado: '+after;logSim(d.id,'Ajustar resultado del dado',`Resultado ${before} → ${after} (${delta>0?'+':''}${delta}).`);render()}
     else if(a==='set-phase'){manualRules.changePhase(el.dataset.phase||'MAIN')}
     else if(a==='finish-turn'){manualRules.finishTurn()}
+    else if(a==='manual-enchant'){const {d,s}=currentSim();const pc=s.pokerHand[Number(el.dataset.index)];if(!pc||s.manualEnchantedIds?.includes(pc.id))return;pushUndo(d.id,'Encantar PKC');(s.manualEnchantedIds??=[]).push(pc.id);logSim(d.id,'Encantar Poker Card',pc.rank+' de '+pc.suit+' pasa a Hyper Zone y sigue contando en mano; coste de la HyperCard gestionado manualmente.');render();}
     else if(a==='charge-toggle'){if(!manualRules.canAct())return;const i=Number(el.dataset.index),ss=sim.chargeSelection||[];sim.chargeSelection=ss.includes(i)?ss.filter(x=>x!==i):[...ss,i];render()}
     else if(a==='charge-combo'){manualRules.charge(el.dataset.combo)}
     else if(a==='linked-option'){assistedLinks.option(el.dataset.id)}
@@ -2110,7 +2111,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='counter-pass'){manualRules.counterPass()}
     else if(a==='reference-press'){manualRules.pressReference(el.dataset.player)}
     else if(a==='reference-discard'){manualRules.discardReference(Number(el.dataset.index))}
-    else if(a==='add-chips'){const {d,s}=currentSim(),add=Number(el.dataset.value||0),reason=el.dataset.reason||'Ajuste';if(['Par','Trío','Escalera','Color','Póker'].includes(reason)&&s.currentPhase!=='CHARGE'){toast('Ese cobro solo está disponible durante Charge Phase.');return}pushUndo(d.id,'Ajuste de fichas');const before=Number(s.chips||0);s.chips=Math.max(0,before+add);const real=s.chips-before;sim.result=`${reason}: ${real>=0?'+':''}${real} · Total ${s.chips} fichas`;logSim(d.id,'Ajuste de fichas',`${reason}: ${real>=0?'+':''}${real} fichas. Total: ${s.chips}.`);render()}
+    else if(a==='add-chips'){const {d,s}=currentSim(),add=Number(el.dataset.value||0),reason=el.dataset.reason||'Ajuste';if(['Par','Trío','Escalera','Color','Póker'].includes(reason)&&s.currentPhase!=='MAIN'){toast('Ese cobro solo está disponible durante Charge Phase.');return}pushUndo(d.id,'Ajuste de fichas');const before=Number(s.chips||0);s.chips=Math.max(0,before+add);const real=s.chips-before;sim.result=`${reason}: ${real>=0?'+':''}${real} · Total ${s.chips} fichas`;logSim(d.id,'Ajuste de fichas',`${reason}: ${real>=0?'+':''}${real} fichas. Total: ${s.chips}.`);render()}
     else if(a==='set-hand-size'){state.handSize=4;saveState();render()}
     else if(a==='set-random'){state.randomizationSettings.mode=el.dataset.value;saveState();render()}
     else if(a==='page-size'){state.printSettings.pageSize=el.dataset.value;saveState();render()}
