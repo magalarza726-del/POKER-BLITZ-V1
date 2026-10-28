@@ -1411,11 +1411,11 @@ function syncAutoSetup(){
     const firstOwner=poker?null:a.handOwners[sourceIndex],secondOwner=poker||operation!=='SWAP'?null:b.handOwners[targetIndex];
     if(!first||(operation==='SWAP'&&!second))return false;
     const affected=destId?[srcId,destId]:[srcId];
+    pushUndo(sim.decks[sim.turnIndex].id,'Acción manual: '+operation);
     const states=Object.fromEntries(affected.map(id=>[id,structuredClone(sim.states[id])]));
     const lengths=Object.fromEntries(affected.map(id=>[id,(sim.histories[id]||[]).length]));
     const oldPile=structuredClone(sim.pokerDrawPile||[]),oldResult=sim.result;
-    // Prevent stale per-player snapshots from resurrecting cards exchanged or discarded elsewhere.
-    sim.undoStacks=Object.fromEntries(sim.decks.map(d=>[d.id,[]]));
+    // Las operaciones entre jugadores conservan la cadena de deshacer del turno.
     if(operation==='SWAP'){
       [a[key][sourceIndex],b[key][targetIndex]]=[second,first];
       if(!poker)[a.handOwners[sourceIndex],b.handOwners[targetIndex]]=[secondOwner,firstOwner];
@@ -1436,7 +1436,7 @@ function syncAutoSetup(){
     for(const id of affected)logSim(id,action,desc+' ('+type+', '+(masked?'oculto':'visible')+').');
     sim.result=action+' · '+(playerB?'J'+playerA.playerNumber+' / J'+playerB.playerNumber:'J'+playerA.playerNumber);
     const owner=sim.decks[sim.activeIndex].id;
-    sim.undoStacks[owner].push({label:action,tradeStates:states,tradeHistoryLengths:lengths,tradePokerDrawPile:oldPile,result:oldResult});
+    // El snapshot global anterior ya conserva ambas manos y sus historiales.
     if(poker&&sim.mode==='ASSISTED')assistedLinks.cleanup();
     modal.picked=null;
     updateTradeView();toast(action+' registrado');
@@ -1598,7 +1598,7 @@ function syncAutoSetup(){
       const d=sources.find(x=>x.id===sourceId);return d?{...d,id:'test-player-'+(i+1),sourceDeckId:d.id,playerNumber:i+1}:null;
     }).filter(Boolean);
     let chosenSeed;try{chosenSeed=parseSeed(testSetup.seedInput)}catch(err){toast(String(err.message||err));return false}const seed=chosenSeed??generateSeed();
-    sim={mode:testMode,decks:valid,activeIndex:0,result:'Listo para jugar',states:{},histories:{},undoStacks:{},startedAt:Date.now(),handView:testSetup.handView||'POWER',pokerDeckCount:testSetup.pokerDeckCount,seed,seededRng:makeSeededRandom(seed),pokerDrawPile:[],turnIndex:0,round:1,goal:30,chargeSelection:[],finished:false,chain:null};
+    sim={mode:testMode,decks:valid,activeIndex:0,result:'Listo para jugar',states:{},histories:{},undoStacks:{},startedAt:Date.now(),handView:testSetup.handView||'POWER',pokerDeckCount:testSetup.pokerDeckCount,seed,seededRng:makeSeededRandom(seed),pokerDrawPile:[],turnIndex:0,round:1,goal:30,chargeSelection:[],finished:false,chain:null,pendingHyper:null};
     sim.pokerDrawPile=testMode==='MANUAL_SIMPLE'?[]:shuffle(buildPokerDeck(testSetup.pokerDeckCount));
     for(const d of valid){const sh=shuffle(d.cardIds),n=Math.min(state.handSize,sh.length),hand=sh.slice(0,n),pokerHand=testMode==='MANUAL_SIMPLE'?[]:sim.pokerDrawPile.splice(0,Math.min(7,sim.pokerDrawPile.length));sim.states[d.id]={initialCards:d.cardIds.length,drawPile:sh.slice(n),hand,handOwners:hand.map(()=>d.id),drawOwners:sh.slice(n).map(()=>d.id),pokerHand,pokerLimit:7,activeHyper:[],hyperReserve:[...(d.hyperCardIds||[])],hyperActivationsThisTurn:0,usedHyperThisTurn:[],manualEnchantedIds:[],notes:'',chips:0,chargeReplacement:0,turnsTaken:0,dieBase:null,dieModifier:0,dieRolling:false,currentPhase:'MAIN',powerHandLimit:4};sim.histories[d.id]=hand.map(cid=>{const c=getCard(cid);return {at:Date.now(),action:'Carta inicial',detail:'Carta repartida en la mano inicial.',cardName:c?.name||'',cardDescription:c?.description||''}});if(pokerHand.length)sim.histories[d.id].push({at:Date.now(),action:'Poker Hand inicial',detail:`${pokerHand.length} Poker Cards repartidas.`,cardName:'',cardDescription:''});sim.undoStacks[d.id]=[]}
     for(const d of valid)logSim(d.id,'Semilla inicial','Semilla '+seed+'; barajado '+state.randomizationSettings.mode+'; modo '+testMode+'.');
@@ -1608,23 +1608,54 @@ function syncAutoSetup(){
   function phaseLabel(v){return ({DRAW:'Draw Phase',MAIN:'Main Phase',CHARGE:'Charge Phase',END:'End Phase'})[v]||'Main Phase'}
   function powerHandCount(s){const active=new Set(s?.activeHyper||[]);return (s?.hand||[]).reduce((n,_,i)=>n+(active.has(i)?0:1),0)}
   function logSim(deckId,action,detail='',card=null){if(!sim?.histories)return;(sim.histories[deckId]??=[]).push({at:Date.now(),action,detail,cardName:card?.name||'',cardDescription:card?.description||''})}
-  function pushUndo(deckId,label){if(!sim?.states?.[deckId])return;
-    for(const [owner,stack] of Object.entries(sim.undoStacks||{})){
-      if(owner!==deckId&&Array.isArray(stack)){
-        sim.undoStacks[owner]=stack.filter(u=>!u.tradeStates||!Object.hasOwn(u.tradeStates,deckId));
-      }
-    }
-sim.undoStacks??={};const snap=structuredClone(sim.states[deckId]);snap.dieRolling=false;(sim.undoStacks[deckId]??=[]).push({label,state:snap,pokerDrawPile:structuredClone(sim.pokerDrawPile||[]),rngState:sim.seededRng?.getState(),historyLength:(sim.histories?.[deckId]||[]).length,result:sim.result});if(sim.undoStacks[deckId].length>60)sim.undoStacks[deckId].shift()}
-  function undoCurrentAction(){const {d}=currentSim(),stack=sim.undoStacks?.[d.id]||[];if(!stack.length){toast('No hay acciones para deshacer');return}const u=stack.pop();
-    if(u.tradeStates){
+  // Undo de todas las acciones del turno: instantánea atómica de TODOS los jugadores.
+  // Sin límite artificial; al cambiar el turno solo se reinicia el historial del próximo jugador.
+  function pushUndo(deckId,label){
+    if(!sim?.states?.[deckId])return;
+    const turnId=sim.decks[sim.turnIndex]?.id||deckId;
+    (sim.undoStacks??={})[turnId]??=[];
+    const states=Object.fromEntries(Object.entries(sim.states).map(([id,s])=>{
+      const cloned=structuredClone(s);cloned.dieRolling=false;return [id,cloned];
+    }));
+    sim.undoStacks[turnId].push({
+      label,allStates:states,
+      allHistoryLengths:Object.fromEntries(Object.entries(sim.histories||{}).map(([id,h])=>[id,h.length])),
+      pokerDrawPile:structuredClone(sim.pokerDrawPile||[]),
+      rngState:sim.seededRng?.getState(),
+      chargeSelection:[...(sim.chargeSelection||[])],
+      chain:structuredClone(sim.chain||null),
+      pendingHyper:structuredClone(sim.pendingHyper||null),
+      result:sim.result,
+      modal:modal?structuredClone(modal):null
+    });
+  }
+  function undoCurrentAction(){
+    if(!sim||sim.finished||sim.activeIndex!==sim.turnIndex)return toast('Solo puedes deshacer acciones durante tu propio turno.');
+    const pid=sim.decks[sim.turnIndex].id,stack=sim.undoStacks?.[pid]||[];
+    if(!stack.length)return toast('No quedan acciones para deshacer en este turno.');
+    const u=stack.pop();
+    if(u.allStates){
+      sim.states=structuredClone(u.allStates);
+      for(const [id,count] of Object.entries(u.allHistoryLengths||{}))
+        if(sim.histories?.[id])sim.histories[id]=sim.histories[id].slice(0,count);
+      sim.chain=structuredClone(u.chain||null);
+      sim.pendingHyper=structuredClone(u.pendingHyper||null);
+      sim.chargeSelection=[...(u.chargeSelection||[])];
+      modal=u.modal||null;
+    }else if(u.tradeStates){
       for(const [id,snapshot] of Object.entries(u.tradeStates)){
         sim.states[id]=structuredClone(snapshot);
-        sim.histories[id]=(sim.histories[id]||[]).slice(0,u.tradeHistoryLengths?.[id]??0);
+        if(sim.histories?.[id])sim.histories[id]=sim.histories[id].slice(0,u.tradeHistoryLengths?.[id]??0);
       }
-      if(Array.isArray(u.tradePokerDrawPile))sim.pokerDrawPile=structuredClone(u.tradePokerDrawPile);
-      sim.result='Deshecho: '+(u.label||'acción manual');modal=null;render();return;
+      modal=null;
+    }else if(u.state){
+      sim.states[pid]=structuredClone(u.state);
+      if(sim.histories?.[pid])sim.histories[pid]=sim.histories[pid].slice(0,u.historyLength);
     }
-sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.pokerDrawPile=structuredClone(u.pokerDrawPile);if(Number.isInteger(u.rngState))sim.seededRng?.setState(u.rngState);if(sim.histories?.[d.id])sim.histories[d.id]=sim.histories[d.id].slice(0,u.historyLength);sim.result='Deshecho: '+(u.label||'última acción');render()}
+    if(Array.isArray(u.pokerDrawPile))sim.pokerDrawPile=structuredClone(u.pokerDrawPile);
+    if(Number.isInteger(u.rngState))sim.seededRng?.setState(u.rngState);
+    sim.result='Deshecho: '+(u.label||'acción');render();
+  }
   function maxHandMessage(s){const msg=`Límite máximo de Power Cards alcanzado (${s.powerHandLimit}).`;sim.result=msg;toast(msg)}
   function drawRandomOne(deckId,s,action='Robar al azar',detail='Se robó 1 Power Card al azar del deck.'){if(!s.drawPile.length)return null;if(powerHandCount(s)>=s.powerHandLimit){maxHandMessage(s);return null}manualRules.own(deckId);const pos=randomInt(s.drawPile.length),[cid]=s.drawPile.splice(pos,1),[owner]=s.drawOwners.splice(pos,1),c=getCard(cid);s.hand.push(cid);s.handOwners.push(owner||deckId);logSim(deckId,action,detail,c);return c}
   function enterDrawPhase(d,s){
@@ -1975,6 +2006,7 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
 
   let assistedEffects=null,assistedLinks=null;
   const manualRules=window.POKER_BLITZ_MANUAL_RULES({sim:()=>sim,modal:()=>modal,setModal:v=>{modal=v},card:getCard,type:cardType,shuffle,log:logSim,toast,render,drawPoker:drawPokerOne,pushUndo,drawPhase:enterDrawPhase,phaseLabel,current:currentSim,esc,
+    canCounter:(pid,cid)=>counterEligible(pid,cid),
     canAssist:id=>!!assistedEffects?.supported(id),
     canPlayAssisted:(id,pid)=>!!assistedEffects?.canPlay(id,pid),assistedCardUsed:(id,pid)=>assistedEffects?.markUsed(id,pid),
     assistedCounterPlayed:(pid)=>{
@@ -1996,9 +2028,10 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     if(!cid||s.currentPhase!=='MAIN'||(s.hyperDeniedThisTurn||[]).includes(cid))return;
     if((s.usedHyperThisTurn||[]).includes(cid)||s.activeHyper.length>=3)return;
     if(sim.mode==='ASSISTED'&&!assistedEffects.supported(cid))return toast('Este efecto no está implementado.');
-    if(sim.mode==='ASSISTED'&&!responded){
-      const counters=sim.decks.filter(p=>p.id!==d.id).flatMap(p=>sim.states[p.id].hand.map((id,i)=>({playerId:p.id,number:p.playerNumber,cardId:id,index:i})).filter(x=>['catalog_v3_052','catalog_v3_006'].includes(x.cardId)&&!sim.states[p.id].activeHyper.includes(x.index)));
-      if(counters.length){modal={type:'hyper-counter',at,cardId:cid,actorId:d.id,counters};render();return;}
+    if(!responded&&sim.decks.length>1){
+      sim.pendingHyper={actorId:d.id,at,cardId:cid};
+      sim.result='HyperCard anunciada: '+(getCard(cid)?.name||cid)+'. Los rivales pueden responder desde sus manos.';
+      render();return;
     }
     pushUndo(d.id,'Activar HyperCard desde HyperZone');s.hyperReserve.splice(at,1);
     const ix=s.hand.length;s.hand.push(cid);s.handOwners.push(d.id);
@@ -2013,37 +2046,46 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     if(s.activeHyper.some(i=>s.hand[i]===cid)&&!(s.usedHyperThisTurn??=[]).includes(cid))s.usedHyperThisTurn.push(cid);
     render();
   }
-  function resolveHyperCounter(choiceIndex){
-    if(modal?.type!=='hyper-counter')return;
-    const response=modal,counter=Number.isInteger(choiceIndex)?response.counters[choiceIndex]:null;
-    const actor=sim.states[response.actorId],cid=response.cardId,at=response.at;modal=null;
-    if(counter){
-      const st=sim.states[counter.playerId],i=st.hand.findIndex((x,j)=>x===counter.cardId&&!st.activeHyper.includes(j));
-      if(i>=0){
-        const it=manualRules.take(counter.playerId,i);manualRules.giveBack(it.cardId,it.ownerId);
-        logSim(counter.playerId,'CounterCard','Respuesta a '+(getCard(cid)?.name||''),getCard(it.cardId));
-        if(actor.activeHyper.some(j=>actor.hand[j]==='catalog_v3_025')&&!actor.shieldCardsTriggered){
-          actor.shieldCardsTriggered=true;drawPokerOne(response.actorId,actor,'Escudo de Cartas');
-        }
-        if(counter.cardId==='catalog_v3_052'){
-          actor.hyperDeniedThisTurn??=[];actor.hyperDeniedThisTurn.push(cid);
-          sim.result='Agujero Negro bloqueó la HyperCard sin consumir su activación.';
-          logSim(response.actorId,'HyperCard bloqueada',sim.result,getCard(cid));render();return;
-        }
-        if(counter.cardId==='catalog_v3_006'){
-          const allowed=actor.pokerHand.map((c,i)=>i).filter(i=>!assistedLinks?.protectedCard(response.actorId,actor.pokerHand[i]));
-          if(allowed.length){const ix=allowed[randomInt(allowed.length)],gone=actor.pokerHand.splice(ix,1)[0];assistedLinks?.onPokerOut(response.actorId,[gone]);logSim(response.actorId,'Tiro por la Culata','Descartó una Poker Card antes de la HyperCard.',getCard('catalog_v3_006'));}
-        }
+  function resolvePendingHyper(playerId,index){
+    const pending=sim?.pendingHyper;if(!pending||!counterEligible(playerId,sim.states[playerId]?.hand[index]))return;
+    const cardId=sim.states[playerId].hand[index],actor=sim.states[pending.actorId],name=getCard(cardId)?.name||cardId;
+    pushUndo(sim.decks[sim.turnIndex].id,'CounterCard '+name);
+    const played=manualRules.take(playerId,index);if(!played)return;
+    manualRules.giveBack(played.cardId,played.ownerId);
+    if(sim.mode==='ASSISTED')assistedEffects.markUsed(cardId,playerId);
+    logSim(playerId,'CounterCard rival','J'+sim.decks.find(p=>p.id===playerId).playerNumber+' respondió a '+(getCard(pending.cardId)?.name||pending.cardId)+'.',getCard(cardId));
+    sim.pendingHyper=null;sim.activeIndex=sim.turnIndex;
+    if(actor.activeHyper.some(j=>actor.hand[j]==='catalog_v3_025')&&!actor.shieldCardsTriggered){
+      actor.shieldCardsTriggered=true;drawPokerOne(pending.actorId,actor,'Escudo de Cartas');
+    }
+    if(cardId==='catalog_v3_052'){
+      (actor.hyperDeniedThisTurn??=[]).push(pending.cardId);
+      sim.result='Agujero Negro bloqueó la HyperCard. No se considera activada.';
+      logSim(pending.actorId,'HyperCard bloqueada',sim.result,getCard(pending.cardId));render();return;
+    }
+    if(cardId==='catalog_v3_006'){
+      const allowed=actor.pokerHand.map((c,i)=>i).filter(i=>!(actor.manualEnchantedIds||[]).includes(c.id)&&
+        (sim.mode!=='ASSISTED'||!assistedLinks?.protectedCard(pending.actorId,c)));
+      if(allowed.length){const ix=allowed[randomInt(allowed.length)],gone=actor.pokerHand.splice(ix,1)[0];
+        if(sim.mode==='ASSISTED')assistedLinks.onPokerOut(pending.actorId,[gone]);
+        else sim.pokerDrawPile=shuffle([...sim.pokerDrawPile,gone]);
+        logSim(pending.actorId,'Tiro por la Culata','Descartó 1 Poker Card por la CounterCard del rival.',getCard(cardId));
       }
     }
-    activateReservedHyper(at,true);
+    activateReservedHyper(pending.at,true);
   }
-  root.addEventListener('mouseover',e=>{const el=e.target.closest?.('[data-card-title]');if(!el)return;const box=document.getElementById('blitz-effect-body');if(box)box.textContent=(el.dataset.cardTitle||'Carta')+' — '+(el.dataset.cardDesc||'Sin descripción');});
-  root.addEventListener('focusin',e=>{const el=e.target.closest?.('[data-card-title]');if(!el)return;const box=document.getElementById('blitz-effect-body');if(box)box.textContent=(el.dataset.cardTitle||'Carta')+' — '+(el.dataset.cardDesc||'Sin descripción');});
+  function showBlitzEffect(el){
+    const title=document.getElementById('blitz-effect-title'),description=document.getElementById('blitz-effect-body');
+    if(!el||!title||!description)return;
+    title.textContent=el.dataset.cardTitle||'Carta';
+    description.textContent=el.dataset.cardDesc||''; // Para Poker Cards debe quedar vacío.
+  }
+  root.addEventListener('mouseover',e=>{showBlitzEffect(e.target.closest?.('[data-card-title]'));});
+  root.addEventListener('focusin',e=>{showBlitzEffect(e.target.closest?.('[data-card-title]'));});
   root.addEventListener('click',e=>{
     if(skipTradeClick){skipTradeClick=false;e.preventDefault();return;}
     const el=e.target.closest('[data-action]');if(!el)return;const a=el.dataset.action,id=el.dataset.id;
-    if(sim&&screen==='simulator'&&['use-card','activate-hyper','discard-card','discard-poker-card','draw-poker-random','draw-poker-view','draw-poker-select','draw-select','draw-random','draw-view','add-chips','roll-die','die-adjust','adjust-hand-limit','set-phase','finish-turn','charge-toggle','charge-combo'].includes(a)&&!manualRules.canAct()){toast('Debes volver al jugador del turno.');return}
+    if(sim&&screen==='simulator'&&['use-card','activate-hyper','activate-hyper-reserve','discard-card','discard-poker-card','draw-poker-random','draw-poker-view','draw-poker-select','draw-select','draw-random','draw-view','add-chips','roll-die','die-adjust','adjust-hand-limit','set-phase','finish-turn','charge-toggle','charge-combo','manual-enchant','manual-disenchant'].includes(a)&&!manualRules.canAct()){toast('Debes volver al jugador del turno.');return}
     if(a==='back'){if(['deckEditor','decks','deckImprove','deckCreate'].includes(screen))go('deckHub');else if(['autoSetup','manualChoice','simSetup','training'].includes(screen))go('testHub');else go('home')}
     else if(a==='deck-hub')go('deckHub');
     else if(a==='training-open'){trainingProgress=null;trainingResult=null;go('training');}
@@ -2174,8 +2216,17 @@ sim.states[d.id]=structuredClone(u.state);if(Array.isArray(u.pokerDrawPile))sim.
     else if(a==='linked-option'){assistedLinks.option(el.dataset.id)}
     else if(a==='assist-target'){assistedEffects.choose(el.dataset.player)}
     else if(a==='assist-option'){assistedEffects.chooseOption(el.dataset.value)}
+    else if(a==='counter-response'){
+      const respondingId=el.dataset.player||currentSim().d.id,index=Number(el.dataset.index);
+      if(!counterEligible(respondingId,sim?.states[respondingId]?.hand[index]))return;
+      if(sim.chain){manualRules.counterPlay(index,respondingId);}
+      else if(sim.pendingHyper){resolvePendingHyper(respondingId,index);}
+    }
     else if(a==='counter-play'){manualRules.counterPlay(Number(el.dataset.index))}
-    else if(a==='counter-pass'){manualRules.counterPass()}
+    else if(a==='counter-pass'){
+      if(sim?.pendingHyper){const pending=sim.pendingHyper;sim.pendingHyper=null;sim.activeIndex=sim.turnIndex;activateReservedHyper(pending.at,true);}
+      else manualRules.counterPass();
+    }
     else if(a==='reference-press'){manualRules.pressReference(el.dataset.player)}
     else if(a==='reference-discard'){manualRules.discardReference(Number(el.dataset.index))}
     else if(a==='add-chips'){const {d,s}=currentSim(),add=Number(el.dataset.value||0),reason=el.dataset.reason||'Ajuste';if(['Par','Trío','Escalera','Color','Póker'].includes(reason)&&s.currentPhase!=='MAIN'){toast('Ese cobro solo está disponible durante Charge Phase.');return}pushUndo(d.id,'Ajuste de fichas');const before=Number(s.chips||0);s.chips=Math.max(0,before+add);const real=s.chips-before;sim.result=`${reason}: ${real>=0?'+':''}${real} · Total ${s.chips} fichas`;logSim(d.id,'Ajuste de fichas',`${reason}: ${real>=0?'+':''}${real} fichas. Total: ${s.chips}.`);render()}
