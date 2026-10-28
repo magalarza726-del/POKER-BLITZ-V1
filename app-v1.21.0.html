@@ -645,7 +645,7 @@ window.STARTER_CARDS = [
     ...normalizeDeck(d), characterImage:PRESET_PORTRAITS[d.id] || null
   }));
   const defaultState = () => ({
-    cards: starterCards, decks: defaultDecks(), handSize:4, defaultPresetVersion:1,
+    cards: starterCards, decks: defaultDecks(), handSize:4, defaultPresetVersion:2,
     printSettings:{rows:3,columns:3,gapMm:4,marginMm:10,pageSize:'A4'},
     randomizationSettings:{mode:'MIXED'}, testHistory:[], starterCatalogVersion:11, characterIllustrationVersion:2
   });
@@ -659,6 +659,20 @@ window.STARTER_CARDS = [
     return {...d,cardIds:ids,hyperCardIds,iconCardId:null,characterImage:typeof portrait==='string'&&portrait?portrait:null,characterScale:Math.max(1,Math.min(3,Number(d?.characterScale)||1)),characterFocusX:Math.max(0,Math.min(100,Number.isFinite(Number(d?.characterFocusX))?Number(d.characterFocusX):50)),characterFocusY:Math.max(0,Math.min(100,Number.isFinite(Number(d?.characterFocusY))?Number(d.characterFocusY):50)),description:String(d?.description||'').slice(0,180)};
   }
 
+  // La versión antigua congelaba la lista local y ocultaba presets añadidos
+  // después (Arkan, Regulus y Maverick). Fusionar SOLO los presets ausentes
+  // una vez: nunca reemplazar decks editados ni completar cartas faltantes.
+  function migrateDefaultDecks(existing,version){
+    const decks=Array.isArray(existing)?[...existing]:[];
+    const v=Number(version)||0;
+    if(v>=2)return decks;
+    const retained=v>=1?decks:decks.filter(d=>!['deck_demo_cyan','deck_demo_mixto'].includes(d.id));
+    const ids=new Set(retained.map(d=>d.id));
+    for(const preset of defaultDecks()){
+      if(!ids.has(preset.id)){retained.push(preset);ids.add(preset.id);}
+    }
+    return retained;
+  }
   function loadState(){
     try{
       const raw=localStorage.getItem(STORAGE_KEY); if(!raw) return defaultState();
@@ -691,12 +705,9 @@ window.STARTER_CARDS = [
         handSize,
         cards:migratedCards,
         decks:(()=>{const existing=(Array.isArray(saved.decks)?saved.decks:base.decks).map(d=>normalizeDeck(saved.characterIllustrationVersion===CHARACTER_ART_VERSION?d:(PRESET_PORTRAITS[d.id]?{...d,characterImage:PRESET_PORTRAITS[d.id]}:d)));
-          if(saved.defaultPresetVersion===1)return existing;
-          const retained=existing.filter(d=>!['deck_demo_cyan','deck_demo_mixto'].includes(d.id));
-          for(const preset of base.decks)if(!retained.some(d=>d.id===preset.id))retained.push(preset);
-          return retained;
+          return migrateDefaultDecks(existing,saved.defaultPresetVersion);
         })(),
-        defaultPresetVersion:1,
+        defaultPresetVersion:2,
         printSettings:{...base.printSettings,...saved.printSettings},
         randomizationSettings:{...base.randomizationSettings,...saved.randomizationSettings},
         testHistory:Array.isArray(saved.testHistory)?saved.testHistory:[],
@@ -1300,7 +1311,7 @@ function syncAutoSetup(){
           <p class="small muted">El Poker Deck es compartido por todos los jugadores. Una baraja usa 52 cartas; dos barajas usan 104.</p>
           <div class="test-poker-options">${[1,2].map(n=>`<button type="button" class="test-poker-option ${testSetup.pokerDeckCount===n?'active':''}" data-action="set-poker-decks" data-value="${n}" aria-pressed="${testSetup.pokerDeckCount===n}"><strong>${n}</strong><span>${n===1?'52 cartas':'104 cartas'}</span></button>`).join('')}</div>
         </div>`}
-        <div class="test-setup-players">${Array.from({length:testSetup.playerCount},(_,i)=>{
+        <p class="small muted" style="margin:8px 2px">Decks disponibles para elegir: <strong>${valid.length}</strong> de <strong>${state.decks.length}</strong> guardados. Los mazos personalizados se conservan.</p><div class="test-setup-players">${Array.from({length:testSetup.playerCount},(_,i)=>{
           const selected=valid.find(d=>d.id===testSetup.deckIds[i])||valid[0];
           return `<div class="panel test-setup-player"><div class="test-setup-player-head">${selected?deckCharacterHTML(selected,'deck-row-avatar'):''}
             <div><strong>Jugador ${i+1}</strong><div class="small muted">${selected?selected.cardIds.length+' cartas disponibles':'Sin decks disponibles'}</div></div></div>
@@ -2366,7 +2377,7 @@ function syncAutoSetup(){
 
   $('#imagePicker').addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const img=new Image();img.onload=()=>{const max=1600,scale=Math.min(1,max/Math.max(img.width,img.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);if(!editingCard)editingCard=defaultCard();editingCard.image=canvas.toDataURL('image/jpeg',.88);editingCard.mediaMode='IMAGE';editingCard.tintEnabled=false;editingCard.tintStrength=0;if(e.target.dataset.mode==='new')go('cardEditor');else render();e.target.value=''};img.src=rd.result};rd.readAsDataURL(f)});
   $('#characterPicker').addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{const img=new Image();img.onload=()=>{const max=900,scale=Math.min(1,max/Math.max(img.width,img.height)),canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);let data;try{data=canvas.toDataURL('image/webp',.78);if(!data.startsWith('data:image/webp'))data=canvas.toDataURL('image/jpeg',.78);}catch{data=canvas.toDataURL('image/jpeg',.78);}characterDraft={image:data,scale:1,focusX:50,focusY:50};modal={type:'character-edit'};render();e.target.value=''};img.src=rd.result};rd.readAsDataURL(f)});
-  $('#jsonPicker').addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const x=JSON.parse(rd.result);if(!Array.isArray(x.cards)||!Array.isArray(x.decks))throw Error();state={...defaultState(),...x,handSize:4,cards:x.cards.filter(c=>officialCardIds.has(c.id)||c.userCreated===true).map(c=>{const seed=starterCards.find(x=>x.id===c.id);return seed?{...c,name:seed.name,description:seed.description,accentColor:seed.accentColor,asset:'',image:'',userCreated:false}:c;}),decks:x.decks.map(d=>normalizeDeck(d)),testHistory:Array.isArray(x.testHistory)?x.testHistory:[]};saveState();toast('Datos importados');go('home')}catch{toast('JSON no válido')}e.target.value=''};rd.readAsText(f)});
+  $('#jsonPicker').addEventListener('change',e=>{const f=e.target.files?.[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const x=JSON.parse(rd.result);if(!Array.isArray(x.cards)||!Array.isArray(x.decks))throw Error();state={...defaultState(),...x,handSize:4,cards:x.cards.filter(c=>officialCardIds.has(c.id)||c.userCreated===true).map(c=>{const seed=starterCards.find(x=>x.id===c.id);return seed?{...c,name:seed.name,description:seed.description,accentColor:seed.accentColor,asset:'',image:'',userCreated:false}:c;}),decks:migrateDefaultDecks(x.decks.map(d=>normalizeDeck(d)),x.defaultPresetVersion),defaultPresetVersion:2,testHistory:Array.isArray(x.testHistory)?x.testHistory:[]};saveState();toast('Datos importados');go('home')}catch{toast('JSON no válido')}e.target.value=''};rd.readAsText(f)});
   function downloadJSON(){const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download='deck_creator_backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);}
   async function printDeck(deckId){
     const d=getDeck(deckId);if(!d||!d.cardIds.length){toast('El deck está vacío');return false}
