@@ -1227,6 +1227,7 @@ function syncAutoSetup(){
     if(!s||!s.hand.includes(cardId))return false;
     if(sim.chain?.stack?.length===1)return cardType(getCard(sim.chain.stack[0].cardId))==='SUPER'&&['033','034','006','010'].includes(id);
     if(sim.pendingHyper)return ['052','006'].includes(id);
+    if(sim.pendingShield)return sim.pendingShield.defenderId===playerId&&id==='004';
     return false;
   }
   function playableCounterPlayers(){
@@ -1250,7 +1251,7 @@ function syncAutoSetup(){
  if(!sim?.decks?.length)return renderSimSetup();
  const d=sim.decks[sim.activeIndex],s=sim.states[d.id];
  s.currentPhase='MAIN';s.powerHandLimit=4;s.pokerHand??=[];s.pokerLimit=7;s.usedHyperThisTurn??=[];s.manualEnchantedIds??=[];
- const ok=manualRules.canAct(),turnOwner=sim.decks[sim.turnIndex],responding=!!sim.chain||!!sim.pendingHyper,navWarning=closestCounterDirection(),active=new Set(s.activeHyper||[]),num=powerHandCount(s),name=esc(d.name||'Personaje');
+ const ok=manualRules.canAct(),turnOwner=sim.decks[sim.turnIndex],responding=!!sim.chain||!!sim.pendingHyper||!!sim.pendingShield,navWarning=closestCounterDirection(),active=new Set(s.activeHyper||[]),num=powerHandCount(s),name=esc(d.name||'Personaje');
  const power=(s.hand||[]).map((id,i)=>({id,i,c:getCard(id)})).filter(x=>x.c&&!active.has(x.i));
  const bound=new Set([...(s.manualEnchantedIds||[]),...(s.assistedBindings||[]).flatMap(b=>b.targets||[])]);
  const hover=(title,description)=>`data-card-title="${esc(title||'Carta')}" data-card-desc="${esc(description||'')}" tabindex="0"`;
@@ -1598,7 +1599,7 @@ function syncAutoSetup(){
       const d=sources.find(x=>x.id===sourceId);return d?{...d,id:'test-player-'+(i+1),sourceDeckId:d.id,playerNumber:i+1}:null;
     }).filter(Boolean);
     let chosenSeed;try{chosenSeed=parseSeed(testSetup.seedInput)}catch(err){toast(String(err.message||err));return false}const seed=chosenSeed??generateSeed();
-    sim={mode:testMode,decks:valid,activeIndex:0,result:'Listo para jugar',states:{},histories:{},undoStacks:{},startedAt:Date.now(),handView:testSetup.handView||'POWER',pokerDeckCount:testSetup.pokerDeckCount,seed,seededRng:makeSeededRandom(seed),pokerDrawPile:[],turnIndex:0,round:1,goal:30,chargeSelection:[],finished:false,chain:null,pendingHyper:null};
+    sim={mode:testMode,decks:valid,activeIndex:0,result:'Listo para jugar',states:{},histories:{},undoStacks:{},startedAt:Date.now(),handView:testSetup.handView||'POWER',pokerDeckCount:testSetup.pokerDeckCount,seed,seededRng:makeSeededRandom(seed),pokerDrawPile:[],turnIndex:0,round:1,goal:30,chargeSelection:[],finished:false,chain:null,pendingHyper:null,pendingShield:null};
     sim.pokerDrawPile=testMode==='MANUAL_SIMPLE'?[]:shuffle(buildPokerDeck(testSetup.pokerDeckCount));
     for(const d of valid){const sh=shuffle(d.cardIds),n=Math.min(state.handSize,sh.length),hand=sh.slice(0,n),pokerHand=testMode==='MANUAL_SIMPLE'?[]:sim.pokerDrawPile.splice(0,Math.min(7,sim.pokerDrawPile.length));sim.states[d.id]={initialCards:d.cardIds.length,drawPile:sh.slice(n),hand,handOwners:hand.map(()=>d.id),drawOwners:sh.slice(n).map(()=>d.id),pokerHand,pokerLimit:7,activeHyper:[],hyperReserve:[...(d.hyperCardIds||[])],hyperActivationsThisTurn:0,usedHyperThisTurn:[],manualEnchantedIds:[],notes:'',chips:0,chargeReplacement:0,turnsTaken:0,dieBase:null,dieModifier:0,dieRolling:false,currentPhase:'MAIN',powerHandLimit:4};sim.histories[d.id]=hand.map(cid=>{const c=getCard(cid);return {at:Date.now(),action:'Carta inicial',detail:'Carta repartida en la mano inicial.',cardName:c?.name||'',cardDescription:c?.description||''}});if(pokerHand.length)sim.histories[d.id].push({at:Date.now(),action:'Poker Hand inicial',detail:`${pokerHand.length} Poker Cards repartidas.`,cardName:'',cardDescription:''});sim.undoStacks[d.id]=[]}
     for(const d of valid)logSim(d.id,'Semilla inicial','Semilla '+seed+'; barajado '+state.randomizationSettings.mode+'; modo '+testMode+'.');
@@ -1625,6 +1626,7 @@ function syncAutoSetup(){
       chargeSelection:[...(sim.chargeSelection||[])],
       chain:structuredClone(sim.chain||null),
       pendingHyper:structuredClone(sim.pendingHyper||null),
+      pendingShield:structuredClone(sim.pendingShield||null),
       result:sim.result,
       modal:modal?structuredClone(modal):null
     });
@@ -1640,6 +1642,8 @@ function syncAutoSetup(){
         if(sim.histories?.[id])sim.histories[id]=sim.histories[id].slice(0,count);
       sim.chain=structuredClone(u.chain||null);
       sim.pendingHyper=structuredClone(u.pendingHyper||null);
+      sim.pendingShield=structuredClone(u.pendingShield||null);
+      sim.pendingHyperActivationCardId=sim.pendingHyper?.cardId||null;
       sim.chargeSelection=[...(u.chargeSelection||[])];
       modal=u.modal||null;
     }else if(u.tradeStates){
@@ -2007,6 +2011,7 @@ function syncAutoSetup(){
   let assistedEffects=null,assistedLinks=null;
   const manualRules=window.POKER_BLITZ_MANUAL_RULES({sim:()=>sim,modal:()=>modal,setModal:v=>{modal=v},card:getCard,type:cardType,shuffle,log:logSim,toast,render,drawPoker:drawPokerOne,pushUndo,drawPhase:enterDrawPhase,phaseLabel,current:currentSim,esc,
     canCounter:(pid,cid)=>counterEligible(pid,cid),
+    hasCounterResponders:()=>playableCounterPlayers().length>0,
     canAssist:id=>!!assistedEffects?.supported(id),
     canPlayAssisted:(id,pid)=>!!assistedEffects?.canPlay(id,pid),assistedCardUsed:(id,pid)=>assistedEffects?.markUsed(id,pid),
     assistedCounterPlayed:(pid)=>{
@@ -2028,8 +2033,11 @@ function syncAutoSetup(){
     if(!cid||s.currentPhase!=='MAIN'||(s.hyperDeniedThisTurn||[]).includes(cid))return;
     if((s.usedHyperThisTurn||[]).includes(cid)||s.activeHyper.length>=3)return;
     if(sim.mode==='ASSISTED'&&!assistedEffects.supported(cid))return toast('Este efecto no está implementado.');
-    if(!responded&&sim.decks.length>1){
+    const possibleCounter=sim.decks.some(p=>p.id!==d.id&&sim.states[p.id]?.hand?.some((id,i)=>
+      !sim.states[p.id].activeHyper.includes(i)&&['catalog_v3_052','catalog_v3_006'].includes(id)));
+    if(!responded&&possibleCounter){
       sim.pendingHyper={actorId:d.id,at,cardId:cid};
+      sim.pendingHyperActivationCardId=cid;
       sim.result='HyperCard anunciada: '+(getCard(cid)?.name||cid)+'. Los rivales pueden responder desde sus manos.';
       render();return;
     }
@@ -2054,7 +2062,7 @@ function syncAutoSetup(){
     manualRules.giveBack(played.cardId,played.ownerId);
     if(sim.mode==='ASSISTED')assistedEffects.markUsed(cardId,playerId);
     logSim(playerId,'CounterCard rival','J'+sim.decks.find(p=>p.id===playerId).playerNumber+' respondió a '+(getCard(pending.cardId)?.name||pending.cardId)+'.',getCard(cardId));
-    sim.pendingHyper=null;sim.activeIndex=sim.turnIndex;
+    sim.pendingHyper=null;delete sim.pendingHyperActivationCardId;sim.activeIndex=sim.turnIndex;
     if(actor.activeHyper.some(j=>actor.hand[j]==='catalog_v3_025')&&!actor.shieldCardsTriggered){
       actor.shieldCardsTriggered=true;drawPokerOne(pending.actorId,actor,'Escudo de Cartas');
     }
@@ -2221,10 +2229,12 @@ function syncAutoSetup(){
       if(!counterEligible(respondingId,sim?.states[respondingId]?.hand[index]))return;
       if(sim.chain){manualRules.counterPlay(index,respondingId);}
       else if(sim.pendingHyper){resolvePendingHyper(respondingId,index);}
+      else if(sim.pendingShield){pushUndo(sim.decks[sim.turnIndex].id,'Escudo Resplandeciente');assistedEffects.shieldRespond(true);sim.activeIndex=sim.turnIndex;render();}
     }
     else if(a==='counter-play'){manualRules.counterPlay(Number(el.dataset.index))}
     else if(a==='counter-pass'){
-      if(sim?.pendingHyper){const pending=sim.pendingHyper;sim.pendingHyper=null;sim.activeIndex=sim.turnIndex;activateReservedHyper(pending.at,true);}
+      if(sim?.pendingHyper){const pending=sim.pendingHyper;sim.pendingHyper=null;delete sim.pendingHyperActivationCardId;sim.activeIndex=sim.turnIndex;activateReservedHyper(pending.at,true);}
+      else if(sim?.pendingShield){assistedEffects.shieldRespond(false);sim.activeIndex=sim.turnIndex;render();}
       else manualRules.counterPass();
     }
     else if(a==='reference-press'){manualRules.pressReference(el.dataset.player)}
