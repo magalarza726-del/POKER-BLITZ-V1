@@ -1221,26 +1221,51 @@ function syncAutoSetup(){
           <button class="btn primary" data-action="start-sim" ${valid.length?'':'disabled'}>${icon('play')} Iniciar ${testMode==='ASSISTED'?'Prueba Asistida':'Prueba Manual'}</button></div>
       </section></main>`;
   }
+  function counterEligible(playerId,cardId){
+    if(!sim||sim.finished||sim.decks[sim.turnIndex]?.id===playerId)return false;
+    const id=String(cardId||'').slice(-3),s=sim.states[playerId];
+    if(!s||!s.hand.includes(cardId))return false;
+    if(sim.chain?.stack?.length===1)return cardType(getCard(sim.chain.stack[0].cardId))==='SUPER'&&['033','034','006','010'].includes(id);
+    if(sim.pendingHyper)return ['052','006'].includes(id);
+    return false;
+  }
+  function playableCounterPlayers(){
+    if(!sim?.decks?.length)return [];
+    return sim.decks.map((d,i)=>({...d,seatIndex:i})).filter(d=>d.id!==sim.decks[sim.turnIndex]?.id&&
+      sim.states[d.id]?.hand?.some((id,j)=>!sim.states[d.id].activeHyper?.includes(j)&&counterEligible(d.id,id)&&
+      (sim.mode!=='ASSISTED'||assistedEffects.supported(id)&&assistedEffects.canPlay(id,d.id))));
+  }
+  function closestCounterDirection(){
+    const ready=playableCounterPlayers();
+    if(!ready.length)return null;
+    const n=sim.decks.length,here=sim.activeIndex;
+    return ready.map(p=>{const right=(p.seatIndex-here+n)%n,left=(here-p.seatIndex+n)%n;
+      return {direction:left<=right?'prev':'next',distance:Math.min(left,right),seat:p.seatIndex};
+    }).sort((a,b)=>a.distance-b.distance||a.seat-b.seat)[0]?.direction||null;
+  }
+  function pokerEffectTitle(card){
+    return String(card?.rank||'?')+' '+({S:'♠',H:'♥',D:'♦',C:'♣'}[card?.suit]||'');
+  }
   function renderSimulator(){
  if(!sim?.decks?.length)return renderSimSetup();
  const d=sim.decks[sim.activeIndex],s=sim.states[d.id];
  s.currentPhase='MAIN';s.powerHandLimit=4;s.pokerHand??=[];s.pokerLimit=7;s.usedHyperThisTurn??=[];s.manualEnchantedIds??=[];
- const ok=manualRules.canAct(),active=new Set(s.activeHyper||[]),num=powerHandCount(s),name=esc(d.name||'Personaje');
+ const ok=manualRules.canAct(),turnOwner=sim.decks[sim.turnIndex],responding=!!sim.chain||!!sim.pendingHyper,navWarning=closestCounterDirection(),active=new Set(s.activeHyper||[]),num=powerHandCount(s),name=esc(d.name||'Personaje');
  const power=(s.hand||[]).map((id,i)=>({id,i,c:getCard(id)})).filter(x=>x.c&&!active.has(x.i));
  const bound=new Set([...(s.manualEnchantedIds||[]),...(s.assistedBindings||[]).flatMap(b=>b.targets||[])]);
  const hover=(title,description)=>`data-card-title="${esc(title||'Carta')}" data-card-desc="${esc(description||'')}" tabindex="0"`;
  const powerTiles=power.map(({id,i,c})=>{
-  const type=cardType(c),isHyper=type==='HYPER',can=ok&&(isHyper?!s.usedHyperThisTurn.includes(id):type==='SUPER'&&(sim.mode!=='ASSISTED'||assistedEffects.canPlay(id,d.id)));
-  return `<div class="blitz-slot ${type==='COUNTER'?'counter':''}" ${hover(c.name,c.description)}><div data-action="zoom-card" data-id="${id}" style="width:100%;height:100%">${cardHTML(c)}</div><div class="blitz-slot-actions"><button class="primary" data-action="${isHyper?'activate-hyper':'use-card'}" data-index="${i}" ${can?'':'disabled'}>${isHyper?'Activar':'Jugar'}</button><button data-action="discard-card" data-index="${i}" ${ok?'':'disabled'}>✕</button></div></div>`;
+  const type=cardType(c),isHyper=type==='HYPER',isCounter=type==='COUNTER',response=isCounter&&counterEligible(d.id,id),can=response&&(sim.mode!=='ASSISTED'||assistedEffects.supported(id)&&assistedEffects.canPlay(id,d.id))||ok&&(isHyper?!s.usedHyperThisTurn.includes(id):type==='SUPER'&&(sim.mode!=='ASSISTED'||assistedEffects.canPlay(id,d.id)));
+  return `<div class="blitz-slot ${type==='COUNTER'?'counter':''}" ${hover(c.name,c.description)}><div data-action="zoom-card" data-id="${id}" style="width:100%;height:100%">${cardHTML(c)}</div><div class="blitz-slot-actions"><button class="primary" data-action="${isCounter?'counter-response':isHyper?'activate-hyper':'use-card'}" data-index="${i}" data-player="${d.id}" ${can?'':'disabled'}>${isCounter?'Responder':isHyper?'Activar':'Jugar'}</button><button data-action="discard-card" data-index="${i}" ${ok?'':'disabled'}>✕</button></div></div>`;
  }).join('');
  const powerEmpty=Array.from({length:Math.max(0,4-power.length)},()=>'<div class="blitz-slot empty-slot"></div>').join('');
  const hyperAct=(s.activeHyper||[]).map(i=>({id:s.hand[i],i})).filter(o=>getCard(o.id)).map(({id,i})=>`<div class="blitz-slot hyper" ${hover(getCard(id)?.name,getCard(id)?.description)}><div data-action="zoom-card" data-id="${id}" style="width:100%;height:100%">${cardHTML(getCard(id))}</div><div class="blitz-slot-actions"><button disabled>ACTIVA</button></div></div>`).join('');
- const hyperReserve=(s.hyperReserve||[]).map((id,i)=>`<div class="blitz-slot hyper" ${hover(getCard(id)?.name,getCard(id)?.description)}><div style="padding:6px;color:#101010;text-align:center;font:900 14px Arial">HYPERCARD<br>✦</div><div class="blitz-slot-actions"><button class="primary" data-action="activate-hyper-reserve" data-index="${i}" ${ok&&!s.usedHyperThisTurn.includes(id)&&s.activeHyper.length<3?'':'disabled'}>Activar</button><button data-action="zoom-card" data-id="${id}">⌕</button></div></div>`).join('');
+ const hyperReserve=(s.hyperReserve||[]).map((id,i)=>`<div class="blitz-slot hyper hyper-facedown" ${hover('HyperCard boca abajo','')}><img class="blitz-hyper-back" src="assets/hyper-card-back.svg" alt="Reverso dorado de HyperCard"><div class="blitz-slot-actions"><button class="primary" data-action="activate-hyper-reserve" data-index="${i}" ${ok&&!s.usedHyperThisTurn.includes(id)&&s.activeHyper.length<3?'':'disabled'}>Activar</button><button data-action="zoom-card" data-id="${id}">⌕</button></div></div>`).join('');
  const hyperEmpty=Array.from({length:Math.max(0,3-(s.activeHyper||[]).length-(s.hyperReserve||[]).length)},()=>'<div class="blitz-slot hyper empty-slot"></div>').join('');
  const charm=(sim.mode==='MANUAL_SIMPLE'?[]:s.pokerHand.filter(pc=>bound.has(pc.id)));
- const charmTiles=charm.map(pc=>{const i=s.pokerHand.findIndex(x=>x.id===pc.id);return `<div class="blitz-slot poker ${sim.chargeSelection?.includes(i)?'selected':''}" ${hover(pc.rank+' de '+pc.suit,'Encantada: cuenta en mano, queda protegida de otros efectos y puede cobrarse.')} ><div data-action="zoom-poker" data-index="${i}" title="Ampliar Poker Card" style="height:100%;width:100%">${pokerCardHTML(pc,null)}</div><div class="blitz-slot-actions"><button class="${sim.chargeSelection?.includes(i)?'primary':''}" data-action="charge-toggle" data-index="${i}" ${ok?'':'disabled'}>${sim.chargeSelection?.includes(i)?'✓':'Elegir'}</button>${s.manualEnchantedIds?.includes(pc.id)?`<button data-action="manual-disenchant" data-id="${pc.id}">↩</button>`:''}</div></div>`}).join('');
+ const charmTiles=charm.map(pc=>{const i=s.pokerHand.findIndex(x=>x.id===pc.id);return `<div class="blitz-slot poker ${sim.chargeSelection?.includes(i)?'selected':''}" ${hover(pokerEffectTitle(pc),'')} ><div data-action="zoom-poker" data-index="${i}" title="Ampliar Poker Card" style="height:100%;width:100%">${pokerCardHTML(pc,null)}</div><div class="blitz-slot-actions"><button class="${sim.chargeSelection?.includes(i)?'primary':''}" data-action="charge-toggle" data-index="${i}" ${ok?'':'disabled'}>${sim.chargeSelection?.includes(i)?'✓':'Elegir'}</button>${s.manualEnchantedIds?.includes(pc.id)?`<button data-action="manual-disenchant" data-id="${pc.id}">↩</button>`:''}</div></div>`}).join('');
  const pk=(sim.mode==='MANUAL_SIMPLE'?[]:s.pokerHand.map((card,i)=>({card,i})).filter(x=>!bound.has(x.card.id)));
- const pokerTiles=pk.map(({card,i})=>`<div class="blitz-slot poker ${sim.chargeSelection?.includes(i)?'selected':''}" ${hover(card.rank+' de '+card.suit,'Poker Card '+card.rank+' de '+card.suit)}><div data-action="zoom-poker" data-index="${i}" title="Ampliar Poker Card" style="height:100%;width:100%">${pokerCardHTML(card,i)}</div><div class="blitz-slot-actions"><button class="${sim.chargeSelection?.includes(i)?'primary':''}" data-action="charge-toggle" data-index="${i}" ${ok?'':'disabled'}>${sim.chargeSelection?.includes(i)?'✓':'Cobrar'}</button><button data-action="discard-poker-card" data-index="${i}" ${ok?'':'disabled'}>✕</button>${sim.mode==='MANUAL_FULL'&&s.activeHyper.some(j=>/encanta/i.test(getCard(s.hand[j])?.description||''))?`<button data-action="manual-enchant" data-index="${i}" title="Encantar manualmente">✦</button>`:''}</div></div>`).join('');
+ const pokerTiles=pk.map(({card,i})=>`<div class="blitz-slot poker ${sim.chargeSelection?.includes(i)?'selected':''}" ${hover(pokerEffectTitle(card),'')}><div data-action="zoom-poker" data-index="${i}" title="Ampliar Poker Card" style="height:100%;width:100%">${pokerCardHTML(card,i)}</div><div class="blitz-slot-actions"><button class="${sim.chargeSelection?.includes(i)?'primary':''}" data-action="charge-toggle" data-index="${i}" ${ok?'':'disabled'}>${sim.chargeSelection?.includes(i)?'✓':'Cobrar'}</button><button data-action="discard-poker-card" data-index="${i}" ${ok?'':'disabled'}>✕</button>${sim.mode==='MANUAL_FULL'&&s.activeHyper.some(j=>/encanta/i.test(getCard(s.hand[j])?.description||''))?`<button data-action="manual-enchant" data-index="${i}" title="Encantar manualmente">✦</button>`:''}</div></div>`).join('');
  const pokerEmpty=Array.from({length:Math.max(0,7-pk.length-charm.length)},()=>'<div class="blitz-slot poker empty-slot"></div>').join('');
  const detected=sim.mode==='MANUAL_SIMPLE'?null:manualRules.detectCharge();
  const comboLabel=detected?`${detected.type} · +${detected.points} ficha${detected.points===1?'':'s'}`:(sim.chargeSelection?.length?'Combinación no válida':'Selecciona Poker Cards');
