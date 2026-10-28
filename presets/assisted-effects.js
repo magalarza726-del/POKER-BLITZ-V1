@@ -3,7 +3,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   const sim=()=>ctx.sim(), card=id=>ctx.card(id), links=()=>ctx.links?.(), draw=(pid,n=1)=>{const st=sim().states[pid];let moved=0;for(let i=0;i<n;i++){if(!sim().pokerDrawPile.length)break;const c=ctx.drawPoker(pid,st,'Efecto asistido: robar Poker Card');if(c)moved++}return moved};
   const pile=(pid)=>sim().states[pid], opponents=pid=>sim().decks.filter(p=>p.id!==pid&&(!sim().eligiblePlayers||sim().eligiblePlayers.includes(p.id)));
   const random=n=>n<=1?0:ctx.random(n), popPoker=(pid,n=1,attacker=null)=>{const st=pile(pid),out=[];for(let i=0;i<n&&st.pokerHand.length;i++){const permitted=st.pokerHand.map((c,j)=>({c,j})).filter(x=>!links()?.protectedCard(pid,x.c));if(!permitted.length)break;const choice=(attacker==null||attacker===pid)&&ctx.choosePokerPayment?[...permitted].sort((a,b)=>ctx.choosePokerPayment(pid,a.c)-ctx.choosePokerPayment(pid,b.c))[0]:permitted[random(permitted.length)];out.push(st.pokerHand.splice(choice.j,1)[0]);}if(links())links().onPokerOut(pid,out);else sim().pokerDrawPile=ctx.shuffle([...sim().pokerDrawPile,...out]);return out};
-  const pushPower=(pid,n=1,ignoreLimit=false)=>{const s=pile(pid);ctx.manual().own(pid);let count=0;for(let k=0;k<n&&s.drawPile.length;k++){if(!ignoreLimit&&s.hand.length-s.activeHyper.length>=s.powerHandLimit)break;const index=random(s.drawPile.length),cid=s.drawPile.splice(index,1)[0],owner=s.drawOwners.splice(index,1)[0]||pid;s.hand.push(cid);s.handOwners.push(owner);count++}return count};
+  const pushPower=(pid,n=1,ignoreLimit=false)=>{const s=pile(pid);ctx.manual().own(pid);let count=0;for(let k=0;k<n&&s.drawPile.length;k++){const index=random(s.drawPile.length),cid=s.drawPile.splice(index,1)[0],owner=s.drawOwners.splice(index,1)[0]||pid;s.hand.push(cid);s.handOwners.push(owner);count++}return count};
   const popPower=(pid,n=1)=>{const s=pile(pid),moved=[];for(let k=0;k<n;k++){const allowed=s.hand.map((c,i)=>({c,i})).filter(x=>!s.activeHyper.includes(x.i));if(!allowed.length)break;const pick=ctx.choosePowerPayment?[...allowed].sort((a,b)=>ctx.choosePowerPayment(pid,a.c)-ctx.choosePowerPayment(pid,b.c))[0]:allowed[random(allowed.length)],it=ctx.manual().take(pid,pick.i);ctx.manual().giveBack(it.cardId,it.ownerId);moved.push(it.cardId)}return moved};
   const movePoker=(from,to,n=1)=>{const st=pile(from),dst=pile(to),out=[];for(let k=0;k<n&&st.pokerHand.length;k++){const allowed=st.pokerHand.map((c,i)=>({c,i})).filter(x=>!links()?.protectedCard(from,x.c));if(!allowed.length)break;const x=st.pokerHand.splice(allowed[random(allowed.length)].i,1)[0];dst.pokerHand.push(x);out.push(x)}links()?.cleanup();return out};
   const swapPoker=(a,b,n=1,onPair=null)=>{let x=pile(a),y=pile(b),count=0;for(let k=0;k<n&&x.pokerHand.length&&y.pokerHand.length;k++){const allowedX=x.pokerHand.map((c,i)=>i).filter(i=>!links()?.protectedCard(a,x.pokerHand[i]));const allowedY=y.pokerHand.map((c,i)=>i).filter(i=>!links()?.protectedCard(b,y.pokerHand[i]));if(!allowedX.length||!allowedY.length)break;let i=allowedX[random(allowedX.length)],j=allowedY[random(allowedY.length)];if(onPair)onPair(x.pokerHand[i],y.pokerHand[j]);[x.pokerHand[i],y.pokerHand[j]]=[y.pokerHand[j],x.pokerHand[i]];count++}links()?.cleanup();return count};
@@ -182,7 +182,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
     if(p.kind==='hyper-search'){
       const s=pile(p.pid),index=Number(value.slice(6)),id=s.drawPile[index];
       if(!Number.isInteger(index)||!id||ctx.type?.(card(id))!=='HYPER')return;
-      if(s.hand.length-s.activeHyper.length>=s.powerHandLimit){log(p.pid,'007','No se pudo tomar HyperCard: Power Hand llena.');finishChoice();return;}
+      
       const owner=s.drawOwners[index]||p.pid;
       s.drawPile.splice(index,1);s.drawOwners.splice(index,1);
       s.hand.push(id);s.handOwners.push(owner);
@@ -390,7 +390,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
       case '053':log(pid,id,'Robó '+draw(pid,1)+' Poker Card.');break;
       case '032':{const x=popPower(pid,1).length;if(!x){log(pid,id,'Coste no pagado: requiere descartar 1 Power Card.');break;}log(pid,id,'Descartó 1 Power Card y robó '+draw(pid,2)+' Poker Cards.');break}
       case '031':if(s.chips<1){log(pid,id,'No hay fichas para pagar el coste.');break}addChips(pid,-1);log(pid,id,'Pagó 1 ficha, robó '+draw(pid,1)+' Poker Card y '+pushPower(pid,1)+' Power Card.');break;
-      case '054':{const available=s.drawPile.map((cid,i)=>i);if(!available.length||s.hand.length-s.activeHyper.length>=s.powerHandLimit){log(pid,id,'No había otra Power Card distinta disponible o se alcanzó el límite de mano.');break;}const k=available[random(available.length)],cid=s.drawPile.splice(k,1)[0],owner=s.drawOwners.splice(k,1)[0]||pid;s.hand.push(cid);s.handOwners.push(owner);log(pid,id,'Ciclo Rápido: obtuvo otra Power Card distinta ('+(card(cid)?.name||cid)+').');break}
+      case '054':{const available=s.drawPile.map((cid,i)=>i);if(!available.length){log(pid,id,'No había otra Power Card distinta disponible o se alcanzó el límite de mano.');break;}const k=available[random(available.length)],cid=s.drawPile.splice(k,1)[0],owner=s.drawOwners.splice(k,1)[0]||pid;s.hand.push(cid);s.handOwners.push(owner);log(pid,id,'Ciclo Rápido: obtuvo otra Power Card distinta ('+(card(cid)?.name||cid)+').');break}
       case '057':{const spent=active(pid,'062')?0:popPoker(pid,2).length;log(pid,id,'Pagó '+spent+' Poker Cards y robó '+pushPower(pid,1)+' Power Card y '+draw(pid,1)+' Poker Card.');break}
       case '063':{const spent=active(pid,'062')?0:popPoker(pid,2).length;log(pid,id,'Reino Amable: pagó '+spent+' Poker Cards ('+(active(pid,'062')?'Vínculo Noble activo':'coste normal')+') y robó '+draw(pid,3)+' Poker Cards.');break}
       case '036':{const r=die(pid);log(pid,id,'Dado '+r+'. Robó '+([1,6].includes(r)?draw(pid,2):0)+' Poker Cards.');break}
@@ -436,7 +436,7 @@ window.POKER_BLITZ_ASSISTED_EFFECTS = function createAssistedEffects(ctx){
   }
   function recalc(pid){
     const st=pile(pid),count=id=>st.activeHyper.filter(i=>st.hand[i]==='catalog_v3_'+id).length;
-    st.powerHandLimit=4;
+    st.powerHandLimit=Infinity;
     st.pokerLimit=7;
     st.powerDrawBonus=0;
   }
