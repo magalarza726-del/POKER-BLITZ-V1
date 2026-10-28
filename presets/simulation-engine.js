@@ -28,11 +28,11 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     if(!Array.isArray(p.cardIds)||!Array.isArray(p.hyperCardIds||[]))return true;
     const h=(p.hyperCardIds||[]).length,n=p.cardIds.length,counts={};
     for(const id of p.cardIds)counts[id]=(counts[id]||0)+1;
-    return h>3||new Set(p.hyperCardIds||[]).size!==h||n<20+2*h||n>30+2*h||
+    return h>3||new Set(p.hyperCardIds||[]).size!==h||n<20||n>35||
       Object.values(counts).some(x=>x>3)||p.cardIds.some(id=>cardType(getCard(id))!=='SUPER'&&cardType(getCard(id))!=='COUNTER')||
       (p.hyperCardIds||[]).some(id=>cardType(getCard(id))!=='HYPER');
    });
-   if(wrong)throw Error('Power Deck no cumple el reglamento oficial (20+2H a 30+2H; H≤3; máximo 3 copias): '+(wrong.name||'sin nombre')+'. Las cartas faltantes no se sustituyen automáticamente.');
+   if(wrong)throw Error('Power Deck no cumple el reglamento oficial (20 a 35; H≤3; máximo 3 copias): '+(wrong.name||'sin nombre')+'. Las cartas faltantes no se sustituyen automáticamente.');
   const rng=randomFactory(config.seed),players=config.players.map((p,i)=>({...p,id:'AUTO-'+(i+1),participantId:p.participantId||'P'+(i+1),seat:i+1,sourceDeckId:p.id,playerNumber:i+1,
    difficulty:'expert',style:Object.entries(styleKeys).sort((a,b)=>{
     const n=lst=>p.cardIds.filter(x=>lst.includes(code(x))).length;return n(b[1])-n(a[1]);
@@ -68,7 +68,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
    }else hand=list.splice(0,Math.min(initialPower,list.length));
    const pokerHand=game.pokerDrawPile.splice(0,Math.min(initialPoker,game.pokerDrawPile.length));
    game.states[p.id]={initialCards:p.cardIds.length,hand,handOwners:hand.map(()=>p.id),drawPile:list,drawOwners:list.map(()=>p.id),
-    pokerHand,activeHyper:[],hyperReserve:rush?[]:[...new Set((p.hyperCardIds||[]).filter(id=>cardType(getCard(id))==='HYPER'))].slice(0,3),hyperActivationsThisTurn:0,hyperActivationLimit:1,chips:0,chargeReplacement:0,turnsTaken:0,currentPhase:'MAIN',powerHandLimit:soloTraining?7:4,pokerLimit:7,dieBase:null,dieModifier:0};
+    pokerHand,activeHyper:[],hyperReserve:rush?[]:[...new Set((p.hyperCardIds||[]).filter(id=>cardType(getCard(id))==='HYPER'))].slice(0,3),hyperActivationsThisTurn:0,usedHyperThisTurn:[],chips:0,chargeReplacement:0,turnsTaken:0,currentPhase:'MAIN',powerHandLimit:soloTraining?7:4,pokerLimit:7,dieBase:null,dieModifier:0};
    log(p.id,'Reparto inicial',`${initialPower} Power Cards, ${pokerHand.length} Poker Cards. IA ${difficulty[p.difficulty]||difficulty.intermediate}.`);
   }
   const get=pid=>game.states[pid],my=()=>game.decks[game.turnIndex];
@@ -459,7 +459,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
   }
   function legalHyper(pid,i){
    const s=get(pid),id=s.hand[i],c=code(id);
-   if(!id||s.activeHyper.includes(i)||s.activeHyper.length>=3)return false;
+   if(!id||s.activeHyper.includes(i)||s.activeHyper.length>=3||(s.usedHyperThisTurn||[]).includes(id))return false;
    if(links.supported.has(c))return links.eligible(pid,i);
    const copies=s.activeHyper.filter(j=>s.hand[j]===id).length;
    if(copies>=1)return false;
@@ -504,7 +504,7 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     if(kind==='HYPER'&&fx.supported(id)&&legalHyper(p.id,i))available.push({i,id,kind,score:scoreCard(p.id,id)});
     else if(kind==='SUPER'&&fx.supported(id)&&fx.canPlay(id,p.id))available.push({i,id,kind,score:scoreCard(p.id,id)});
    }
-   if(!rush&&s.currentPhase==='MAIN'&&(s.hyperActivationsThisTurn||0)<(s.hyperActivationLimit||1)&&s.activeHyper.length<3){
+   if(!rush&&s.currentPhase==='MAIN'&&s.activeHyper.length<3){
       for(let ri=0;ri<(s.hyperReserve||[]).length;ri++){
        const id=s.hyperReserve[ri];if(!fx.supported(id))continue;const i=s.hand.length;s.hand.push(id);s.handOwners.push(p.id);
        const allowed=legalHyper(p.id,i);s.hand.pop();s.handOwners.pop();
@@ -714,13 +714,12 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
     if(tieContenders&&!tieContenders.includes(players[i].id))continue;
     if(config.cancel?.cancelled){outcome='Cancelada';break}
     game.turnIndex=game.activeIndex=i;
-    const p=players[i],s=get(p.id);s.currentPhase='DRAW';
-    if(s.turnsTaken>0){
+    const p=players[i],s=get(p.id);s.currentPhase='MAIN';if(s.turnsTaken>0){
        drawPower(p.id,Math.max(0,s.powerHandLimit-(s.hand.length-s.activeHyper.length)));
        if(s.nextDrawBonus){drawPower(p.id,s.nextDrawBonus,true);s.nextDrawBonus=0;}
        links.phase('DRAW_END',p.id);
      }
-    s.currentPhase='MAIN';fx.beginTurn(p.id);links.phase('MAIN_START',p.id);autoModal();
+    fx.beginTurn(p.id);links.phase('MAIN_START',p.id);autoModal();
     const currentPlan=planFor(p);s.aiPlan=currentPlan.goal;
     const planned=currentPlan.sequence.filter(x=>currentPlan.available(x)||currentPlan.accessible(x));
     log(p.id,'Plan IA',currentPlan.goal+' | secuencia: '+(planned.join(' → ')||'cobro flexible')+' | alternativas: '+currentPlan.alternatives.slice(0,2).join(', ')+' | Ases '+currentPlan.aces+', figuras '+currentPlan.faces+', palo mayor '+currentPlan.suitCount+'.');
@@ -759,19 +758,19 @@ window.POKER_BLITZ_AUTOMATION=function buildPokerBlitzAuto(context){
          if(choice.kind==='HYPER_RESERVE'&&!s.activeHyper.includes(choice.i)&&s.hand[choice.i]===choice.id){s.hand.splice(choice.i,1);s.handOwners.splice(choice.i,1);s.hyperReserve.push(choice.id);}
          break;
        }
-       s.hyperActivationsThisTurn=(s.hyperActivationsThisTurn||0)+1;
+       s.hyperActivationsThisTurn=(s.hyperActivationsThisTurn||0)+1;(s.usedHyperThisTurn??=[]).push(choice.id);
       log(p.id,'HyperCard activada',getCard(choice.id)?.name||choice.id);
      }else if(!playCard(p,choice.i))break;
-    }
-    s.currentPhase='CHARGE';charge(p);
-    s.currentPhase='END';
+      if(s.pokerHand.length>=5)charge(p);
+     }
+     charge(p);s.currentPhase='MAIN';
     const qty=Math.max(0,7-s.pokerHand.length);s.chargeReplacement=0;
     for(let k=0;k<qty;k++)drawPoker(p.id,s,'Reposición aleatoria End Phase');
     fx.phase('END',p.id);
     endPhaseDiscard(p);
     fx.phase('END_COMPLETE',p.id);
     for(const i of [...s.activeHyper].sort((a,b)=>b-a)){const it=manual.take(p.id,i);if(it)manual.giveBack(it.cardId,it.ownerId);}
-    s.hyperActivationsThisTurn=0;s.hyperActivationLimit=1;s.hyperDeniedThisTurn=[];s.shieldCardsTriggered=false;
+    s.hyperActivationsThisTurn=0;s.usedHyperThisTurn=[];s.hyperDeniedThisTurn=[];s.shieldCardsTriggered=false;
     s.turnsTaken++;log(p.id,'Fin del turno','Ronda '+round+', fichas '+s.chips+'.');
    }
    if(config.cancel?.cancelled)break;
