@@ -1403,7 +1403,7 @@ function syncAutoSetup(){
             <select id="auto-new-style">${[['equilibrado','Equilibrado'],['agresivo','Agresivo'],['defensivo','Defensivo'],['combinaciones','Combinaciones'],['economia','Economía'],['control','Control'],['azar','Dados y azar']].map(([key,title])=>`<option value="${key}" ${autoSetup.newDeckStyle===key?'selected':''}>${title}</option>`).join('')}</select></div>`:''}
         <div class="test-setup-players">${Array.from({length:autoSetup.playerCount},(_,i)=>{
           const chosen=decks.find(d=>d.id===autoSetup.deckIds[i])||decks[0];
-          return `<div class="panel test-setup-player"><div class="test-setup-player-head">${chosen?deckCharacterHTML(chosen,'deck-row-avatar'):''}<div><strong>Jugador ${i+1}</strong><div class="small muted">Deck individual · IA experta · política del Deck</div></div></div>
+          return `<div class="panel test-setup-player"><div class="test-setup-player-head">${mode==='NEW_DECK'&&i===0?'':chosen?deckCharacterHTML(chosen,'deck-row-avatar'):''}<div><strong>Jugador ${i+1}${mode==='NEW_DECK'&&i===0?' · Nuevo Deck':''}</strong><div class="small muted">${mode==='NEW_DECK'&&i===0?'Proyecto vacío hasta formar un deck válido':'Deck individual · IA experta · política del Deck'}</div></div></div>
             ${mode==='NEW_DECK'&&i===0?'<p><strong>J1 · Nuevo Deck en blanco</strong><br>Se construye legalmente antes de participar.</p>':`<label for="auto-deck-${i}">Deck</label><select id="auto-deck-${i}" data-auto-deck="${i}">${decks.map(d=>`<option value="${esc(d.id)}" ${chosen?.id===d.id?'selected':''}>${esc(d.name)} (${d.cardIds.length})</option>`).join('')}</select>`}
             ${['DECKS','AI'].includes(mode)?`<label class="pb-freeze-option">
               <input type="checkbox" data-auto-freeze="${mode}" data-id="${chosen?.id||''}" ${chosen&&frozen.includes(chosen.id)?'checked':''}>
@@ -2398,10 +2398,10 @@ function syncAutoSetup(){
       deck.cardIds=[...version.cardIds];deck.hyperCardIds=[...version.hyperCardIds];saveState();render();
     }
     else if(a==='test-hub')go('testHub');
-    else if(a==='settings')go('settings'); else if(a==='rules')go('rules'); else if(a==='all-cards'){libraryTypeFilter='ALL';go('cards')} else if(a==='all-decks')go('decks'); else if(a==='export')go('export'); else if(a==='manual-test'){sim=null;go('manualChoice')}
+    else if(a==='settings')go('settings'); else if(a==='rules')go('rules'); else if(a==='all-cards'){libraryTypeFilter='ALL';go('cards')} else if(a==='all-decks')go('decks'); else if(a==='export')go('export'); else if(a==='manual-test'){sim=null;testMode='MANUAL_FULL';syncTestSetup();go('simSetup')}
     else if(a==='manual-full'){testMode='MANUAL_FULL';syncTestSetup();go('simSetup')}
-    else if(a==='manual-simple'){testMode='MANUAL_SIMPLE';testSetup.handView='POWER';syncTestSetup();go('simSetup')}
-    else if(a==='assisted-test'){testMode='ASSISTED';syncTestSetup();go('simSetup')}
+    else if(a==='manual-simple'){testMode='MANUAL_FULL';syncTestSetup();go('simSetup')}
+    else if(a==='assisted-test'){testMode='MANUAL_FULL';syncTestSetup();go('simSetup')}
     else if(a==='auto-simulation'){syncAutoSetup();go('autoSetup')}
     else if(a==='auto-players'){autoSetup.playerCount=Number(el.dataset.value)||2;syncAutoSetup();render()}
     else if(a==='auto-poker-decks'){autoSetup.pokerDeckCount=autoSetup.playerCount>7?2:Number(el.dataset.value)===2?2:1;render()}
