@@ -478,3 +478,69 @@
     animation:none;
   }
 }
+
+
+/* Poker Blitz V1.21.2 · fondos de mesa seleccionables (2026-10-29) */
+.blitz-table .blitz-board {
+  background-color:#065b37;
+  background-position:center center;
+  background-size:cover;
+  background-repeat:no-repeat;
+}
+.blitz-table[data-table-background="verde"] .blitz-board {
+  background-color:#065b37;
+  background-image:linear-gradient(rgba(0,0,0,.09),rgba(0,0,0,.10)),url("../assets/table-texture-verde.webp");
+}
+.blitz-table[data-table-background="negro"] .blitz-board {
+  background-color:#141414;
+  background-image:linear-gradient(rgba(0,0,0,.04),rgba(0,0,0,.04)),url("../assets/table-texture-negro.webp");
+}
+.blitz-table[data-table-background="rojo"] .blitz-board {
+  background-color:#840500;
+  background-image:linear-gradient(rgba(0,0,0,.12),rgba(0,0,0,.14)),url("../assets/table-texture-rojo.webp");
+}
+.blitz-table[data-table-background="azul"] .blitz-board {
+  background-color:#073968;
+  background-image:linear-gradient(rgba(0,0,0,.09),rgba(0,0,0,.12)),url("../assets/table-texture-azul.webp");
+}
+.blitz-table[data-table-background="morado"] .blitz-board {
+  background-color:#401451;
+  background-image:linear-gradient(rgba(0,0,0,.09),rgba(0,0,0,.12)),url("../assets/table-texture-morado.webp");
+}
+/* Muestra original de cada textura, no una aproximación por color sólido. */
+.test-background-grid {
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:12px;
+  margin-top:14px;
+}
+.test-bg-choice {
+  display:flex;flex-direction:column;gap:7px;
+  min-width:0;padding:7px;
+  border:2px solid #cbd5df;border-radius:12px;
+  background:#fff;color:#17232e;text-align:left;
+  cursor:pointer;
+  transition:border-color .15s ease,box-shadow .15s ease;
+}
+.test-bg-choice .test-bg-thumb {
+  display:block;width:100%;aspect-ratio:16/9;
+  border-radius:7px;border:1px solid rgba(0,0,0,.18);
+  background-color:#133721;background-position:center;
+  background-repeat:no-repeat;background-size:cover;
+}
+.test-bg-choice .test-bg-caption {
+  display:flex;justify-content:space-between;align-items:center;
+  gap:5px;flex-wrap:wrap;padding:0 3px 3px;
+  font:700 13px Arial,sans-serif;
+}
+.test-bg-current {color:#07553d;font:700 10px Arial,sans-serif;}
+.test-bg-choice:hover {border-color:#129a87;}
+.test-bg-choice:focus-visible {outline:3px solid #0a8ca2;outline-offset:2px;}
+.test-bg-choice.selected {
+  border-color:#007d67;
+  box-shadow:0 0 0 2px rgba(0,141,112,.15);
+  background:#f3fffb;
+}
+@media(max-width:830px){.test-background-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media(max-width:450px){.test-background-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}}
+@media(prefers-reduced-motion:reduce){.test-bg-choice{transition:none;}}
