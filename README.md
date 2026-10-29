@@ -1,3 +1,11 @@
+### Fondos personalizados para la mesa de pruebas — V1.21.2 (29/10/2026)
+- En **Configuración → Fondo de la mesa en pruebas**, se puede elegir entre las cinco texturas proporcionadas: **Verde** (predeterminado), Negro, Rojo, Azul y Morado.
+- El ajuste se guarda en `state.testBackground` mediante `localStorage`, permanece entre sesiones y se incluye en importaciones/exportaciones JSON.
+- La elección se aplica a **Prueba Manual Completa, Prueba Manual Sencilla y Prueba Asistida** mediante la misma pantalla de mesa; no afecta a cartas, retratos ni motor de juego.
+- Las texturas originales se optimizaron como WebP (sin cambiar su composición) y se subieron a `assets/table-texture-*.webp`. La selección incluye vista previa y accesibilidad mediante `aria-pressed`.
+- Archivo de entrada `app-v1.21.2.html`; `index.html` y enlaces anteriores llevan a esta versión para evitar cachés de HTML previas.
+- Prueba de regresión: `node android/tools/check_table_backgrounds.js`.
+
 ### Corrección definitiva de catálogo de decks — V1.21.1 (28/10/2026)
 - Se creó `app-v1.21.1.html` y se actualizó la entrada `index.html` para evitar reutilizar una página HTML antigua.
 - Se renovó explícitamente la caché del script `presets/default-decks.js`: ahora debe cargar **11 decks predeterminados**, incluidos Arkan, Regulus y Maverick.
