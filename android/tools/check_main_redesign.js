@@ -1,0 +1,40 @@
+'use strict';
+// Run: node android/tools/check_main_redesign.js
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const root=path.resolve(__dirname,'../..');
+const html=fs.readFileSync(path.join(root,'app-v1.22.0.html'),'utf8');
+const css=fs.readFileSync(path.join(root,'presets/main-menu.css'),'utf8');
+const engine=fs.readFileSync(path.join(root,'presets/adaptive-simulations.js'),'utf8');
+const titles=['Jugar','Decks','Extras','Desarrollador'];
+for(const x of titles)assert(html.includes('<b>'+x+'</b>'),'Falta boton principal '+x);
+assert(html.includes("const APP_VERSION = '1.22.0'"));
+assert(html.includes('data-action="play-direct"'),'Jugar debe abrir manual completo directamente');
+assert(html.includes("testMode='MANUAL_FULL';sim=null;syncTestSetup();go('simSetup')"));
+assert(html.includes('deckCatalog:renderDeckCatalog'));
+assert(html.includes('data-action="deck-plus"')&&html.includes('data-action="deck-minus"'),'Los cambios de copias deben estar conectados');
+assert(html.includes('data-action="new-deck"')&&html.includes("go('deckCatalog')"));
+assert(html.includes('data-action="select-simulation"')&&html.includes('class="panel pad pb-sim-dropdown"'));
+const modes=['BALANCE','DECKS','AI','NEW_DECK'];
+for(const mode of modes)assert(html.includes("['"+mode+"'")||html.includes(",'"+mode+"'"),"Falta modo "+mode);
+assert(html.includes('data-auto-freeze')&&html.includes("frozenDeckIds")&&html.includes("frozenAiIds"));
+assert(html.includes('data-auto-mode')||html.includes('id="auto-mode"'));
+assert(html.includes('min="1" max="1000"'));
+assert(html.includes('presets/adaptive-simulations.js?v=v1-20261029'));
+assert(css.includes('grid-template-columns:minmax(0,1.14fr) minmax(360px,.86fr)'));
+assert(css.includes('animation:pb-slide-cycle 44s'),'El ciclo debe durar 44 segundos');
+assert(css.includes('22.72727%')&&css.includes('25%'),'Las transiciones deben durar un segundo entre pausas de diez');
+const posters=['cian','dorado','magenta','equipo'];
+for(const p of posters){
+ const asset='assets/cover-blitz-'+p+'.webp';
+ assert(html.includes(asset),'Falta portada '+p);
+ const binary=fs.readFileSync(path.join(root,asset));
+ assert.equal(binary.subarray(0,4).toString(),'RIFF','No es RIFF: '+p);
+ assert.equal(binary.subarray(8,12).toString(),'WEBP','No es WebP: '+p);
+}
+const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(x=>x[1]).filter(x=>x.trim());
+for(const js of scripts)new Function(js);
+const module={};new Function('window',engine)(module);
+assert.deepEqual(module.POKER_BLITZ_ADAPTIVE.MODES,modes);
+console.log('PASS: 4 portada WebP, 10 s fijas + 1 s desplazamiento, 4 botones, catálogo editable y 4 simulaciones');
