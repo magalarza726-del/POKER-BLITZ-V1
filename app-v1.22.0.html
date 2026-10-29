@@ -1731,10 +1731,10 @@ function syncAutoSetup(){
   }
   function bindInputs(){
     $('#blitz-note')?.addEventListener('input',e=>{if(dialoguePlayback)return;if(sim?.decks?.length){const id=sim.decks[sim.activeIndex].id;sim.states[id].notes=e.target.value;}});
-    $('[data-auto-deck]').forEach(el=>el.addEventListener('change',()=>{autoSetup.deckIds[Number(el.dataset.autoDeck)]=el.value;render();}));
+    $$('[data-auto-deck]').forEach(el=>el.addEventListener('change',()=>{autoSetup.deckIds[Number(el.dataset.autoDeck)]=el.value;render();}));
     $('#auto-mode')?.addEventListener('change',e=>{autoSetup.simulationMode=e.target.value;syncAutoSetup();render();});
     $('#auto-new-style')?.addEventListener('change',e=>{autoSetup.newDeckStyle=e.target.value;});
-    $('[data-auto-freeze]').forEach(el=>el.addEventListener('change',()=>{
+    $$('[data-auto-freeze]').forEach(el=>el.addEventListener('change',()=>{
       const group=el.dataset.autoFreeze==='DECKS'?'frozenDeckIds':'frozenAiIds',set=new Set(autoSetup[group]||[]);
       if(el.checked)set.add(el.dataset.id);else set.delete(el.dataset.id);
       autoSetup[group]=[...set];
