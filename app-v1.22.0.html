@@ -2061,7 +2061,7 @@ function syncAutoSetup(){
       }
       if(!autoCancel.cancelled&&autoBatchResults.length===count){
         const unique=[...new Map(players.map(p=>[p.id,p])).values()];
-        if(mode==='DECKS')for(const p of unique.filter(x=>adaptive.changedDecks.has(x.id))){
+        if(mode==='DECKS')for(const p of unique.filter(x=>adaptive.evaluatedDecks.has(x.id))){
           const live=getDeck(p.id);if(!live||!deckIsLegal(p))continue;
           live.cardIds=[...p.cardIds];live.hyperCardIds=[...p.hyperCardIds];
           live.optimizationOrigin??=structuredClone(p.optimizationOrigin||{cardIds:p.cardIds,hyperCardIds:p.hyperCardIds});
@@ -2073,7 +2073,7 @@ function syncAutoSetup(){
           live.aiTraining=structuredClone(p.aiTraining);live.aiTrainingHistory=live.aiTrainingHistory.slice(-8);
         }
         if(mode==='NEW_DECK'&&adaptive.newDeck&&deckIsLegal(adaptive.newDeck)){
-          const fresh=structuredClone(adaptive.newDeck);delete fresh.participantId;delete fresh.difficulty;
+          const fresh=structuredClone(adaptive.newDeck);delete fresh.participantId;delete fresh.difficulty;fresh.id=crypto.randomUUID();
           state.decks.push(fresh);autoEvolutionHistory.push('Nuevo Deck guardado en Mis Decks: '+fresh.name);
         }
         if(mode!=='BALANCE'&&!saveState())autoEvolutionHistory.push('No se pudo guardar la evolución: exporta tu JSON.');
