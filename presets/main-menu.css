@@ -18,16 +18,17 @@
   box-shadow:0 14px 40px #0009;position:relative;
 }
 .pb-cover-track {display:flex;height:100%;width:233.333333%;
-  animation:pb-slide-cycle 40s linear infinite;will-change:transform;}
+  animation:pb-slide-cycle 44s linear infinite;will-change:transform;}
 .pb-cover-frame {flex:0 0 14.2857142857%;height:100%;padding:4px;margin:0;min-width:0;}
 .pb-cover-frame img {display:block;width:100%;height:100%;object-fit:cover;object-position:center center;
   border:1px solid #3c7aaa;border-radius:8px;background:#020813;image-rendering:auto;}
 .pb-carousel-caption {font-size:11px;color:#a0bacc;text-align:right;margin:0;}
 @keyframes pb-slide-cycle {
-  0%,22%{transform:translateX(0);}
-  25%,47%{transform:translateX(-14.2857142857%);}
-  50%,72%{transform:translateX(-28.5714285714%);}
-  75%,97%{transform:translateX(-42.8571428571%);}
+  /* Cada portada permanece 10 s; después desliza durante 1 s. */
+  0%,22.72727%{transform:translateX(0);}
+  25%,47.72727%{transform:translateX(-14.2857142857%);}
+  50%,72.72727%{transform:translateX(-28.5714285714%);}
+  75%,97.72727%{transform:translateX(-42.8571428571%);}
   100%{transform:translateX(-57.1428571428%);}
 }
 .pb-menu-pane {display:flex;align-items:center;justify-content:center;
