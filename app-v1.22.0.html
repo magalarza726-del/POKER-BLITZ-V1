@@ -1963,8 +1963,10 @@ function syncAutoSetup(){
         for(const run of runs)if(run.finished&&run.winnerIds.length===1){const winner=run.players.find(p=>p.id===run.winnerIds[0]);if(winner)winCounts[winner.participantId]=(winCounts[winner.participantId]||0)+1;}
         y=addPdfWrappedText(pdf,'POKER BLITZ | INFORME DE SIMULACIONES',y,{size:17,bold:true,space:6});
         y=addPdfWrappedText(pdf,'Partidas: '+runs.length+' | Jugadores: '+runs[0].players.length+' | Modo: '+runs[0].battleMode+' | Barajas de Poker: '+runs[0].pokerDeckCount+' | Semilla base: '+runs[0].baseSeed+' | Version: '+runs[0].version,y,{size:9,space:4});
-        y=addPdfWrappedText(pdf,'Mismos decks e IA por participante. Asientos rotativos (1 desplazamiento por partida); semilla de encuentro reproducible. La posicion en mesa cambia, pero P1...P6 conserva su identidad.',y,{size:9,space:4});
-        y=addPdfWrappedText(pdf,'ESTADISTICAS POR JUGADOR',y,{size:12,bold:true});
+        y=addPdfWrappedText(pdf,'Partidas con asientos rotativos y semillas reproducibles. En balance los decks y la IA permanecen fijos; en modos evolutivos pueden cambiar entre etapas.',y,{size:9,space:4});
+        y=addPdfWrappedText(pdf,'Tipo de simulación: '+(SIMULATION_OPTIONS.find(x=>x[0]===autoSetup.simulationMode)?.[1]||'Balance'),y,{size:10,bold:true});
+         if(autoEvolutionHistory.length){y=addPdfWrappedText(pdf,'EVOLUCION / ENTRENAMIENTO',y,{size:12,bold:true});for(const msg of autoEvolutionHistory)y=addPdfWrappedText(pdf,msg,y,{size:8,space:2});}
+         y=addPdfWrappedText(pdf,'ESTADISTICAS POR JUGADOR',y,{size:12,bold:true});
         for(const [id,info] of Object.entries(averages))y=addPdfWrappedText(pdf,id+' '+info.name+' | IA '+info.difficulty+' | Victorias: '+(winCounts[id]||0)+'/'+info.played+' ('+(100*(winCounts[id]||0)/info.played).toFixed(1)+'%) | Fichas promedio: '+(info.total/info.played).toFixed(2)+' | Asientos: '+Object.entries(info.bySeat).map(([seat,n])=>'#'+seat+':'+n).join(', '),y,{size:9,space:2});
         y=addPdfWrappedText(pdf,'RESULTADOS INDIVIDUALES',y,{size:12,bold:true});
         for(const [i,run] of runs.entries()){
@@ -1990,7 +1992,9 @@ function syncAutoSetup(){
       y=addPdfWrappedText(pdf,'Resultado: '+r.outcome+' | Inicio: '+new Date(r.startedAt).toLocaleString()+' | Fin: '+new Date(r.endedAt).toLocaleString(),y,{size:9,space:4});
       const best=r.players[0]?.chips??0,winners=r.players.filter(p=>p.chips===best);
       y=addPdfWrappedText(pdf,'Ganador: '+(r.finished&&winners.length===1?winners[0].name:'Sin ganador unico confirmado'),y,{size:12,bold:true,space:4});
-      y=addPdfWrappedText(pdf,'CLASIFICACION',y,{size:12,bold:true});
+      y=addPdfWrappedText(pdf,'Modo de simulación: '+(SIMULATION_OPTIONS.find(x=>x[0]===autoSetup.simulationMode)?.[1]||'Balance'),y,{size:10,bold:true});
+       for(const msg of autoEvolutionHistory)y=addPdfWrappedText(pdf,msg,y,{size:8,space:2});
+       y=addPdfWrappedText(pdf,'CLASIFICACION',y,{size:12,bold:true});
       for(const [i,p] of r.players.entries())y=addPdfWrappedText(pdf,(i+1)+'. '+p.participantId+' '+p.name+' | Asiento '+p.seat+' | '+p.chips+' fichas | IA '+({beginner:'Principiante',intermediate:'Intermedio',expert:'Experto'}[p.difficulty]||p.difficulty)+' | Estilo '+p.style+' | Power '+p.powerHand+' | Poker '+p.pokerHand+' | Hyper '+p.activeHyper,y,{size:9,space:2});
       y=addPdfWrappedText(pdf,'Indicadores: '+r.eventsCount+' eventos; '+Object.values(r.effectCounts).reduce((a,b)=>a+b,0)+' resoluciones de efectos registradas.',y,{size:9,space:4});
       y=addPdfWrappedText(pdf,'EFECTOS RESUELTOS (por carta)',y,{size:11,bold:true});
