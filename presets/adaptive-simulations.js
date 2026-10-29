@@ -10,7 +10,7 @@ window.POKER_BLITZ_ADAPTIVE=(function(){
    if(!MODES.includes(mode))throw Error('Modo de simulación no reconocido.');
    if(!Array.isArray(players)||!players.length)throw Error('Faltan participantes.');
    const log=[],origin=new Map(unique(players).map(p=>[p.id,{cardIds:[...(p.cardIds||[])],hyperCardIds:[...(p.hyperCardIds||[])]}]));
-   const changedDecks=new Set(),trainedAi=new Set();
+   const changedDecks=new Set(),evaluatedDecks=new Set(),trainedAi=new Set();
    const frozenDecks=new Set(frozenDeckIds),frozenAis=new Set(frozenAiIds);
    const epoch=Math.max(10,Math.ceil(count/4));
    let newDeck=null,champion=-Infinity,iteration=0;
@@ -47,7 +47,7 @@ window.POKER_BLITZ_ADAPTIVE=(function(){
        const before=copy({cardIds:p.cardIds,hyperCardIds:p.hyperCardIds}),initial=origin.get(p.id)||before;
        const outcome=await lab.improve(p,rivals,catalog,type,{seed:(seed+n*1013+i)>>>0,iterations:2,games:2},
          {...ctx(n*100+i),original:initial});
-       check();
+       check();evaluatedDecks.add(p.id);
        const changed=!equal(before.cardIds,outcome.best.cardIds)||!equal(before.hyperCardIds,outcome.best.hyperCardIds);
        if(changed){
          for(const x of players.filter(x=>x.id===p.id)){x.cardIds=[...outcome.best.cardIds];x.hyperCardIds=[...outcome.best.hyperCardIds];}
@@ -84,7 +84,7 @@ window.POKER_BLITZ_ADAPTIVE=(function(){
      }
    }
    return {
-     mode,players,log,changedDecks,trainedAi,get newDeck(){return newDeck},
+     mode,players,log,changedDecks,evaluatedDecks,trainedAi,get newDeck(){return newDeck},
      async prepare(){
        check();
        if(mode==='NEW_DECK'){
@@ -101,9 +101,9 @@ window.POKER_BLITZ_ADAPTIVE=(function(){
      },
      async afterGame(completed){
        check();
-       if(mode==='DECKS'&&completed<count&&completed%epoch===0)await evolveDecks(++iteration);
+       if(mode==='DECKS'&&((completed<count&&completed%epoch===0)||completed===count))await evolveDecks(++iteration);
        if(mode==='AI'&&count>=50&&completed===Math.floor(count/2))await trainAis(++iteration);
-       if(mode==='NEW_DECK'&&completed<count&&completed%epoch===0)await buildNew(++iteration);
+       if(mode==='NEW_DECK'&&((completed<count&&completed%epoch===0)||completed===count))await buildNew(++iteration);
      }
    };
  }
