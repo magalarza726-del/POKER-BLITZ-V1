@@ -213,6 +213,7 @@ button,input,textarea,select{font:inherit;color:inherit}button{cursor:pointer}bu
 <script src="presets/simulation-engine.js?v=bulk-poker-hyper-unlimited-v7-20261028"></script>
 <script src="presets/deck-lab.js?v=tabletop-counter-responsive-v3-20261028"></script>
 <script src="presets/ai-training.js?v=training-suite-final-20261027"></script>
+<script src="presets/adaptive-simulations.js?v=v1-20261029"></script>
 </head>
 <body>
 <noscript>POKER BLITZ necesita JavaScript activado.</noscript>
@@ -2015,18 +2016,29 @@ function syncAutoSetup(){
     if(autoBusy)return;syncAutoSetup();
     const available=availableTestDecks(),players=Array.from({length:autoSetup.playerCount},(_,i)=>{
       const d=available.find(x=>x.id===autoSetup.deckIds[i])||available[0];
-      return d?{...d,participantId:'P'+(i+1),cardIds:[...d.cardIds],difficulty:'expert'}:null;
+      return d?{...structuredClone(d),participantId:'P'+(i+1),difficulty:'expert'}:null;
     });
     if(players.some(p=>!p)){toast('No hay suficientes decks disponibles.');return}
     let chosenSeed;try{chosenSeed=parseSeed(autoSetup.seedInput)}catch(err){toast(String(err.message||err));return}
     const count=autoSetup.gamesCount;
-    autoCancel={cancelled:false};autoResult=null;autoBatchResults=[];autoBusy=true;
+    autoCancel={cancelled:false};autoResult=null;autoBatchResults=[];autoEvolutionHistory=[];autoBusy=true;
     autoStatus={round:1,maxRounds:40,events:0,game:1,totalGames:count,completedGames:0};
     go('autoRunning');
     await new Promise(resolve=>setTimeout(resolve,0));
     try{
       const engine=makeAutoEngine();
       const baseSeed=chosenSeed??generateSeed();autoSetup.seed=baseSeed;
+      if(!window.POKER_BLITZ_ADAPTIVE)throw Error('No se cargó el módulo adaptativo.');
+      const mode=autoSetup.simulationMode;
+      const adaptive=window.POKER_BLITZ_ADAPTIVE.makeSession({
+        mode,players,count,seed:baseSeed,
+        frozenDeckIds:[...autoSetup.frozenDeckIds],frozenAiIds:[...autoSetup.frozenAiIds],
+        newDeckStyle:autoSetup.newDeckStyle,lab:window.POKER_BLITZ_DECK_LAB,
+        trainer:window.POKER_BLITZ_TRAINING,engine,catalog:state.cards.filter(card=>officialCardIds.has(card.id)),
+        type:id=>cardType(getCard(id)),getCard,cancel:autoCancel,
+        onEvent:line=>{autoEvolutionHistory.push(line);if(screen==='autoRunning')render();}
+      });
+      await adaptive.prepare();
       for(let i=0;i<count;i++){
         if(autoCancel.cancelled)break;
         const seed=(baseSeed+Math.imul(i,0x9e3779b9))>>>0;
@@ -2036,15 +2048,35 @@ function syncAutoSetup(){
           autoStatus={...status,game:i+1,totalGames:count,completedGames:i,rotation};
           if(screen==='autoRunning'&&(status.finished||status.round%3===0))render();
         });
-        result.baseSeed=baseSeed;result.gameNumber=i+1;result.rotation=rotation;result.seatOrder=seatedPlayers.map(p=>p.participantId);
+        result.baseSeed=baseSeed;result.gameNumber=i+1;result.rotation=rotation;result.seatOrder=seatedPlayers.map(p=>p.participantId);result.simulationMode=mode;
         autoBatchResults.push(result);autoResult=result;
         autoStatus.completedGames=i+1;render();
-        if(result.cancelled)break;
+        if(result.cancelled||autoCancel.cancelled)break;
+        await adaptive.afterGame(i+1);
       }
-      autoBusy=false;autoStatus.finished=true;render();
+      if(!autoCancel.cancelled&&autoBatchResults.length===count){
+        const unique=[...new Map(players.map(p=>[p.id,p])).values()];
+        if(mode==='DECKS')for(const p of unique.filter(x=>adaptive.changedDecks.has(x.id))){
+          const live=getDeck(p.id);if(!live||!deckIsLegal(p))continue;
+          live.cardIds=[...p.cardIds];live.hyperCardIds=[...p.hyperCardIds];
+          live.optimizationOrigin??=structuredClone(p.optimizationOrigin||{cardIds:p.cardIds,hyperCardIds:p.hyperCardIds});
+          live.versionHistory=[...(live.versionHistory||[]),...(p.versionHistory||[])].slice(-180);
+        }
+        if(mode==='AI')for(const p of unique.filter(x=>adaptive.trainedAi.has(x.id))){
+          const live=getDeck(p.id);if(!live||window.POKER_BLITZ_TRAINING.fingerprint(live)!==window.POKER_BLITZ_TRAINING.fingerprint(p))continue;
+          live.aiTrainingHistory??=[];if(live.aiTraining)live.aiTrainingHistory.push(live.aiTraining);
+          live.aiTraining=structuredClone(p.aiTraining);live.aiTrainingHistory=live.aiTrainingHistory.slice(-8);
+        }
+        if(mode==='NEW_DECK'&&adaptive.newDeck&&deckIsLegal(adaptive.newDeck)){
+          const fresh=structuredClone(adaptive.newDeck);delete fresh.participantId;delete fresh.difficulty;
+          state.decks.push(fresh);autoEvolutionHistory.push('Nuevo Deck guardado en Mis Decks: '+fresh.name);
+        }
+        if(mode!=='BALANCE'&&!saveState())autoEvolutionHistory.push('No se pudo guardar la evolución: exporta tu JSON.');
+      }
+      autoBusy=false;autoStatus.finished=!autoCancel.cancelled;render();
       if(autoResult&&!autoCancel.cancelled)toast('Simulación terminada. Pulsa Descargar PDF o Resumen para preparar el archivo.');
     }catch(err){
-      console.error('Simulacion automatica',err);autoBusy=false;autoStatus.error=String(err);
+      if(!err?.cancelled)console.error('Simulacion automatica',err);autoBusy=false;autoStatus.error=String(err);
       render();toast('No se pudo completar la simulacion: '+String(err.message||err));
     }
   }
