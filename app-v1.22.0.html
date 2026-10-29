@@ -1362,7 +1362,8 @@ ${characterDialogueHTML(d,'','deck-row-dialogue')}</div><button class="icon-btn"
   }
 function syncAutoSetup(){
     const decks=availableTestDecks();
-    autoSetup.playerCount=Math.min(10,Math.max(1,Number(autoSetup.playerCount)||2));
+    autoSetup.playerCount=Math.min(10,Math.max(autoSetup.simulationMode==='BALANCE'?1:2,Number(autoSetup.playerCount)||2));
+    if(!SIMULATION_OPTIONS.some(o=>o[0]===autoSetup.simulationMode))autoSetup.simulationMode='BALANCE';
     if(![1,2].includes(Number(autoSetup.pokerDeckCount)))autoSetup.pokerDeckCount=1;
     if(!['BLITZ','RUSH'].includes(autoSetup.battleMode))autoSetup.battleMode='BLITZ';
     autoSetup.gamesCount=Math.min(1000,Math.max(1,Math.trunc(Number(autoSetup.gamesCount)||1)));
@@ -1377,14 +1378,18 @@ function syncAutoSetup(){
   function generateSeed(){const bytes=new Uint32Array(1);if(typeof crypto!=='undefined'&&crypto.getRandomValues)crypto.getRandomValues(bytes);else bytes[0]=Date.now()>>>0;return bytes[0]>>>0;}
   function makeSeededRandom(seed){let state=(seed>>>0)||123456789;return {next:()=>{state^=state<<13;state^=state>>>17;state^=state<<5;return (state>>>0)/4294967296;},getState:()=>state>>>0,setState:n=>{state=n|0;}};}
   function renderAutoSetup(){
-    syncAutoSetup();const decks=availableTestDecks(),incomplete=state.decks.filter(d=>!deckIsLegal(d));
+    syncAutoSetup();const decks=availableTestDecks(),incomplete=state.decks.filter(d=>!deckIsLegal(d)),mode=autoSetup.simulationMode,frozen=mode==='DECKS'?autoSetup.frozenDeckIds:autoSetup.frozenAiIds;
     return `<main class="app-shell">${appBar('Simulación automática',{back:true})}
       <section class="test-setup-wrap" style="max-width:1040px;margin:0 auto;overflow-y:auto;padding-bottom:30px">
-        <div class="panel test-setup-card"><h2>Configurar partida de IA</h2>
+        <div class="panel test-setup-card"><h2>Configurar simulación</h2>
+          <label for="auto-mode" style="display:block;font-weight:800;margin:8px 0">Tipo de simulación</label>
+          <select id="auto-mode">${SIMULATION_OPTIONS.map(([key,title])=>`<option value="${key}" ${mode===key?'selected':''}>${title}</option>`).join('')}</select>
+          <p class="small muted">${SIMULATION_OPTIONS.find(item=>item[0]===mode)?.[2]||''}</p>
+          ${mode==='NEW_DECK'?'<p class="small muted">J1 comienza como proyecto vacío. El generador debe construir un deck legal antes de su primera partida; el resto permanece como rivales.</p>':''}
           <p class="small muted">Las partidas se juegan sin intervención. Hasta 50 partidas se conservan los eventos completos; los lotes mayores presentan estadísticas resumidas para controlar la memoria.</p>${incomplete.length?`<p class="small" style="color:#a34c00">${incomplete.length} decks incompletos no participan en la simulación. Puedes completarlos manualmente.</p>`:''}
           <label for="auto-games-count" style="display:block;margin:12px 0 5px;font-weight:bold">Número de partidas (1–1000)</label>
           <input id="auto-games-count" type="number" inputmode="numeric" min="1" max="1000" step="1" value="${autoSetup.gamesCount}" style="width:160px;max-width:100%;padding:10px;border:1px solid #9ca3af;border-radius:8px" aria-describedby="auto-games-hint">
-          <p id="auto-games-hint" class="small muted">Los jugadores utilizan la misma IA experta y los decks permanecen fijos. Los asientos rotan en cada partida y cada encuentro recibe una semilla reproducible diferente.</p>
+          <p id="auto-games-hint" class="small muted">El contador llega a 1000 partidas principales. Los motores de aprendizaje pueden jugar partidas adicionales de evaluación. Rotamos los asientos y usamos semillas reproducibles.</p>
           ${seedEditorHTML('auto-seed-input',autoSetup.seedInput,'auto')}
           <p class="small muted">Para comparar resultados por jugador se usa su identidad original, aunque cambie su posición en la mesa. Hasta 1000 partidas. Los lotes grandes guardan un registro resumido para ahorrar memoria.</p>
           <h3>Jugadores</h3><div class="test-setup-count">${Array.from({length:10},(_,i)=>i+1).map(n=>`<button class="${autoSetup.playerCount===n?'active':''}" data-action="auto-players" data-value="${n}">${n}</button>`).join('')}</div>
@@ -1392,11 +1397,16 @@ function syncAutoSetup(){
           <h3 style="margin:12px 0 4px">Barajas de póker</h3><div class="test-poker-options">${[1,2].map(n=>`<button class="test-poker-option ${autoSetup.pokerDeckCount===n?'active':''}" data-action="auto-poker-decks" data-value="${n}">${n} baraja${n===1?'':'s'} · ${52*n} cartas</button>`).join('')}</div>
         </div>
         <p class="small muted" style="margin:10px 0">Decks seleccionables: <strong>${decks.length}</strong> · Catálogo oficial: <strong>${(window.POKER_BLITZ_DEFAULT_DECKS||[]).length}/11</strong>. ${officialPresetCatalogReady()?'':'Catálogo incompleto: actualiza la página.'}</p>${missingPresetDecks().length?`<button type="button" class="btn" data-action="restore-missing-decks" style="margin-bottom:12px">Recuperar ${missingPresetDecks().length} decks predeterminados faltantes</button>`:''}
+        ${mode==='NEW_DECK'?`<div class="panel test-setup-card"><label for="auto-new-style">Estilo del nuevo deck</label>
+            <select id="auto-new-style">${[['equilibrado','Equilibrado'],['agresivo','Agresivo'],['defensivo','Defensivo'],['combinaciones','Combinaciones'],['economia','Economía'],['control','Control'],['azar','Dados y azar']].map(([key,title])=>`<option value="${key}" ${autoSetup.newDeckStyle===key?'selected':''}>${title}</option>`).join('')}</select></div>`:''}
         <div class="test-setup-players">${Array.from({length:autoSetup.playerCount},(_,i)=>{
           const chosen=decks.find(d=>d.id===autoSetup.deckIds[i])||decks[0];
           return `<div class="panel test-setup-player"><div class="test-setup-player-head">${chosen?deckCharacterHTML(chosen,'deck-row-avatar'):''}<div><strong>Jugador ${i+1}</strong><div class="small muted">Deck individual · IA experta · política del Deck</div></div></div>
-            <label for="auto-deck-${i}">Deck</label><select id="auto-deck-${i}" data-auto-deck="${i}">${decks.map(d=>`<option value="${esc(d.id)}" ${chosen?.id===d.id?'selected':''}>${esc(d.name)} (${d.cardIds.length})</option>`).join('')}</select>
-            <p class="small muted"><strong>IA:</strong> Experto · usa el entrenamiento guardado si corresponde a esta versión.</p>
+            ${mode==='NEW_DECK'&&i===0?'<p><strong>J1 · Nuevo Deck en blanco</strong><br>Se construye legalmente antes de participar.</p>':`<label for="auto-deck-${i}">Deck</label><select id="auto-deck-${i}" data-auto-deck="${i}">${decks.map(d=>`<option value="${esc(d.id)}" ${chosen?.id===d.id?'selected':''}>${esc(d.name)} (${d.cardIds.length})</option>`).join('')}</select>`}
+            ${['DECKS','AI'].includes(mode)?`<label class="pb-freeze-option">
+              <input type="checkbox" data-auto-freeze="${mode}" data-id="${chosen?.id||''}" ${chosen&&frozen.includes(chosen.id)?'checked':''}>
+              <span>Congelar ${mode==='DECKS'?'deck':'IA'} (no modificar)</span></label>`:''}
+            <p class="small muted"><strong>IA:</strong> Experto; emplea su política entrenada si está vigente.</p>
           </div>`;
         }).join('')}</div>
         <div class="panel test-setup-card">
@@ -1411,6 +1421,8 @@ function syncAutoSetup(){
     return `<main class="app-shell">${appBar('Simulación',{back:false})}
       <section class="test-setup-wrap" style="max-width:680px;margin:6vh auto">
         <div class="panel test-setup-card"><h2>${autoBusy?'Simulación en curso':autoResult?'Simulación terminada':'Simulación'}</h2>
+        <p class="small muted"><b>${SIMULATION_OPTIONS.find(x=>x[0]===autoSetup.simulationMode)?.[1]||'Simulación de balance'}</b> · ${autoEvolutionHistory.length} registros de evolución</p>
+        ${autoEvolutionHistory.length?`<details ${autoBusy?'':'open'}><summary>Historial de evolución</summary><div class="pb-evolution-log">${autoEvolutionHistory.slice(-20).map(x=>`<p>${esc(x)}</p>`).join('')}</div></details>`:''}
         <p class="small muted">${autoBusy?`Partida ${s.game||1} de ${s.totalGames||1} · Rotación ${(s.rotation||0)+1} · Ronda ${s.round||1} · Eventos en esta partida: ${s.events||0}`:autoResult?`${autoBatchResults.length} partida(s) procesada(s). Descarga el PDF consolidado con la clasificación, las incidencias y los eventos.`:'No hay ninguna partida en ejecución.'}</p>
         ${autoBusy?`<div style="height:10px;background:#e5e7eb;border-radius:7px;overflow:hidden"><div style="height:100%;background:var(--cyan);width:${Math.min(100,100*((s.completedGames||0)+(s.round||0)/(s.maxRounds||40))/(s.totalGames||1))}%"></div></div><p class="small muted">El análisis se ejecuta localmente. No cierres esta pantalla si deseas conservar el resultado.</p>
         <button class="btn" data-action="auto-cancel">Cancelar</button>`:autoResult?`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-action="auto-download" ${autoPdfBusy?'disabled':''}>${autoPdfBusy?'Comprimiendo PDF…':'Preparar PDF completo'}</button>${autoBatchResults.length>1?`<button class="btn" data-action="auto-summary-download" ${autoPdfBusy?'disabled':''}>Preparar resumen ligero</button>`:''}<button class="btn" data-action="auto-home">Volver al inicio</button></div><p class="small muted" style="margin-top:10px">El PDF se comprime antes de exportar. En el celular, después de prepararlo, pulsa Descargar o Compartir en la ventana que aparece.</p>`:`<button class="btn" data-action="auto-home">Inicio</button>`}
@@ -1717,7 +1729,14 @@ function syncAutoSetup(){
   }
   function bindInputs(){
     $('#blitz-note')?.addEventListener('input',e=>{if(dialoguePlayback)return;if(sim?.decks?.length){const id=sim.decks[sim.activeIndex].id;sim.states[id].notes=e.target.value;}});
-    $$('[data-auto-deck]').forEach(el=>el.addEventListener('change',()=>{autoSetup.deckIds[Number(el.dataset.autoDeck)]=el.value}));
+    $('[data-auto-deck]').forEach(el=>el.addEventListener('change',()=>{autoSetup.deckIds[Number(el.dataset.autoDeck)]=el.value;render();}));
+    $('#auto-mode')?.addEventListener('change',e=>{autoSetup.simulationMode=e.target.value;syncAutoSetup();render();});
+    $('#auto-new-style')?.addEventListener('change',e=>{autoSetup.newDeckStyle=e.target.value;});
+    $('[data-auto-freeze]').forEach(el=>el.addEventListener('change',()=>{
+      const group=el.dataset.autoFreeze==='DECKS'?'frozenDeckIds':'frozenAiIds',set=new Set(autoSetup[group]||[]);
+      if(el.checked)set.add(el.dataset.id);else set.delete(el.dataset.id);
+      autoSetup[group]=[...set];
+    }));
     $('#training-deck')?.addEventListener('change',e=>{trainingSettings.deckId=e.target.value;trainingResult=null;render();});
     $('#training-iterations')?.addEventListener('input',e=>{const n=Number(e.target.value);if(Number.isInteger(n)&&n>=1&&n<=200)trainingSettings.iterations=n;});
     $('#training-iterations')?.addEventListener('change',e=>{trainingSettings.iterations=Math.max(1,Math.min(200,Math.trunc(Number(e.target.value)||12)));e.target.value=trainingSettings.iterations;});
