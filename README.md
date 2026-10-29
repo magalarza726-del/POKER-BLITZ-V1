@@ -1,3 +1,16 @@
+### Interfaz simplificada y simulación evolutiva — V1.22.0 (29/10/2026)
+- Nueva portada: **izquierda** carrusel de las cuatro portadas aportadas (tres recortadas de la imagen triple y una portada de equipo), guardadas como WebP independientes en `assets/cover-blitz-*.webp`. En escritorio se muestran tres a la vez y una sale por la izquierda cada **10 segundos** (con transición lateral de **1 segundo**); las demás entran por la derecha. En móvil se adapta a una portada visible.
+- A la **derecha** hay exactamente cuatro accesos: **Jugar** (Prueba Manual Completa directamente), **Decks** (creación manual, perfiles y Deck Catálogo), **Extras** (reglamento y configuración) y **Desarrollador** (historial, importar/exportar y simulación). Prueba Manual Sencilla y Prueba Asistida ya no son opciones del menú.
+- **Deck Catálogo**: una copia visual de cada carta oficial y botones +/- por carta. Se respetan 1 HyperCard de cada tipo, hasta 3 Super/Counter y tamaño oficial del Power Deck **20+2H a 30+2H**. Decks e ilustraciones guardados permanecen intactos.
+- En **Desarrollador → Simulación** hay cuatro opciones desplegables, con hasta 1000 partidas principales, semillas y asientos rotativos:
+  - **Balance**: los decks y las IAs no cambian.
+  - **Decks**: cada deck no congelado participa en mejoras y conserva al menos 70% de su composición original; hay casillas para congelar decks concretos y se guardan los ensayos de versiones.
+  - **IA**: se entrena cada IA no congelada con el módulo existente y se conservan políticas previas cuando la validación no verifica una mejora.
+  - **Nuevo Deck**: J1 se inicia con un proyecto vacío; antes de su primera partida se crea una composición legal y se reevalúan nuevas variantes entre tandas; la versión resultante se guarda en Mis Decks al completar las partidas.
+- Los cuatro modos reutilizan el motor de efectos y la generación de resultados/PDF. Los modos evolutivos pueden realizar partidas extra de evaluación además del contador principal. La simulación cancelada no sobrescribe versiones guardadas.
+- Prueba de estructura: `node android/tools/check_main_redesign.js`. Se verificaron además partidas de balance, evolución de Decks, entrenamiento de IA con participante congelado, y Nuevo Deck con el motor real. Los resultados no garantizan optimización perfecta.
+- Página principal publicada: `app-v1.22.0.html` (archivo `index.html` actualizado). Las URLs anteriores apuntan a esta versión para evitar hojas de inicio obsoletas.
+
 ### Fondos personalizados para la mesa de pruebas — V1.21.2 (29/10/2026)
 - En **Configuración → Fondo de la mesa en pruebas**, se puede elegir entre las cinco texturas proporcionadas: **Verde** (predeterminado), Negro, Rojo, Azul y Morado.
 - El ajuste se guarda en `state.testBackground` mediante `localStorage`, permanece entre sesiones y se incluye en importaciones/exportaciones JSON.
