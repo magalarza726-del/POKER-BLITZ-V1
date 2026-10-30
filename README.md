@@ -1,3 +1,11 @@
+### Ajuste de inicio: portada más estrecha y menú amplio — V1.22.3 (29/10/2026)
+- La pantalla principal usa aproximadamente **41 % izquierda / 59 % derecha**, priorizando los cuatro botones del menú.
+- El carrusel muestra **una sola portada**, con un ancho máximo de **460 px** y `object-fit: contain` centrado para que se vea completa y sin deformación.
+- El menú crece hasta **720 px** de ancho útil, con botones más altos, mayor espaciado y textos secundarios de 14 px.
+- En ventanas de hasta 1050 px se presenta el diseño responsivo apilado para evitar controles comprimidos.
+- Se mantienen el cambio de portada cada **10 segundos**, la transición de **1 segundo**, las imágenes originales y el resto de funciones.
+- Versión nueva: `app-v1.22.3.html`; acceso principal y marcador anterior actualizados. Regresión: `node android/tools/check_main_layout.js`.
+
 ### Corrección de portadas — V1.22.1 (29/10/2026)
 - Se sustituyeron las cuatro imágenes minúsculas de **112 px de ancho** por recortes de la obra original aportada: Cian **598×845**, Dorado **597×845**, Magenta **627×845** y Equipo **1024×1536**. Se guardaron en WebP de alta calidad sin volver a inventar ni redibujar las ilustraciones.
 - El carrusel ahora muestra **una sola portada por vez** en cualquier ancho de pantalla. Cada portada permanece **10 s** y se desplaza hacia la izquierda durante **1 s** mientras la siguiente entra por la derecha. Una quinta diapositiva (copia de la primera) permite repetir el ciclo sin salto visual.
