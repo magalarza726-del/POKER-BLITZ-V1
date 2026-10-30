@@ -1,3 +1,10 @@
+### Corrección de portadas — V1.22.1 (29/10/2026)
+- Se sustituyeron las cuatro imágenes minúsculas de **112 px de ancho** por recortes de la obra original aportada: Cian **598×845**, Dorado **597×845**, Magenta **627×845** y Equipo **1024×1536**. Se guardaron en WebP de alta calidad sin volver a inventar ni redibujar las ilustraciones.
+- El carrusel ahora muestra **una sola portada por vez** en cualquier ancho de pantalla. Cada portada permanece **10 s** y se desplaza hacia la izquierda durante **1 s** mientras la siguiente entra por la derecha. Una quinta diapositiva (copia de la primera) permite repetir el ciclo sin salto visual.
+- Las imágenes utilizan `object-fit:contain` para conservar la ilustración completa y el tamaño original. Se actualizaron versiones de caché de HTML, CSS y portadas.
+- La página principal (`index.html`) y los enlaces directos a la versión 1.22.0 llevan a **app-v1.22.1.html**.
+- Prueba de regresión: `node android/tools/check_cover_carousel_hq.js`.
+
 ### Interfaz simplificada y simulación evolutiva — V1.22.0 (29/10/2026)
 - Nueva portada: **izquierda** carrusel de las cuatro portadas aportadas (tres recortadas de la imagen triple y una portada de equipo), guardadas como WebP independientes en `assets/cover-blitz-*.webp`. En escritorio se muestran tres a la vez y una sale por la izquierda cada **10 segundos** (con transición lateral de **1 segundo**); las demás entran por la derecha. En móvil se adapta a una portada visible.
 - A la **derecha** hay exactamente cuatro accesos: **Jugar** (Prueba Manual Completa directamente), **Decks** (creación manual, perfiles y Deck Catálogo), **Extras** (reglamento y configuración) y **Desarrollador** (historial, importar/exportar y simulación). Prueba Manual Sencilla y Prueba Asistida ya no son opciones del menú.
