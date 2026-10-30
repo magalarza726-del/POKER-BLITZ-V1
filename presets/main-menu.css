@@ -1,8 +1,9 @@
+/* V1.22.3: narrower complete single poster + wider, more comfortable menu (desktop 41/59 split). */
 /* V1.22.2: reserve viewport space for heading/caption and pin poster content to top. */
 /* One-at-a-time original-resolution poster carousel: 10 s stay + 1 s slide, 4 covers and first clone. */
 /* Poker Blitz 1.22.0 · menú de portadas, catálogo y simulaciones. */
 .pb-new-home {
-  display:grid;grid-template-columns:minmax(0,1.14fr) minmax(360px,.86fr);
+  display:grid;grid-template-columns:minmax(0,.82fr) minmax(520px,1.18fr);
   min-height:100dvh;overflow:hidden;background:#06101b;color:#fff;
   font-family:Inter,ui-sans-serif,system-ui,sans-serif;
 }
@@ -15,14 +16,14 @@
 .pb-home-heading strong {color:#11d6f1;}
 .pb-home-heading small{font-size:12px;font-weight:700;color:#a6ddf2;letter-spacing:.7px;margin-left:auto;}
 .pb-cover-window {
-  width:min(100%,570px);height:auto;flex:1 1 0;min-height:0;margin-inline:auto;
+  width:min(100%,460px);height:auto;flex:1 1 0;min-height:0;margin-inline:auto;
   overflow:hidden;border:2px solid #16466b;border-radius:16px;
   box-shadow:0 14px 40px #0009;position:relative;
 }
 .pb-cover-track {display:flex;height:100%;width:500%;
   animation:pb-slide-cycle 44s linear infinite;will-change:transform;}
-.pb-cover-frame {flex:0 0 20%;height:100%;padding:0;margin:0;min-width:0;display:grid;place-items:start center;background:#020b18;}
-.pb-cover-frame img {display:block;width:100%;height:100%;object-fit:contain;object-position:center top;
+.pb-cover-frame {flex:0 0 20%;height:100%;padding:0;margin:0;min-width:0;display:grid;place-items:center;background:#020b18;}
+.pb-cover-frame img {display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;object-position:center center;
   border:0;border-radius:8px;background:#020813;image-rendering:auto;}
 .pb-carousel-caption {font-size:11px;color:#a0bacc;text-align:right;margin:0;}
 @keyframes pb-slide-cycle {
@@ -35,17 +36,17 @@
 }
 .pb-menu-pane {display:flex;align-items:center;justify-content:center;
  background:linear-gradient(140deg,#061120 10%,#102b40 55%,#030b14 100%);
- border-left:2px solid #1276a4;padding:32px clamp(18px,3.4vw,70px);}
-.pb-menu-inner {width:min(100%,510px);}
+ border-left:2px solid #1276a4;padding:clamp(20px,3.2dvh,40px) clamp(26px,3.3vw,74px);}
+.pb-menu-inner {width:min(100%,720px);}
 .pb-menu-eyebrow {letter-spacing:3px;color:#76cced;font-size:11px;font-weight:800;}
 .pb-menu-inner h1 {font:1000 clamp(38px,4vw,72px)/1.05 Arial,sans-serif;letter-spacing:-3px;margin:8px 0 32px;color:#fff;text-shadow:0 3px 12px #0008;}
 .pb-menu-inner h1 span {color:#0cd8f6;}
 .pb-home-actions {display:flex;flex-direction:column;gap:13px;}
 .pb-home-actions button {
- display:grid;grid-template-columns:36px minmax(0,1fr) 24px;align-items:center;
- gap:12px;width:100%;border:1px solid #2998b9;border-radius:14px;
+ display:grid;grid-template-columns:44px minmax(0,1fr) 28px;align-items:center;
+ gap:16px;width:100%;border:1px solid #2998b9;border-radius:16px;
  background:linear-gradient(95deg,rgba(12,52,80,.96),rgba(5,21,40,.94));color:#fff;
- text-align:left;padding:19px 17px;cursor:pointer;min-height:87px;
+ text-align:left;padding:clamp(14px,2.2dvh,24px) 22px;cursor:pointer;min-height:clamp(88px,11.6dvh,112px);
  box-shadow:inset 0 1px #a6e9ff35,0 6px 15px #0004;
  transition:background .15s ease,border-color .15s ease,transform .15s ease;
 }
@@ -54,8 +55,8 @@
  outline:1px solid #54d7ee;outline-offset:1px;
 }
 .pb-menu-num {font:bold 13px Arial,sans-serif;color:#72d6eb;}
-.pb-home-actions b {font:900 24px Arial,sans-serif;display:block;margin-bottom:5px;}
-.pb-home-actions small {display:block;color:#b5d3e2;font-size:12px;line-height:1.4;}
+.pb-home-actions b {font:900 clamp(23px,2vw,28px) Arial,sans-serif;display:block;margin-bottom:7px;}
+.pb-home-actions small {display:block;color:#b5d3e2;font-size:14px;line-height:1.45;}
 .pb-menu-arrow {font-size:31px;color:#52d6e7;}
 .pb-home-foot {color:#7695a8;font-size:12px;letter-spacing:1.5px;margin-top:27px;}
 .pb-deck-hub-top {display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
@@ -102,14 +103,14 @@
 .pb-evolution-log {max-height:180px;overflow:auto;padding:6px 10px;background:#f0f8fa;border-radius:6px;}
 .pb-evolution-log p{font-size:12px;margin:6px 0;}
 @media(max-width:1150px){.pb-catalog-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
-@media(max-width:950px){
+@media(max-width:1050px){
  .pb-new-home{grid-template-columns:1fr;overflow:visible;}
   .pb-cover-pane{height:auto;min-height:0;padding:12px;}
  .pb-cover-window{height:min(55dvh,450px);flex:0 0 auto;min-height:250px;}
  .pb-menu-pane{border-left:0;border-top:2px solid #1276a4;padding:26px 18px;}
  .pb-menu-inner h1{margin-bottom:22px;}
  .pb-home-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
- .pb-home-actions button{min-height:105px;}
+ .pb-home-actions button{min-height:100px;}
  .pb-my-decks{grid-template-columns:1fr;}
 }
 @media(max-width:620px){
