@@ -1,4 +1,4 @@
-/* V1.22.3: narrower complete single poster + wider, more comfortable menu (desktop 41/59 split). */
+/* V1.22.4: fullscreen-height cover space, no surrounding copy, preserve poster width and aspect ratio. */
 /* V1.22.2: reserve viewport space for heading/caption and pin poster content to top. */
 /* One-at-a-time original-resolution poster carousel: 10 s stay + 1 s slide, 4 covers and first clone. */
 /* Poker Blitz 1.22.0 · menú de portadas, catálogo y simulaciones. */
@@ -8,15 +8,13 @@
   font-family:Inter,ui-sans-serif,system-ui,sans-serif;
 }
 .pb-cover-pane {
-  min-width:0;height:100dvh;min-height:0;display:flex;flex-direction:column;
+  box-sizing:border-box;min-width:0;height:100dvh;min-height:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;overflow:hidden;
   background:radial-gradient(circle at 60% 40%,#173c61 0%,#08172c 50%,#030811 100%);
-  padding:clamp(12px,2vw,26px);gap:12px;
+  padding:clamp(6px,1dvh,12px) 12px;gap:0;
 }
-.pb-home-heading {display:flex;gap:5px;align-items:baseline;flex-wrap:wrap;font-size:clamp(23px,2.2vw,35px);font-weight:1000;letter-spacing:-1px;}
-.pb-home-heading strong {color:#11d6f1;}
-.pb-home-heading small{font-size:12px;font-weight:700;color:#a6ddf2;letter-spacing:.7px;margin-left:auto;}
 .pb-cover-window {
-  width:min(100%,460px);height:auto;flex:1 1 0;min-height:0;margin-inline:auto;
+  box-sizing:border-box;width:min(100%,460px);height:100%;flex:1 1 0;min-height:0;max-height:100%;margin-inline:auto;
   overflow:hidden;border:2px solid #16466b;border-radius:16px;
   box-shadow:0 14px 40px #0009;position:relative;
 }
@@ -25,7 +23,6 @@
 .pb-cover-frame {flex:0 0 20%;height:100%;padding:0;margin:0;min-width:0;display:grid;place-items:center;background:#020b18;}
 .pb-cover-frame img {display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;object-position:center center;
   border:0;border-radius:8px;background:#020813;image-rendering:auto;}
-.pb-carousel-caption {font-size:11px;color:#a0bacc;text-align:right;margin:0;}
 @keyframes pb-slide-cycle {
   /* Cada portada permanece 10 s; después desliza durante 1 s. */
   0%,22.72727%{transform:translateX(0);}
@@ -105,8 +102,8 @@
 @media(max-width:1150px){.pb-catalog-grid{grid-template-columns:repeat(4,minmax(0,1fr));}}
 @media(max-width:1050px){
  .pb-new-home{grid-template-columns:1fr;overflow:visible;}
-  .pb-cover-pane{height:auto;min-height:0;padding:12px;}
- .pb-cover-window{height:min(55dvh,450px);flex:0 0 auto;min-height:250px;}
+  .pb-cover-pane{height:auto;min-height:0;padding:12px;overflow:visible;}
+ .pb-cover-window{height:min(88dvh,800px);max-height:none;flex:0 0 auto;min-height:300px;}
  .pb-menu-pane{border-left:0;border-top:2px solid #1276a4;padding:26px 18px;}
  .pb-menu-inner h1{margin-bottom:22px;}
  .pb-home-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
@@ -117,7 +114,7 @@
  .pb-home-actions{grid-template-columns:1fr;}
  .pb-home-actions button{min-height:70px;padding:13px;}
  .pb-home-actions b{font-size:21px;}
- .pb-cover-window{height:340px;flex:0 0 auto;min-height:240px;}
+ .pb-cover-window{height:min(84dvh,700px);max-height:none;flex:0 0 auto;min-height:250px;}
  .pb-cover-track{width:500%;}
  .pb-catalog-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
  .pb-submenu-actions{grid-template-columns:1fr;}
