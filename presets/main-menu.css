@@ -1,7 +1,4 @@
-/* V1.22.4: fullscreen-height cover space, no surrounding copy, preserve poster width and aspect ratio. */
-/* V1.22.2: reserve viewport space for heading/caption and pin poster content to top. */
-/* One-at-a-time original-resolution poster carousel: 10 s stay + 1 s slide, 4 covers and first clone. */
-/* Poker Blitz 1.22.0 · menú de portadas, catálogo y simulaciones. */
+/* V1.22.5: one permanent original portrait; no carousel. */
 .pb-new-home {
   display:grid;grid-template-columns:minmax(0,.82fr) minmax(520px,1.18fr);
   min-height:100dvh;overflow:hidden;background:#06101b;color:#fff;
@@ -18,18 +15,17 @@
   overflow:hidden;border:2px solid #16466b;border-radius:16px;
   box-shadow:0 14px 40px #0009;position:relative;
 }
-.pb-cover-track {display:flex;height:100%;width:500%;
-  animation:pb-slide-cycle 44s linear infinite;will-change:transform;}
-.pb-cover-frame {flex:0 0 20%;height:100%;padding:0;margin:0;min-width:0;display:grid;place-items:center;background:#020b18;}
-.pb-cover-frame img {display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;object-position:center center;
-  border:0;border-radius:8px;background:#020813;image-rendering:auto;}
-@keyframes pb-slide-cycle {
-  /* Cada portada permanece 10 s; después desliza durante 1 s. */
-  0%,22.72727%{transform:translateX(0);}
-  25%,47.72727%{transform:translateX(-20%);}
-  50%,72.72727%{transform:translateX(-40%);}
-  75%,97.72727%{transform:translateX(-60%);}
-  100%{transform:translateX(-80%);}
+.pb-static-cover {
+  display:block;
+  width:100%;
+  height:100%;
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+  object-position:center center;
+  border:0;
+  border-radius:12px;
+  background:#020813;
 }
 .pb-menu-pane {display:flex;align-items:center;justify-content:center;
  background:linear-gradient(140deg,#061120 10%,#102b40 55%,#030b14 100%);
@@ -115,7 +111,6 @@
  .pb-home-actions button{min-height:70px;padding:13px;}
  .pb-home-actions b{font-size:21px;}
  .pb-cover-window{height:min(84dvh,700px);max-height:none;flex:0 0 auto;min-height:250px;}
- .pb-cover-track{width:500%;}
  .pb-catalog-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
  .pb-submenu-actions{grid-template-columns:1fr;}
  .pb-deck-card{grid-template-columns:65px minmax(0,1fr);padding:10px;}
@@ -123,6 +118,5 @@
  .pb-deck-card-actions .btn{font-size:11px;padding:7px;}
 }
 @media(prefers-reduced-motion:reduce){
- .pb-cover-track{animation:none;}
  .pb-home-actions button{transition:none;}
 }
